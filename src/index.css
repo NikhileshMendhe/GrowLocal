@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-brand: #138A36;
+    --color-brand-hover: #0F752C;
+    --color-brand-dark: #0B6B2B;
+    --color-brand-light: #EAF7EE;
+    --color-brand-tint: #DDF3E3;
+    --color-text-main: #111111;
+    --color-text-muted: #666666;
+    --color-bg-main: #F7F8F7;
+    --color-border: #E5E7E5;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #F7F8F7;
+    color: #111111;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', 'Inter', sans-serif;
+  }
+}
+
+/* Custom Utilities & Animations */
+.bg-brand {
+  background-color: #138A36;
+}
+
+.bg-brand-light {
+  background-color: #EAF7EE;
+}
+
+.bg-brand-tint {
+  background-color: #DDF3E3;
+}
+
+.text-brand {
+  color: #138A36;
+}
+
+.text-brand-dark {
+  color: #0B6B2B;
+}
+
+.border-brand {
+  border-color: #138A36;
+}
+
+/* Custom Scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Cards & Shadows */
+.card-shadow {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.card-shadow-hover {
+  transition: all 0.2s ease-in-out;
+}
+.card-shadow-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* Pulse animation for active badges */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
