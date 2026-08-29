@@ -8,19 +8,25 @@ import VerifiedBadge from '../components/VerifiedBadge';
 export default function MerchantDashboard({ 
   stats, 
   enquiries, 
-  onNavigateMerchant 
+  onNavigateMerchant,
+  currentUser,
+  merchantProfile 
 }) {
+  const shopName = merchantProfile?.businessName || currentUser?.shopName || currentUser?.name || "Trendy Wear";
+  const ownerName = merchantProfile?.ownerName || currentUser?.name || "Store Manager";
+  const verifStatus = merchantProfile?.verificationStatus || "✓ Registered Merchant";
+
   return (
     <div className="space-y-6 pb-12">
       {/* Top Banner Header */}
       <div className="bg-white border border-[#E5E7E5] rounded-3xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-[#111111] font-poppins">Trendy Wear</h1>
-            <VerifiedBadge text="✓ Verified Merchant" />
+            <h1 className="text-2xl font-extrabold text-[#111111] font-poppins">{shopName}</h1>
+            <VerifiedBadge text={verifStatus} />
           </div>
           <p className="text-xs text-[#666666] mt-1">
-            Men's Clothing Store · Model Town, Butibori, Nagpur · ★ 4.7 (128 Ratings)
+            Owner: <span className="font-bold text-[#111111]">{ownerName}</span> ({currentUser?.email || merchantProfile?.email || "merchant@growlocal.in"}) · Sitabuldi, Nagpur · ★ 4.8
           </p>
         </div>
 

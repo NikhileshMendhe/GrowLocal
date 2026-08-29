@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Search, MapPin, Store, X, LayoutDashboard, Home, Bookmark, MessageSquare, User, Sparkles, Tag, Package, ChevronRight } from 'lucide-react';
+import { Menu, Search, MapPin, Store, X, LayoutDashboard, Home, Bookmark, MessageSquare, User, Sparkles, Tag, Package, ChevronRight, Grid } from 'lucide-react';
 
 export default function MobileHeader({ 
   currentLocation, 
@@ -10,9 +10,20 @@ export default function MobileHeader({
   setActivePlatform,
   activeTab,
   setActiveTab,
-  onOpenDemandModal
+  onOpenDemandModal,
+  onNavigatePath
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleNav = (path, platform, tab, adminTab) => {
+    if (onNavigatePath) {
+      onNavigatePath(path, platform, tab, adminTab);
+    } else {
+      if (typeof window !== 'undefined') window.history.pushState({}, '', path);
+      if (platform) setActivePlatform(platform);
+      if (tab) setActiveTab(tab);
+    }
+  };
 
   return (
     <>
@@ -108,7 +119,7 @@ export default function MobileHeader({
                   </button>
 
                   <button
-                    onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantDashboard"); setDrawerOpen(false); }}
+                    onClick={() => { handleNav('/merchant', 'merchant', 'merchantDashboard'); setDrawerOpen(false); }}
                     className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 ${
                       activePlatform === "merchant" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
                     }`}
@@ -152,11 +163,26 @@ export default function MobileHeader({
                     <span>Home Page</span>
                   </button>
                   <button
-                    onClick={() => { setActiveTab("search"); setDrawerOpen(false); }}
+                    onClick={() => { 
+                      if (typeof window !== 'undefined') window.history.pushState({}, '', '/discover');
+                      setActiveTab("search"); 
+                      setDrawerOpen(false); 
+                    }}
                     className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
                   >
                     <Search className="w-4 h-4 text-[#138A36]" />
                     <span>Discover & Search</span>
+                  </button>
+                  <button
+                    onClick={() => { 
+                      if (typeof window !== 'undefined') window.history.pushState({}, '', '/categories');
+                      setActiveTab("categories"); 
+                      setDrawerOpen(false); 
+                    }}
+                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
+                  >
+                    <Grid className="w-4 h-4 text-[#138A36]" />
+                    <span>Browse Categories</span>
                   </button>
                   <button
                     onClick={() => { setActiveTab("searchResults"); setDrawerOpen(false); }}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Search, Bookmark, MessageSquare, User, Store, LayoutDashboard } from 'lucide-react';
+import { MapPin, Search, Bookmark, MessageSquare, User, Store, LayoutDashboard, ShieldCheck } from 'lucide-react';
 
 export default function Header({ 
   activeTab, 
@@ -10,8 +10,21 @@ export default function Header({
   activePlatform, 
   setActivePlatform,
   savedCount = 0,
-  enquiriesCount = 0
+  enquiriesCount = 0,
+  onNavigatePath
 }) {
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '/';
+
+  const handleNav = (path, platform, tab, adminTab) => {
+    if (onNavigatePath) {
+      onNavigatePath(path, platform, tab, adminTab);
+    } else {
+      if (typeof window !== 'undefined') window.history.pushState({}, '', path);
+      if (platform) setActivePlatform(platform);
+      if (tab) setActiveTab(tab);
+    }
+  };
+
   return (
     <header className="hidden md:block sticky top-0 z-40 bg-white border-b border-[#E5E7E5] shadow-xs">
       {/* Top Banner Bar for Platform Switcher (Desktop only) */}
@@ -27,7 +40,7 @@ export default function Header({
           <div className="flex items-center gap-3">
             <div className="flex bg-white/10 p-0.5 rounded-lg">
               <button
-                onClick={() => setActivePlatform("customer")}
+                onClick={() => handleNav('/', 'customer', 'home')}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
                   activePlatform === "customer" ? "bg-[#138A36] text-white" : "text-gray-300 hover:text-white"
                 }`}
@@ -35,7 +48,7 @@ export default function Header({
                 Customer App
               </button>
               <button
-                onClick={() => setActivePlatform("merchant")}
+                onClick={() => handleNav('/merchant', 'merchant', 'merchantDashboard')}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1 ${
                   activePlatform === "merchant" ? "bg-[#138A36] text-white" : "text-gray-300 hover:text-white"
                 }`}
@@ -44,7 +57,16 @@ export default function Header({
                 <span>Merchant Portal</span>
               </button>
               <button
-                onClick={() => setActivePlatform("landing")}
+                onClick={() => handleNav('/admin', 'admin', 'dashboard', 'dashboard')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1 ${
+                  activePlatform === "admin" ? "bg-purple-600 text-white" : "text-[#DDF3E3] hover:text-white"
+                }`}
+              >
+                <ShieldCheck className="w-3 h-3" />
+                <span>Super Admin</span>
+              </button>
+              <button
+                onClick={() => handleNav('/overview', 'landing', 'home')}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
                   activePlatform === "landing" ? "bg-white text-[#111111]" : "text-gray-300 hover:text-white"
                 }`}
@@ -55,7 +77,7 @@ export default function Header({
 
             <button
               onClick={() => onOpenAuthModal("merchant")}
-              className="text-xs font-semibold text-[#DDF3E3] hover:text-white underline flex items-center gap-1"
+              className="text-xs font-semibold text-[#DDF3E3] hover:text-white underline flex items-center gap-1 cursor-pointer"
             >
               <Store className="w-3.5 h-3.5" />
               <span>Merchant Sign In</span>
@@ -67,7 +89,7 @@ export default function Header({
       {/* Main Desktop Navbar */}
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         {/* Left: Brand Logo & Tagline */}
-        <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setActivePlatform("customer"); setActiveTab("home"); }}>
+        <div className="flex items-center gap-4 cursor-pointer" onClick={() => handleNav('/', 'customer', 'home')}>
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-[#138A36] rounded-xl flex items-center justify-center text-white text-xl font-black shadow-md">
               🌱
@@ -87,7 +109,7 @@ export default function Header({
         {/* Location Selector Button */}
         <button
           onClick={onOpenLocationModal}
-          className="flex items-center gap-2 bg-[#F7F8F7] hover:bg-[#EAF7EE] border border-[#E5E7E5] px-3 py-2 rounded-xl text-xs font-semibold text-[#111111] transition-colors"
+          className="flex items-center gap-2 bg-[#F7F8F7] hover:bg-[#EAF7EE] border border-[#E5E7E5] px-3 py-2 rounded-xl text-xs font-semibold text-[#111111] transition-colors cursor-pointer"
         >
           <MapPin className="w-4 h-4 text-[#138A36]" />
           <span>{currentLocation.area}</span>
@@ -99,26 +121,45 @@ export default function Header({
         {/* Center Nav Links */}
         <nav className="flex items-center gap-6 text-sm font-semibold text-[#111111]">
           <button 
-            onClick={() => { setActivePlatform("customer"); setActiveTab("home"); }}
-            className={`hover:text-[#138A36] transition-colors ${activeTab === 'home' ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1' : ''}`}
+            onClick={() => handleNav('/', 'customer', 'home')}
+            className={`hover:text-[#138A36] transition-colors cursor-pointer ${
+              currentPath === '/' || currentPath === '/home' || (activePlatform === 'customer' && activeTab === 'home') 
+                ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1 font-bold' 
+                : ''
+            }`}
           >
             Home
           </button>
+
           <button 
-            onClick={() => { setActivePlatform("customer"); setActiveTab("search"); }}
-            className={`hover:text-[#138A36] transition-colors ${activeTab === 'search' || activeTab === 'searchResults' ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1' : ''}`}
+            onClick={() => handleNav('/discover', 'customer', 'search')}
+            className={`hover:text-[#138A36] transition-colors cursor-pointer ${
+              currentPath === '/discover' || currentPath === '/search' || (activePlatform === 'customer' && activeTab === 'search')
+                ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1 font-bold' 
+                : ''
+            }`}
           >
             Discover
           </button>
+
           <button 
-            onClick={() => { setActivePlatform("customer"); setActiveTab("search"); }}
-            className="hover:text-[#138A36] transition-colors"
+            onClick={() => handleNav('/categories', 'customer', 'categories')}
+            className={`hover:text-[#138A36] transition-colors cursor-pointer ${
+              currentPath === '/categories' || (activePlatform === 'customer' && activeTab === 'categories')
+                ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1 font-bold' 
+                : ''
+            }`}
           >
             Categories
           </button>
+
           <button 
-            onClick={() => { setActivePlatform("customer"); setActiveTab("searchResults"); }}
-            className="hover:text-[#138A36] transition-colors"
+            onClick={() => handleNav('/shops', 'customer', 'searchResults')}
+            className={`hover:text-[#138A36] transition-colors cursor-pointer ${
+              currentPath === '/shops' || currentPath === '/nearby-shops' || (activePlatform === 'customer' && activeTab === 'searchResults')
+                ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1 font-bold' 
+                : ''
+            }`}
           >
             Nearby Shops
           </button>
@@ -127,16 +168,16 @@ export default function Header({
         {/* Right Actions & List Your Shop CTA */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => { setActivePlatform("customer"); setActiveTab("search"); }}
-            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors"
+            onClick={() => handleNav('/discover', 'customer', 'search')}
+            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors cursor-pointer"
             title="Search"
           >
             <Search className="w-5 h-5" />
           </button>
 
           <button
-            onClick={() => { setActivePlatform("customer"); setActiveTab("saved"); }}
-            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors relative"
+            onClick={() => handleNav('/saved', 'customer', 'saved')}
+            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors relative cursor-pointer"
             title="Saved Shops"
           >
             <Bookmark className="w-5 h-5" />
@@ -148,8 +189,8 @@ export default function Header({
           </button>
 
           <button
-            onClick={() => { setActivePlatform("customer"); setActiveTab("enquiries"); }}
-            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors relative"
+            onClick={() => handleNav('/enquiries', 'customer', 'enquiries')}
+            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors relative cursor-pointer"
             title="My Enquiries"
           >
             <MessageSquare className="w-5 h-5" />
@@ -161,8 +202,8 @@ export default function Header({
           </button>
 
           <button
-            onClick={() => { setActivePlatform("customer"); setActiveTab("profile"); }}
-            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors"
+            onClick={() => handleNav('/profile', 'customer', 'profile')}
+            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors cursor-pointer"
             title="Profile"
           >
             <User className="w-5 h-5" />
@@ -171,7 +212,7 @@ export default function Header({
           {/* Primary CTA: List Your Shop */}
           <button
             onClick={() => onOpenAuthModal("merchant")}
-            className="bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5 hover:scale-102"
+            className="bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5 hover:scale-102 cursor-pointer"
           >
             <Store className="w-4 h-4" />
             <span>List Your Shop</span>

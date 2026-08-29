@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import ShopCard from '../components/ShopCard';
 import ProductCard from '../components/ProductCard';
+import DeliveryBoy3D from '../components/DeliveryBoy3D';
 
 export default function CustomerHome({ 
   shops, 
@@ -17,7 +18,8 @@ export default function CustomerHome({
   onOpenPhotoSearch, 
   onOpenDemandRequest, 
   onOpenLocationModal,
-  currentLocation 
+  currentLocation,
+  cmsContent
 }) {
   const iconMap = {
     Shirt: Shirt,
@@ -42,11 +44,11 @@ export default function CustomerHome({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl md:text-3xl font-extrabold text-[#111111] tracking-tight">
-                  Hello, Ananya 👋
+                  {cmsContent?.heroHeadline || "Support local. Strengthen your community."}
                 </h1>
               </div>
               <p className="text-[#666666] text-sm font-medium mt-1">
-                Find it nearby. Buy local.
+                {cmsContent?.heroSubtitle || "Find it nearby. Buy local."}
               </p>
             </div>
 
@@ -93,40 +95,44 @@ export default function CustomerHome({
             </div>
           </div>
 
-          {/* Search by Photo Promotional Card */}
-          <div className="bg-gradient-to-r from-[#138A36] to-[#0B6B2B] text-white p-6 rounded-3xl shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="z-10 space-y-2 max-w-md">
-              <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white">
-                <Camera className="w-3.5 h-3.5" />
-                <span>Visual AI Search</span>
-              </span>
-              <h2 className="text-xl md:text-2xl font-bold font-poppins leading-tight">
-                Can't find it? Search by photo
+          {/* 3D Delivery Boy Smirk Hero Showcase */}
+          <div className="bg-gradient-to-br from-[#111111] via-[#0B6B2B] to-[#138A36] text-white p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 border border-[#138A36]/30">
+            <div className="z-10 space-y-3 max-w-xl text-center md:text-left">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-[#DDF3E3] border border-white/20">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Superfast Express Local Delivery</span>
+              </div>
+              
+              <h2 className="text-2xl md:text-4xl font-black font-poppins leading-tight tracking-tight">
+                Delivered to your door with a <span className="text-emerald-400">smirk!</span> 😏
               </h2>
-              <p className="text-xs md:text-sm text-[#DDF3E3]">
-                Snap a photo, we'll scan local shops in Nagpur to find exact or similar availability instantly.
+              
+              <p className="text-xs md:text-sm text-gray-200 font-medium leading-relaxed">
+                Verified local Nagpur merchants hold, inspect, and express-deliver products directly from Sitabuldi, Dharampeth & Sadar straight to your home!
               </p>
-              <button
-                onClick={onOpenPhotoSearch}
-                className="mt-3 bg-white text-[#138A36] hover:bg-[#EAF7EE] font-bold text-xs md:text-sm px-5 py-3 rounded-xl transition-all shadow-md flex items-center gap-2"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Search by Photo</span>
-              </button>
+
+              <div className="pt-2 flex flex-wrap gap-3 justify-center md:justify-start">
+                <button
+                  onClick={onOpenDemandRequest}
+                  className="bg-[#138A36] hover:bg-[#0F752C] text-white font-extrabold text-xs md:text-sm px-5 py-3 rounded-2xl transition-all shadow-lg hover:scale-102 flex items-center gap-2 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Tell Shops What You Need</span>
+                </button>
+
+                <button
+                  onClick={onOpenPhotoSearch}
+                  className="bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold text-xs md:text-sm px-5 py-3 rounded-2xl backdrop-blur-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Camera className="w-4 h-4 text-emerald-400" />
+                  <span>Search by Photo</span>
+                </button>
+              </div>
             </div>
 
-            {/* Visual product preview banner graphic */}
-            <div className="relative z-10 w-full md:w-48 h-32 md:h-36 rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl shrink-0">
-              <img
-                src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80"
-                alt="Search by Photo"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
-                <span className="text-[10px] font-bold text-white bg-[#138A36] px-2 py-0.5 rounded">
-                  Instant Shop Match
-                </span>
-              </div>
+            {/* Three.js 3D Smirking Delivery Boy Animation Canvas */}
+            <div className="relative z-10 w-full md:w-[380px] h-[300px] md:h-[360px] shrink-0 flex items-center justify-center">
+              <DeliveryBoy3D />
             </div>
           </div>
         </div>
