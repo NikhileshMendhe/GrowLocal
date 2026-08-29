@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   location_id UUID,
   role VARCHAR(50) NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'merchant', 'admin', 'super_admin')),
   status VARCHAR(50) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Suspended', 'Blocked', 'Pending Verification')),
+  last_active_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -610,3 +611,68 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_sync_shop_verification
 AFTER INSERT OR UPDATE ON public.shop_verifications
 FOR EACH ROW EXECUTE FUNCTION sync_shop_verification();
+
+-- ============================================================================
+-- 14. PERFORMANCE INDEXES
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_profiles_auth_user_id ON public.profiles(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS idx_merchants_user_id ON public.merchants(user_id);
+CREATE INDEX IF NOT EXISTS idx_shops_merchant_id ON public.shops(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_products_shop_id ON public.products(shop_id);
+CREATE INDEX IF NOT EXISTS idx_enquiries_customer_id ON public.enquiries(customer_id);
+CREATE INDEX IF NOT EXISTS idx_enquiries_shop_id ON public.enquiries(shop_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_customer_id ON public.reservations(customer_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_shop_id ON public.reservations(shop_id);
+
+-- ============================================================================
+-- 15. STORAGE BUCKETS & STORAGE SECURITY RLS POLICIES
+-- ============================================================================
+
+-- Create Storage Buckets if not exists
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+  ('avatars', 'avatars', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']),
+  ('shop-images', 'shop-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']),
+  ('product-images', 'product-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']),
+  ('creator-images', 'creator-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']),
+  ('homepage-assets', 'homepage-assets', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']),
+  ('chat-attachments', 'chat-attachments', false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+  ('verification-documents', 'verification-documents', false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+ON CONFLICT (id) DO NOTHING;
+
+-- Public Buckets Read Policies
+CREATE POLICY "Public Read Avatars" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
+CREATE POLICY "Public Read Shop Images" ON storage.objects FOR SELECT USING (bucket_id = 'shop-images');
+CREATE POLICY "Public Read Product Images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
+CREATE POLICY "Public Read Creator Images" ON storage.objects FOR SELECT USING (bucket_id = 'creator-images');
+CREATE POLICY "Public Read Homepage Assets" ON storage.objects FOR SELECT USING (bucket_id = 'homepage-assets');
+
+-- User Authenticated Bucket Upload & Storage Security Policies
+CREATE POLICY "Auth Users Upload Avatars" ON storage.objects FOR INSERT WITH CHECK (
+  bucket_id = 'avatars' AND auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Merchants Upload Shop Images" ON storage.objects FOR INSERT WITH CHECK (
+  bucket_id = 'shop-images' AND auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Merchants Upload Product Images" ON storage.objects FOR INSERT WITH CHECK (
+  bucket_id = 'product-images' AND auth.role() = 'authenticated'
+);
+
+-- Private Verification Documents Access Policy (Merchant owner + Super Admin only)
+CREATE POLICY "Private Verification Documents Select" ON storage.objects FOR SELECT USING (
+  bucket_id = 'verification-documents' AND (
+    auth.role() = 'authenticated' AND (
+      (storage.foldername(name))[1] = auth.uid()::text OR
+      EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND role IN ('admin', 'super_admin'))
+    )
+  )
+);
+
+CREATE POLICY "Merchant Upload Verification Documents" ON storage.objects FOR INSERT WITH CHECK (
+  bucket_id = 'verification-documents' AND auth.role() = 'authenticated'
+);
+

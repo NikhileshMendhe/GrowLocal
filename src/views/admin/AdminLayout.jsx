@@ -4,7 +4,7 @@ import {
   MapPin, MessageSquare, MessagesSquare, BookmarkCheck, Tag, Star, Sparkles, 
   TrendingUp, Compass, Flame, CreditCard, DollarSign, PieChart, Layout, 
   FileText, Image, Megaphone, AlertTriangle, MessageCircle, Bell, UserCheck, 
-  Lock, History, Activity, Settings, Search, HelpCircle, ChevronDown, Menu, X, LogOut, ExternalLink 
+  Lock, History, Activity, Settings, Search, HelpCircle, ChevronDown, Menu, X, LogOut, ExternalLink, HardDrive 
 } from 'lucide-react';
 import AdminGlobalSearchModal from './AdminGlobalSearchModal';
 
@@ -100,6 +100,7 @@ export default function AdminLayout({
         { id: "roles", label: "Roles & Permissions", icon: Lock },
         { id: "auditLogs", label: "Audit Logs", icon: History },
         { id: "systemHealth", label: "System Health", icon: Activity },
+        { id: "storageOverview", label: "Storage Overview", icon: HardDrive },
         { id: "settings", label: "Settings", icon: Settings }
       ]
     }

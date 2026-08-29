@@ -258,6 +258,20 @@ export const authService = {
     };
 
     this.saveLocalSession(user);
+    this.updateLastActive(session.user.id);
     return user;
+  },
+
+  // Update last_active_at timestamp in profiles in a controlled way (e.g. once per session load)
+  async updateLastActive(authUserId) {
+    if (!isSupabaseConfigured || !authUserId) return;
+    try {
+      await supabase
+        .from('profiles')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('auth_user_id', authUserId);
+    } catch (e) {
+      // Ignore background timestamp errors silently
+    }
   }
 };

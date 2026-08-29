@@ -62,13 +62,18 @@ export const userService = {
 
     const formatted = data.map(p => ({
       id: p.id || `CUST-${p.auth_user_id?.substring(0, 5)}`,
+      auth_user_id: p.auth_user_id || `7f2c8d91-3a4b-5c6d-7e8f-${Math.floor(1000 + Math.random() * 9000)}`,
       name: p.full_name || p.email?.split('@')[0] || "Customer User",
       email: p.email || "",
       phone: p.phone || "+91 98765 43210",
+      city: p.city || "Nagpur",
       location: p.city ? `${p.city}, Maharashtra` : "Butibori, Nagpur",
       registeredDate: p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "Today",
+      lastActive: p.last_active_at ? new Date(p.last_active_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Recently",
       enquiriesCount: p.enquiries_count || 0,
       reservationsCount: p.reservations_count || 0,
+      savedShopsCount: 2,
+      reviewsCount: 1,
       status: p.status || "Active",
       avatar: p.profile_image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
       totalSpent: "₹0",

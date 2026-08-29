@@ -97,8 +97,8 @@ import AdminContent from './views/admin/AdminContent';
 import AdminAnalytics from './views/admin/AdminAnalytics';
 import AdminSystemHealth from './views/admin/AdminSystemHealth';
 import AdminAdministrators from './views/admin/AdminAdministrators';
-import AdminAuditLogs from './views/admin/AdminAuditLogs';
 import AdminSettings from './views/admin/AdminSettings';
+import AdminStorageOverview from './views/admin/AdminStorageOverview';
 
 // Landing Page
 import MarketingLanding from './views/MarketingLanding';
@@ -892,6 +892,12 @@ export default function App() {
           {currentAdminTab === "systemHealth" && (
             <AdminSystemHealth
               systemHealthServices={systemHealth}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {currentAdminTab === "storageOverview" && (
+            <AdminStorageOverview
               onShowToast={triggerToast}
             />
           )}

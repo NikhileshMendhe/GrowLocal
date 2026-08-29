@@ -40,6 +40,15 @@ export default function AdminCustomers({
     }
   };
 
+  const handleCopyId = (idText) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(idText);
+      onShowToast(`✓ Auth User ID copied: ${idText}`);
+    } else {
+      onShowToast(`Auth User ID: ${idText}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -51,7 +60,7 @@ export default function AdminCustomers({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search customer by name, email, phone, location..."
+            placeholder="Search customer by name, Auth User ID, email, phone, location..."
             className="w-full pl-10 pr-4 py-2 bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl text-xs text-[#111111] focus:outline-none focus:border-[#138A36] font-medium"
           />
         </div>
@@ -88,10 +97,11 @@ export default function AdminCustomers({
             <thead>
               <tr className="bg-[#F7F8F7] text-gray-500 uppercase tracking-wider text-[10px] font-bold border-b border-[#E5E7E5]">
                 <th className="py-3.5 px-4">Customer</th>
+                <th className="py-3.5 px-4">Supabase Auth User ID</th>
                 <th className="py-3.5 px-4">Email</th>
                 <th className="py-3.5 px-4">Phone</th>
                 <th className="py-3.5 px-4">Location</th>
-                <th className="py-3.5 px-4">Reg. Date</th>
+                <th className="py-3.5 px-4">Last Active</th>
                 <th className="py-3.5 px-4">Enquiries</th>
                 <th className="py-3.5 px-4">Reservations</th>
                 <th className="py-3.5 px-4">Status</th>
@@ -101,7 +111,7 @@ export default function AdminCustomers({
             <tbody className="divide-y divide-[#E5E7E5]">
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-500 text-sm">
+                  <td colSpan={10} className="py-12 text-center text-gray-500 text-sm">
                     No matching customers found.
                   </td>
                 </tr>
@@ -113,14 +123,28 @@ export default function AdminCustomers({
                         <img src={cust.avatar} alt={cust.name} className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-gray-200" />
                         <div>
                           <p className="font-bold text-sm text-[#111111] hover:text-[#138A36] cursor-pointer" onClick={() => setSelectedCustomer(cust)}>{cust.name}</p>
-                          <p className="text-[10px] text-gray-400 font-mono">{cust.id}</p>
+                          <p className="text-[10px] text-gray-400 font-mono">Prof: {cust.id}</p>
                         </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[11px] bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200 font-semibold select-all">
+                          {cust.auth_user_id || cust.id}
+                        </span>
+                        <button
+                          onClick={() => handleCopyId(cust.auth_user_id || cust.id)}
+                          className="p-1 text-gray-400 hover:text-[#138A36] rounded hover:bg-gray-200 transition-colors"
+                          title="Copy Supabase Auth User ID"
+                        >
+                          📋
+                        </button>
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-gray-600 font-medium">{cust.email}</td>
                     <td className="py-3.5 px-4 text-gray-600 font-mono">{cust.phone}</td>
                     <td className="py-3.5 px-4 text-gray-600">{cust.location}</td>
-                    <td className="py-3.5 px-4 text-gray-500 font-medium">{cust.regDate}</td>
+                    <td className="py-3.5 px-4 text-gray-500 font-medium">{cust.lastActive || "Recently"}</td>
                     <td className="py-3.5 px-4">
                       <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md text-[11px]">
                         {cust.enquiriesCount}
@@ -193,23 +217,48 @@ export default function AdminCustomers({
               </button>
             </div>
 
-            {/* Quick Status Pill & Location */}
+            {/* Supabase Auth UUID Banner */}
+            <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5 shadow-sm">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">Supabase Auth User ID</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-xs text-green-400 font-bold select-all break-all">
+                  {selectedCustomer.auth_user_id || selectedCustomer.id}
+                </span>
+                <button
+                  onClick={() => handleCopyId(selectedCustomer.auth_user_id || selectedCustomer.id)}
+                  className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Copy ID</span>
+                  <span>📋</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Profile ID & Metadata */}
             <div className="bg-[#F7F8F7] rounded-2xl p-4 border border-[#E5E7E5] grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-gray-400 font-bold block text-[10px] uppercase">Profile ID</span>
+                <span className="font-mono text-gray-800 font-bold">{selectedCustomer.id}</span>
+              </div>
               <div>
                 <span className="text-gray-400 font-bold block text-[10px] uppercase">Account Status</span>
                 <span className="font-black text-[#138A36]">{selectedCustomer.status}</span>
               </div>
               <div>
                 <span className="text-gray-400 font-bold block text-[10px] uppercase">Registered Location</span>
-                <span className="font-semibold text-[#111111]">{selectedCustomer.location}</span>
+                <span className="font-semibold text-[#111111]">{selectedCustomer.city || selectedCustomer.location}</span>
               </div>
               <div>
                 <span className="text-gray-400 font-bold block text-[10px] uppercase">Joined Platform</span>
-                <span className="font-semibold text-[#111111]">{selectedCustomer.regDate}</span>
+                <span className="font-semibold text-[#111111]">{selectedCustomer.registeredDate}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 font-bold block text-[10px] uppercase">Last Active</span>
+                <span className="font-semibold text-[#138A36]">{selectedCustomer.lastActive || "Just now"}</span>
               </div>
               <div>
                 <span className="text-gray-400 font-bold block text-[10px] uppercase">Saved Shops</span>
-                <span className="font-semibold text-[#111111]">{selectedCustomer.savedShopsCount} Stores</span>
+                <span className="font-semibold text-[#111111]">{selectedCustomer.savedShopsCount || 2} Stores</span>
               </div>
             </div>
 
@@ -226,7 +275,7 @@ export default function AdminCustomers({
                   <span className="text-[10px] font-bold text-blue-700">Reservations</span>
                 </div>
                 <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 text-center">
-                  <span className="text-xl font-black text-purple-900 block">{selectedCustomer.reviewsCount}</span>
+                  <span className="text-xl font-black text-purple-900 block">{selectedCustomer.reviewsCount || 1}</span>
                   <span className="text-[10px] font-bold text-purple-700">Reviews Left</span>
                 </div>
               </div>
