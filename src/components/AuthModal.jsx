@@ -265,7 +265,7 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
             </div>
           )}
 
-          <div className="text-center pt-2">
+          <div className="text-center pt-2 space-y-1">
             <button
               type="button"
               onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(""); }}
@@ -273,6 +273,22 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
             >
               {isSignUp ? "Already have an account? Log In" : "First time user? Create New Account"}
             </button>
+
+            {role === "merchant" && isSignUp && (
+              <p className="text-[10px] text-center text-gray-500 pt-1">
+                By registering your business, you agree to GrowLocal's{" "}
+                <button 
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenTerms) onOpenTerms();
+                  }}
+                  className="text-[#138A36] underline font-bold cursor-pointer"
+                >
+                  Vendor Terms & Conditions
+                </button>
+              </p>
+            )}
           </div>
         </form>
       </div>

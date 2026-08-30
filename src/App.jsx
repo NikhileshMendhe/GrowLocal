@@ -58,6 +58,7 @@ import CustomerEnquiries from './views/CustomerEnquiries';
 import CustomerSavedShops from './views/CustomerSavedShops';
 import CustomerReservations from './views/CustomerReservations';
 import CustomerProfile from './views/CustomerProfile';
+import VendorTerms from './views/VendorTerms';
 
 // Merchant Views
 import MerchantDashboard from './views/MerchantDashboard';
@@ -1095,6 +1096,14 @@ export default function App() {
                     }}
                   />
                 )}
+
+                {(activeTab === "vendorTerms" || activeTab === "terms") && (
+                  <VendorTerms
+                    onNavigate={setActiveTab}
+                    onOpenMerchantAuth={() => { setAuthRole("merchant"); setShowAuthModal(true); }}
+                    onShowToast={triggerToast}
+                  />
+                )}
               </>
             )}
 
@@ -1343,6 +1352,7 @@ export default function App() {
                   <li><button onClick={() => setActivePlatform("merchant")} className="hover:text-[#138A36]">Merchant Dashboard</button></li>
                   <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantCreators"); }} className="hover:text-[#138A36]">GrowLocal Creators</button></li>
                   <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantSubscription"); }} className="hover:text-[#138A36]">Membership Plans</button></li>
+                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36] font-semibold text-[#138A36]">Vendor Terms & Conditions</button></li>
                 </ul>
               </div>
 
@@ -1351,8 +1361,7 @@ export default function App() {
                 <ul className="space-y-2 text-xs text-[#666666]">
                   <li><button onClick={() => setActivePlatform("landing")} className="hover:text-[#138A36]">About GrowLocal</button></li>
                   <li><button onClick={() => { window.history.pushState({}, '', '/admin'); setActivePlatform("admin"); }} className="hover:text-[#138A36] font-bold text-[#138A36]">Super Admin Panel</button></li>
-                  <li><a href="#" className="hover:text-[#138A36]">Privacy Policy</a></li>
-                  <li><a href="#" className="hover:text-[#138A36]">Terms of Service</a></li>
+                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Terms of Service</button></li>
                 </ul>
               </div>
             </div>
@@ -1405,6 +1414,7 @@ export default function App() {
         <AuthModal
           initialMode={authRole}
           onClose={() => setShowAuthModal(false)}
+          onOpenTerms={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }}
           onLoginSuccess={(userData) => {
             setCurrentUser(userData);
             triggerToast(`✓ Authenticated as ${userData.name || userData.email}!`);
