@@ -90,10 +90,12 @@ export default function Header({
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         {/* Left: Brand Logo & Tagline */}
         <div className="flex items-center gap-4 cursor-pointer" onClick={() => handleNav('/', 'customer', 'home')}>
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-[#138A36] rounded-xl flex items-center justify-center text-white text-xl font-black shadow-md">
-              🌱
-            </div>
+          <div className="flex items-center gap-3">
+            <img 
+              src="/growlocal-logo.png" 
+              alt="GrowLocal Logo" 
+              className="h-10 w-auto object-contain"
+            />
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-extrabold tracking-tight text-[#111111] font-poppins">GrowLocal</span>

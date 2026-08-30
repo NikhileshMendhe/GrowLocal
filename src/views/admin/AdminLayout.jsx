@@ -163,9 +163,7 @@ export default function AdminLayout({
             </button>
 
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#138A36] rounded-xl flex items-center justify-center text-white font-black text-sm shadow-xs">
-                🌱
-              </div>
+              <img src="/growlocal-logo.png" alt="GrowLocal Logo" className="h-8 w-auto object-contain" />
               <div className="hidden sm:block">
                 <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
                   <span>GrowLocal</span>

@@ -17,6 +17,8 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [otpToken, setOtpToken] = useState("");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -24,16 +26,28 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
 
     if (authMethod === "phone") {
       if (step === "form") {
-        setStep("otp");
+        const { error } = await authService.signInWithPhoneOtp(phone);
         setLoading(false);
+        if (error) {
+          setErrorMsg(error.message || "Failed to send OTP to mobile number.");
+          return;
+        }
+        setStep("otp");
         return;
       }
       // Verify OTP step
+      const { data, error } = await authService.verifyPhoneOtp(phone, otpToken);
+      setLoading(false);
+      if (error) {
+        setErrorMsg(error.message || "Invalid OTP code entered.");
+        return;
+      }
+
       onLoginSuccess({
         role,
-        name: fullName || (role === 'merchant' ? (shopName || 'Trendy Wear Store') : 'Aman Verma'),
+        name: data?.user?.name || fullName || (role === 'merchant' ? (shopName || 'Trendy Wear Store') : 'Customer'),
         phone,
-        email: email || `${phone}@growlocal.in`
+        email: data?.user?.email || `${phone.replace(/[^0-9]/g, '')}@growlocal.in`
       });
       onClose();
       return;
@@ -226,7 +240,19 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
             <div className="space-y-4">
               <div className="text-center bg-[#EAF7EE] p-3 rounded-2xl border border-[#DDF3E3]">
                 <p className="text-xs font-semibold text-[#138A36]">OTP sent to +91 {phone}</p>
-                <p className="text-[11px] text-[#666666] mt-0.5">Demo OTP 4 3 2 1 to verify instantly</p>
+                <p className="text-[11px] text-[#666666] mt-0.5">Demo OTP 4 3 2 1 (or SMS token) to verify instantly</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#111111] mb-1">Enter Verification Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 4321"
+                  value={otpToken}
+                  onChange={(e) => setOtpToken(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl text-xs text-center font-mono text-[#111111] font-bold focus:outline-none focus:border-[#138A36]"
+                />
               </div>
 
               <button

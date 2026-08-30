@@ -1318,9 +1318,7 @@ export default function App() {
             <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[#138A36] rounded-lg flex items-center justify-center text-white text-base font-black">
-                    🌱
-                  </div>
+                  <img src="/growlocal-logo.png" alt="GrowLocal Logo" className="h-8 w-auto object-contain" />
                   <span className="text-lg font-black tracking-tight text-[#111111] font-poppins">GrowLocal</span>
                 </div>
                 <p className="text-xs text-[#666666] leading-relaxed">

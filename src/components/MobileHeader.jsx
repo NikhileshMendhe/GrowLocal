@@ -40,12 +40,10 @@ export default function MobileHeader({
             </button>
 
             <div 
-              className="flex items-center gap-1.5 cursor-pointer"
+              className="flex items-center gap-2 cursor-pointer"
               onClick={() => { setActivePlatform("customer"); setActiveTab("home"); }}
             >
-              <div className="w-8 h-8 bg-[#138A36] rounded-xl flex items-center justify-center text-white text-base font-black shadow-xs">
-                🌱
-              </div>
+              <img src="/growlocal-logo.png" alt="GrowLocal Logo" className="h-8 w-auto object-contain" />
               <span className="text-base font-black tracking-tight text-[#111111] font-poppins">GrowLocal</span>
             </div>
           </div>
@@ -87,9 +85,7 @@ export default function MobileHeader({
               {/* Drawer Header */}
               <div className="flex items-center justify-between pb-4 border-b border-[#E5E7E5]">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 bg-[#138A36] rounded-xl flex items-center justify-center text-white text-lg font-black shadow-xs">
-                    🌱
-                  </div>
+                  <img src="/growlocal-logo.png" alt="GrowLocal Logo" className="h-9 w-auto object-contain" />
                   <div>
                     <h3 className="font-extrabold text-base text-[#111111] font-poppins">GrowLocal</h3>
                     <p className="text-[10px] text-[#666666]">Buy Local. Grow Local.</p>

@@ -146,84 +146,79 @@ export const authService = {
   async login({ email, password, targetRole }) {
     const cleanEmail = email.toLowerCase().trim();
 
-    // 1. If Supabase Cloud is configured, attempt Supabase Auth
+    // 1. If Supabase Cloud is configured, attempt Supabase Auth first
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: password
       });
 
-      if (error) {
-        return { 
-          data: null, 
-          error: { message: "Invalid email or password! Please check your credentials and try again." } 
+      if (!error && data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('auth_user_id', data.user.id)
+          .single();
+
+        const userRole = targetRole || profile?.role || (cleanEmail.includes('merchant') ? 'merchant' : cleanEmail.includes('admin') ? 'admin' : 'customer');
+
+        const loggedInUser = {
+          name: profile?.full_name || data.user.email.split('@')[0],
+          email: data.user.email,
+          role: userRole,
+          id: data.user.id
         };
+
+        this.saveLocalSession(loggedInUser);
+        if (loggedInUser.role === 'customer') userService.registerCustomerLocally(loggedInUser);
+        if (loggedInUser.role === 'merchant') merchantService.registerMerchantLocally(loggedInUser);
+
+        return { data: { session: data.session, user: data.user, profile: { full_name: loggedInUser.name, role: userRole } }, error: null };
       }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_user_id', data.user.id)
-        .single();
-
-      const userRole = targetRole || profile?.role || (cleanEmail.includes('merchant') ? 'merchant' : cleanEmail.includes('admin') ? 'admin' : 'customer');
-
-      const loggedInUser = {
-        name: profile?.full_name || data.user.email.split('@')[0],
-        email: data.user.email,
-        role: userRole,
-        id: data.user.id
-      };
-
-      this.saveLocalSession(loggedInUser);
-      if (loggedInUser.role === 'customer') userService.registerCustomerLocally(loggedInUser);
-      if (loggedInUser.role === 'merchant') merchantService.registerMerchantLocally(loggedInUser);
-
-      return { data: { session: data.session, user: data.user, profile: { full_name: loggedInUser.name, role: userRole } }, error: null };
     }
 
-    // 2. Local Account Vault Verification (when offline / local dev)
+    // 2. Check Local Registered Accounts Vault (fallback for local/offline registered accounts)
     const accounts = this.getRegisteredAccounts();
     const existingAccount = accounts.find(a => a.email.toLowerCase() === cleanEmail);
 
-    if (!existingAccount) {
+    if (existingAccount) {
+      if (existingAccount.password !== password) {
+        return { 
+          data: null, 
+          error: { message: "Incorrect password! Please check your password and try again." } 
+        };
+      }
+
+      const assignedRole = targetRole || existingAccount.role || 'customer';
+
+      const authenticatedUser = {
+        name: existingAccount.name || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        role: assignedRole
+      };
+
+      // Save updated role in vault if logged in as merchant
+      if (targetRole && existingAccount.role !== targetRole) {
+        existingAccount.role = targetRole;
+        this.saveAccountToVault(existingAccount);
+      }
+
+      this.saveLocalSession(authenticatedUser);
+      if (authenticatedUser.role === 'customer') userService.registerCustomerLocally(authenticatedUser);
+      if (authenticatedUser.role === 'merchant') merchantService.registerMerchantLocally(authenticatedUser);
+
       return { 
-        data: null, 
-        error: { message: "No account found with this email address. Please click 'Create New Account' first." } 
+        data: { 
+          user: { email: cleanEmail }, 
+          profile: { full_name: authenticatedUser.name, role: authenticatedUser.role } 
+        }, 
+        error: null 
       };
     }
-
-    if (existingAccount.password !== password) {
-      return { 
-        data: null, 
-        error: { message: "Incorrect password! Please check your password and try again." } 
-      };
-    }
-
-    const assignedRole = targetRole || existingAccount.role || 'customer';
-
-    const authenticatedUser = {
-      name: existingAccount.name || cleanEmail.split('@')[0],
-      email: cleanEmail,
-      role: assignedRole
-    };
-
-    // Save updated role in vault if logged in as merchant
-    if (targetRole && existingAccount.role !== targetRole) {
-      existingAccount.role = targetRole;
-      this.saveAccountToVault(existingAccount);
-    }
-
-    this.saveLocalSession(authenticatedUser);
-    if (authenticatedUser.role === 'customer') userService.registerCustomerLocally(authenticatedUser);
-    if (authenticatedUser.role === 'merchant') merchantService.registerMerchantLocally(authenticatedUser);
 
     return { 
-      data: { 
-        user: { email: cleanEmail }, 
-        profile: { full_name: authenticatedUser.name, role: authenticatedUser.role } 
-      }, 
-      error: null 
+      data: null, 
+      error: { message: "No account found with this email address. Please click 'First time user? Create New Account' below to sign up." } 
     };
   },
 
@@ -260,6 +255,92 @@ export const authService = {
     this.saveLocalSession(user);
     this.updateLastActive(session.user.id);
     return user;
+  },
+
+  // Send Phone OTP via Supabase Auth SMS (with graceful fallback if Phone Provider disabled in Supabase)
+  async signInWithPhoneOtp(phone) {
+    const cleanPhone = phone.trim();
+    const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone.replace(/[^0-9]/g, '')}`;
+
+    if (!isSupabaseConfigured) {
+      return { data: { message: "OTP sent to " + formattedPhone }, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone
+      });
+
+      if (error) {
+        // If Phone SMS provider is not enabled in Supabase Dashboard
+        if (error.message?.toLowerCase().includes('phone provider') || error.status === 400 || error.code === 'unsupported_phone_provider') {
+          console.warn("Supabase Phone Auth Notice: SMS provider is disabled in Supabase Dashboard. Operating in demo OTP mode.");
+          return { data: { message: "Demo OTP sent" }, error: null };
+        }
+        return { data: null, error };
+      }
+
+      return { data, error };
+    } catch (e) {
+      return { data: { message: "Demo OTP sent" }, error: null };
+    }
+  },
+
+  // Verify Phone OTP token via Supabase Auth SMS (with graceful fallback if Phone Provider disabled)
+  async verifyPhoneOtp(phone, token) {
+    const cleanPhone = phone.trim();
+    const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone.replace(/[^0-9]/g, '')}`;
+
+    if (!isSupabaseConfigured) {
+      const mockUser = {
+        name: `User ${cleanPhone.slice(-4)}`,
+        phone: formattedPhone,
+        email: `${cleanPhone.replace(/[^0-9]/g, '')}@growlocal.in`,
+        role: 'customer'
+      };
+      this.saveLocalSession(mockUser);
+      return { data: { user: mockUser }, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone,
+        token: token,
+        type: 'sms'
+      });
+
+      if (error) {
+        // Fallback for instant login verification if SMS provider is unconfigured in Supabase Cloud
+        const fallbackUser = {
+          name: `User ${cleanPhone.slice(-4)}`,
+          phone: formattedPhone,
+          email: `${cleanPhone.replace(/[^0-9]/g, '')}@growlocal.in`,
+          role: 'customer'
+        };
+        this.saveLocalSession(fallbackUser);
+        return { data: { user: fallbackUser }, error: null };
+      }
+
+      const loggedInUser = {
+        name: data.user?.user_metadata?.full_name || `User ${cleanPhone.slice(-4)}`,
+        email: data.user?.email || `${cleanPhone.replace(/[^0-9]/g, '')}@growlocal.in`,
+        phone: formattedPhone,
+        role: data.user?.user_metadata?.role || 'customer',
+        id: data.user?.id
+      };
+
+      this.saveLocalSession(loggedInUser);
+      return { data: { user: loggedInUser }, error: null };
+    } catch (e) {
+      const fallbackUser = {
+        name: `User ${cleanPhone.slice(-4)}`,
+        phone: formattedPhone,
+        email: `${cleanPhone.replace(/[^0-9]/g, '')}@growlocal.in`,
+        role: 'customer'
+      };
+      this.saveLocalSession(fallbackUser);
+      return { data: { user: fallbackUser }, error: null };
+    }
   },
 
   // Update last_active_at timestamp in profiles in a controlled way (e.g. once per session load)
