@@ -32,7 +32,7 @@ export default function Header({
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="bg-[#138A36] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Nagpur MVP
+              Nagpur
             </span>
             <span className="text-gray-300">Demand-Driven Local Commerce Platform</span>
           </div>
@@ -55,15 +55,6 @@ export default function Header({
               >
                 <LayoutDashboard className="w-3 h-3" />
                 <span>Merchant Portal</span>
-              </button>
-              <button
-                onClick={() => handleNav('/admin', 'admin', 'dashboard', 'dashboard')}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1 ${
-                  activePlatform === "admin" ? "bg-purple-600 text-white" : "text-[#DDF3E3] hover:text-white"
-                }`}
-              >
-                <ShieldCheck className="w-3 h-3" />
-                <span>Super Admin</span>
               </button>
               <button
                 onClick={() => handleNav('/overview', 'landing', 'home')}
@@ -156,19 +147,34 @@ export default function Header({
           </button>
 
           <button 
-            onClick={() => handleNav('/shops', 'customer', 'searchResults')}
-            className={`hover:text-[#138A36] transition-colors cursor-pointer ${
-              currentPath === '/shops' || currentPath === '/nearby-shops' || (activePlatform === 'customer' && activeTab === 'searchResults')
-                ? 'text-[#138A36] border-b-2 border-[#138A36] pb-1 font-bold' 
-                : ''
-            }`}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                const el = document.getElementById('how-it-works-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                else handleNav('/', 'customer', 'home');
+              }
+            }}
+            className="hover:text-[#138A36] transition-colors cursor-pointer"
           >
-            Nearby Shops
+            How It Works
+          </button>
+
+          <button 
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                const el = document.getElementById('community-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                else handleNav('/', 'customer', 'home');
+              }
+            }}
+            className="hover:text-[#138A36] transition-colors cursor-pointer"
+          >
+            Community
           </button>
         </nav>
 
-        {/* Right Actions & List Your Shop CTA */}
-        <div className="flex items-center gap-3">
+        {/* Right Actions & Separate Login Buttons */}
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => handleNav('/discover', 'customer', 'search')}
             className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors cursor-pointer"
@@ -203,21 +209,24 @@ export default function Header({
             )}
           </button>
 
-          <button
-            onClick={() => handleNav('/profile', 'customer', 'profile')}
-            className="p-2 text-[#111111] hover:text-[#138A36] hover:bg-[#EAF7EE] rounded-xl transition-colors cursor-pointer"
-            title="Profile"
-          >
-            <User className="w-5 h-5" />
-          </button>
-
-          {/* Primary CTA: List Your Shop */}
+          {/* SEPARATE MERCHANT LOGIN BUTTON (Primary Green) */}
           <button
             onClick={() => onOpenAuthModal("merchant")}
-            className="bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5 hover:scale-102 cursor-pointer"
+            className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Grow Your Business"
           >
             <Store className="w-4 h-4" />
-            <span>List Your Shop</span>
+            <span>Merchant Login</span>
+          </button>
+
+          {/* SEPARATE USER LOGIN BUTTON (Secondary Light Style) */}
+          <button
+            onClick={() => onOpenAuthModal("customer")}
+            className="bg-white hover:bg-gray-50 text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] hover:border-[#138A36] font-extrabold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Shop Locally"
+          >
+            <User className="w-4 h-4 text-[#138A36]" />
+            <span>User Login</span>
           </button>
         </div>
       </div>

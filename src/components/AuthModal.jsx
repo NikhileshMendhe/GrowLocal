@@ -104,40 +104,45 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
           <button
             onClick={() => { setRole("customer"); setErrorMsg(""); }}
             className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-              role === "customer" ? "bg-white text-[#138A36] shadow-xs" : "text-[#666666] hover:text-[#111111]"
+              role === "customer" ? "bg-white text-[#138A36] shadow-xs font-black" : "text-[#666666] hover:text-[#111111]"
             }`}
           >
             <User className="w-4 h-4" />
-            <span>Customer</span>
+            <span>User Login</span>
           </button>
           <button
             onClick={() => { setRole("merchant"); setErrorMsg(""); }}
             className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-              role === "merchant" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666] hover:text-[#111111]"
+              role === "merchant" ? "bg-[#138A36] text-white shadow-xs font-black" : "text-[#666666] hover:text-[#111111]"
             }`}
           >
             <Store className="w-4 h-4" />
-            <span>Merchant</span>
-          </button>
-          <button
-            onClick={() => { setRole("admin"); setErrorMsg(""); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-              role === "admin" ? "bg-purple-600 text-white shadow-xs" : "text-[#666666] hover:text-[#111111]"
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Admin</span>
+            <span>Merchant Login</span>
           </button>
         </div>
 
+        {/* Intercept / Dynamic Notice */}
+        {interceptNotice && (
+          <div className="mb-4 p-3 bg-[#EAF7EE] border border-[#DDF3E3] text-[#138A36] rounded-2xl text-xs font-bold flex items-center gap-2">
+            <User className="w-4 h-4 shrink-0" />
+            <span>{interceptNotice}</span>
+          </div>
+        )}
+
         <div className="text-center mb-5">
           <h3 className="text-xl font-extrabold text-[#111111] font-poppins">
-            {isSignUp ? "Create Your Account" : `Log In as ${role.toUpperCase()}`}
+            {customTitle ? customTitle : (
+              isSignUp 
+                ? (role === "merchant" ? "Register Your Business" : "Create GrowLocal User Account")
+                : (role === "merchant" ? "Grow Your Local Business" : "Welcome to GrowLocal")
+            )}
           </h3>
           <p className="text-xs text-[#666666] mt-1">
-            {isSignUp 
-              ? "Join GrowLocal Nagpur platform with email & password" 
-              : "Enter your account credentials to access platform dashboard"}
+            {customDescription ? customDescription : (
+              role === "merchant"
+                ? "Connect with nearby customers and turn local demand into real sales."
+                : "Find local. Buy local. Grow local. Discover shops and reserve products near you."
+            )}
           </p>
         </div>
 

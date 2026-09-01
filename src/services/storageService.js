@@ -11,7 +11,96 @@ export const BUCKETS = {
   HOMEPAGE_ASSETS: 'homepage-assets'
 };
 
-export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB per file (Free Plan compliant)
+export const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB pre-compression limit (files are compressed before upload)
+
+// Per-bucket compression settings — expected output sizes noted for storage planning
+const COMPRESSION_CONFIG = {
+  [BUCKETS.AVATARS]:           { maxWidth: 300,  maxHeight: 300,  quality: 0.70 },  // ~50 KB each
+  [BUCKETS.PRODUCT_IMAGES]:    { maxWidth: 1200, maxHeight: 900,  quality: 0.80 },  // ~400 KB each
+  [BUCKETS.SHOP_IMAGES]:       { maxWidth: 1200, maxHeight: 900,  quality: 0.80 },  // ~400 KB each
+  [BUCKETS.CREATOR_IMAGES]:    { maxWidth: 1200, maxHeight: 900,  quality: 0.80 },  // ~400 KB each
+  [BUCKETS.HOMEPAGE_ASSETS]:   { maxWidth: 1200, maxHeight: 900,  quality: 0.80 },  // ~400 KB each
+  [BUCKETS.CHAT_ATTACHMENTS]:  { maxWidth: 1000, maxHeight: 1000, quality: 0.75 },  // ~300 KB each
+  [BUCKETS.VERIFICATION_DOCS]: { maxWidth: 1600, maxHeight: 1200, quality: 0.85 },  // ~700 KB each (stays readable)
+};
+
+const COMPRESSIBLE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Compress an image File using the Canvas API.
+ *
+ * @param {File} file — the original image file from <input type="file">
+ * @param {string} bucket — target Supabase Storage bucket name
+ * @returns {Promise<File>} — a new File with the compressed image (or the original if not compressible)
+ */
+async function compressImage(file, bucket) {
+  if (!COMPRESSIBLE_TYPES.includes(file.type)) {
+    return file;
+  }
+
+  const config = COMPRESSION_CONFIG[bucket];
+  if (!config) {
+    return file;
+  }
+
+  try {
+    const img = await loadImage(file);
+
+    let { width, height } = img;
+    if (width > config.maxWidth || height > config.maxHeight) {
+      const scale = Math.min(config.maxWidth / width, config.maxHeight / height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const blob = await canvasToBlob(canvas, 'image/jpeg', config.quality);
+
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    const compressedName = `${baseName}.jpg`;
+
+    return new File([blob], compressedName, { type: 'image/jpeg', lastModified: Date.now() });
+  } catch (err) {
+    console.warn('[GrowLocal] Image compression failed, uploading original:', err.message);
+    return file;
+  }
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image for compression'));
+    };
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob returned null'));
+      },
+      type,
+      quality
+    );
+  });
+}
 
 export const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -30,7 +119,7 @@ export const storageService = {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return { 
         valid: false, 
-        error: `File size exceeds limit (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed is 5MB.` 
+        error: `File size exceeds limit (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed is ${(MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB.` 
       };
     }
 
@@ -84,17 +173,22 @@ export const storageService = {
       return { data: null, error: { message: validation.error } };
     }
 
-    const storagePath = this.formatEntityPath(bucket, entityIds, file.name);
+    const compressedFile = await compressImage(file, bucket);
+    const originalSizeKB = Math.round(file.size / 1024);
+    const compressedSizeKB = Math.round(compressedFile.size / 1024);
+
+    const storagePath = this.formatEntityPath(bucket, entityIds, compressedFile.name);
 
     if (!isSupabaseConfigured) {
-      // Local fallback preview URL
-      const mockUrl = URL.createObjectURL(file);
+      const mockUrl = URL.createObjectURL(compressedFile);
       return { 
         data: { 
           path: storagePath, 
           publicUrl: mockUrl,
-          fileSize: file.size,
-          fileName: file.name
+          fileSize: compressedFile.size,
+          fileName: compressedFile.name,
+          originalSizeKB,
+          compressedSizeKB
         }, 
         error: null 
       };
@@ -102,7 +196,7 @@ export const storageService = {
 
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(storagePath, file, {
+      .upload(storagePath, compressedFile, {
         cacheControl: '3600',
         upsert: true
       });
@@ -121,14 +215,15 @@ export const storageService = {
         data: {
           path: storagePath,
           publicUrl: signedData?.signedUrl || '',
-          fileSize: file.size,
-          fileName: file.name
+          fileSize: compressedFile.size,
+          fileName: compressedFile.name,
+          originalSizeKB,
+          compressedSizeKB
         },
         error: null
       };
     }
 
-    // Public bucket URL
     const { data: publicUrlData } = supabase.storage
       .from(bucket)
       .getPublicUrl(storagePath);
@@ -137,8 +232,10 @@ export const storageService = {
       data: {
         path: storagePath,
         publicUrl: publicUrlData?.publicUrl || '',
-        fileSize: file.size,
-        fileName: file.name
+        fileSize: compressedFile.size,
+        fileName: compressedFile.name,
+        originalSizeKB,
+        compressedSizeKB
       },
       error: null
     };

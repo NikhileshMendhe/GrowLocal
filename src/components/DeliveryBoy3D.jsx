@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useEffect, useRef } from "react";
+import * as THREE from "three";
 
 export default function DeliveryBoy3D({ className = "" }) {
   const containerRef = useRef(null);
@@ -8,609 +8,3303 @@ export default function DeliveryBoy3D({ className = "" }) {
     const container = containerRef.current;
     if (!container) return;
 
-    // ==========================================
-    // 1. RENDERER, SCENE & CAMERA SETUP
-    // ==========================================
-    const width = container.clientWidth || 400;
-    const height = container.clientHeight || 400;
+    // ============================================================
+    // 1. SCENE / CAMERA / RENDERER
+    // ============================================================
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
-    camera.position.set(0, 1.35, 5.8);
 
-    const renderer = new THREE.WebGLRenderer({ 
-      alpha: true, 
-      antialias: true, 
+    const camera = new THREE.PerspectiveCamera(
+      38,
+      1,
+      0.05,
+      100
+    );
+
+    const renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
       powerPreference: "high-performance",
-      precision: "highp" 
+      precision: "highp",
+      logarithmicDepthBuffer: true,
     });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+
+    renderer.setClearAlpha(0);
+
     container.appendChild(renderer.domElement);
 
-    // ==========================================
-    // 2. STUDIO LIGHTING SETUP
-    // ==========================================
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
-    scene.add(ambientLight);
+    // ============================================================
+    // 2. CAMERA ORBIT
+    // ============================================================
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
-    keyLight.position.set(5, 8, 5.5);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.bias = -0.0005;
-    scene.add(keyLight);
+    const orbit = {
+      yaw: 0.22,
+      pitch: 0.31,
+      radius: 6.2,
 
-    const fillLight = new THREE.DirectionalLight(0xEAF7EE, 0.5);
-    fillLight.position.set(-5, 4, 3);
-    scene.add(fillLight);
+      targetYaw: 0.22,
+      targetPitch: 0.31,
+      targetRadius: 6.2,
 
-    const greenRim = new THREE.PointLight(0x138A36, 4.5, 12);
-    greenRim.position.set(-4.5, 3.5, -2);
-    scene.add(greenRim);
+      autoRotate: true,
+      autoRotateSpeed: 0.075,
 
-    const goldAccent = new THREE.PointLight(0xFFB703, 3.5, 10);
-    goldAccent.position.set(4, -0.5, 3.5);
-    scene.add(goldAccent);
-
-    // ==========================================
-    // 3. GROUND DYNAMIC CONTACT SHADOW DISC
-    // ==========================================
-    const shadowCanvas = document.createElement('canvas');
-    shadowCanvas.width = 256;
-    shadowCanvas.height = 256;
-    const sCtx = shadowCanvas.getContext('2d');
-    const sGrad = sCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    sGrad.addColorStop(0, 'rgba(0, 0, 0, 0.55)');
-    sGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.22)');
-    sGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    sCtx.fillStyle = sGrad;
-    sCtx.fillRect(0, 0, 256, 256);
-
-    const shadowTex = new THREE.CanvasTexture(shadowCanvas);
-    const shadowMat = new THREE.MeshBasicMaterial({
-      map: shadowTex,
-      transparent: true,
-      depthWrite: false
-    });
-    const groundShadow = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.6), shadowMat);
-    groundShadow.rotation.x = -Math.PI / 2;
-    groundShadow.position.y = -1.28;
-    scene.add(groundShadow);
-
-    // ==========================================
-    // 4. MATERIAL PALETTE (PREMIUM MASCOT STYLE)
-    // ==========================================
-    const greenBodyMat = new THREE.MeshStandardMaterial({ color: 0x138A36, roughness: 0.25, metalness: 0.12 });
-    const greenHelmetMat = new THREE.MeshStandardMaterial({ color: 0x0B6B2B, roughness: 0.2, metalness: 0.15 });
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xF5CBA7, roughness: 0.45, metalness: 0.02 });
-    const blackVisorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.08, metalness: 0.85 });
-    const darkCollarMat = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.4, metalness: 0.1 });
-    const whiteZipperMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.15 });
-    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xE8E8E8, roughness: 0.08, metalness: 0.95 });
-    const tireMat = new THREE.MeshStandardMaterial({ color: 0x1F1F1F, roughness: 0.8, metalness: 0.05 });
-    const parcelMat = new THREE.MeshStandardMaterial({ color: 0xE2B170, roughness: 0.65 });
-    const goldDetailMat = new THREE.MeshStandardMaterial({ color: 0xFFB703, metalness: 0.75, roughness: 0.18 });
-
-    // ==========================================
-    // 5. MASTER HIERARCHY & KINEMATIC CHAINS
-    // ==========================================
-    const masterGroup = new THREE.Group();
-    scene.add(masterGroup);
-
-    // A) SCOOTER / MOPED ASSEMBLY
-    const scooterGroup = new THREE.Group();
-    scooterGroup.position.set(0, -0.6, 0);
-    masterGroup.add(scooterGroup);
-
-    // Rounded Aerodynamic Front Shield
-    const shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(0.56, 32, 32), greenBodyMat);
-    shieldMesh.scale.set(0.92, 0.78, 0.46);
-    shieldMesh.position.set(0, 0.25, 0.36);
-    shieldMesh.castShadow = true;
-    scooterGroup.add(shieldMesh);
-
-    // Golden/Beige Front Detail Badge
-    const frontDetailBadge = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 32), goldDetailMat);
-    frontDetailBadge.position.set(0, 0.28, 0.58);
-    frontDetailBadge.rotation.x = Math.PI / 2;
-    scooterGroup.add(frontDetailBadge);
-
-    // Front Mudguard (Mounted above front wheel)
-    const mudguardMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.38, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.45),
-      greenBodyMat
-    );
-    mudguardMesh.position.set(0, -0.05, 0.72);
-    scooterGroup.add(mudguardMesh);
-
-    // STEERING HANDLEBARS & HEADLIGHT GROUP
-    const steeringGroup = new THREE.Group();
-    steeringGroup.position.set(0, 0.6, 0.35);
-    scooterGroup.add(steeringGroup);
-
-    // Round Central Headlight
-    const headlightLensMat = new THREE.MeshStandardMaterial({ 
-      color: 0xFFFFFF, 
-      emissive: 0xFFFFFF, 
-      emissiveIntensity: 0.95, 
-      roughness: 0.04 
-    });
-    const headlightLens = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 32), headlightLensMat);
-    headlightLens.scale.set(1, 1, 0.4);
-    headlightLens.position.set(0, 0, 0.18);
-    steeringGroup.add(headlightLens);
-
-    const headlightBezel = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 16, 32), chromeMat);
-    headlightBezel.position.set(0, 0, 0.18);
-    steeringGroup.add(headlightBezel);
-
-    // Black Handlebars Bar & Grips
-    const handlebarTube = new THREE.Mesh(
-      new THREE.TubeGeometry(
-        new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(-0.66, 0, 0),
-          new THREE.Vector3(0, 0.08, 0.05),
-          new THREE.Vector3(0.66, 0, 0)
-        ),
-        24, 0.04, 16, false
-      ),
-      darkCollarMat
-    );
-    steeringGroup.add(handlebarTube);
-
-    // Black Mirrors (Left & Right)
-    const createMirror = (x) => {
-      const mGroup = new THREE.Group();
-      mGroup.position.set(x, 0.22, 0);
-
-      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.26, 12), darkCollarMat);
-      stalk.rotation.z = x > 0 ? -0.32 : 0.32;
-      mGroup.add(stalk);
-
-      const mirrorHead = new THREE.Mesh(new THREE.SphereGeometry(0.095, 24, 24), darkCollarMat);
-      mirrorHead.scale.set(1, 1, 0.3);
-      mirrorHead.position.set(x > 0 ? 0.05 : -0.05, 0.15, 0);
-      mGroup.add(mirrorHead);
-
-      steeringGroup.add(mGroup);
-    };
-    createMirror(-0.56);
-    createMirror(0.56);
-
-    // ==========================================
-    // 5B. PROPER 3D FRONT SUSPENSION FORK & FRONT WHEEL
-    // ==========================================
-    // Steering column extending down from handlebar/headlight into suspension fork
-    const forkGroup = new THREE.Group();
-    steeringGroup.add(forkGroup);
-
-    // Central Steering Column Stem
-    const steeringStem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 16), darkCollarMat);
-    steeringStem.position.set(0, -0.2, 0.2);
-    forkGroup.add(steeringStem);
-
-    // Fork Crown Connector
-    const forkCrown = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.08), darkCollarMat);
-    forkCrown.position.set(0, -0.36, 0.28);
-    forkGroup.add(forkCrown);
-
-    // Dual Suspension Fork Struts (Left & Right)
-    const createForkStrut = (x) => {
-      const strutGroup = new THREE.Group();
-      strutGroup.position.set(x, -0.62, 0.37);
-
-      // Upper Outer Leg Tube
-      const upperLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.028, 0.32, 16), darkCollarMat);
-      strutGroup.add(upperLeg);
-
-      // Chrome Inner Damper Shaft
-      const innerDamper = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.26, 16), chromeMat);
-      innerDamper.position.y = -0.12;
-      strutGroup.add(innerDamper);
-
-      // Lower Axle Drop-out Mount
-      const dropOut = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.08, 16), darkCollarMat);
-      dropOut.position.set(0, -0.24, 0);
-      strutGroup.add(dropOut);
-
-      forkGroup.add(strutGroup);
+      idleTimer: 0,
     };
 
-    createForkStrut(-0.14); // Left Fork Leg
-    createForkStrut(0.14);  // Right Fork Leg
+    const MIN_PITCH = 0.05;
+    const MAX_PITCH = 1.12;
 
-    // REAL CENTRAL HORIZONTAL AXLE
-    const axleMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.32, 16), chromeMat);
-    axleMesh.rotation.z = Math.PI / 2;
-    axleMesh.position.set(0, -0.86, 0.72);
-    scooterGroup.add(axleMesh);
+    const MIN_RADIUS = 3.5;
+    const MAX_RADIUS = 10;
 
-    // REAL PROPERLY MODELED 3D FRONT WHEEL
-    const frontWheelGroup = new THREE.Group();
-    frontWheelGroup.position.set(0, -0.86, 0.72); // Positioned clearly in front of green body
-    scooterGroup.add(frontWheelGroup);
+    let isDragging = false;
 
-    // Realistic Rubber Tire with Curved Sidewalls & Tread Grooves
-    const frontTire = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.11, 32, 64), tireMat);
-    frontTire.castShadow = true;
-    frontTire.receiveShadow = true;
-    frontWheelGroup.add(frontTire);
+    let lastPointerX = 0;
+    let lastPointerY = 0;
 
-    // Inner Metallic Wheel Rim
-    const frontRim = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.14, 32), chromeMat);
-    frontRim.rotation.x = Math.PI / 2;
-    frontWheelGroup.add(frontRim);
-
-    // Central Wheel Hub
-    const frontHub = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.18, 24), darkCollarMat);
-    frontHub.rotation.x = Math.PI / 2;
-    frontWheelGroup.add(frontHub);
-
-    // 5 Solid Metallic Rim Spokes
-    for (let i = 0; i < 5; i++) {
-      const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.028, 0.028), chromeMat);
-      spoke.rotation.z = (Math.PI / 5) * i;
-      frontWheelGroup.add(spoke);
-    }
-
-    // REAR 3D WHEEL
-    const rearWheelGroup = new THREE.Group();
-    rearWheelGroup.position.set(0, -0.86, -0.5);
-
-    const rearTire = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.11, 32, 64), tireMat);
-    rearTire.castShadow = true;
-    rearWheelGroup.add(rearTire);
-
-    const rearRim = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.14, 32), chromeMat);
-    rearRim.rotation.x = Math.PI / 2;
-    rearWheelGroup.add(rearRim);
-
-    for (let i = 0; i < 5; i++) {
-      const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.028, 0.028), chromeMat);
-      spoke.rotation.z = (Math.PI / 5) * i;
-      rearWheelGroup.add(spoke);
-    }
-    scooterGroup.add(rearWheelGroup);
-
-    // List of wheels for rotation tracking
-    const wheelsList = [frontWheelGroup, rearWheelGroup];
-
-    // B) CHARACTER BODY (ROUNDED GREEN BODY + COLLAR + ZIPPER + BACKPACK)
-    const bodyGroup = new THREE.Group();
-    bodyGroup.position.set(0, 0.2, 0);
-    masterGroup.add(bodyGroup);
-
-    // Rounded Green Body Torso
-    const torsoMesh = new THREE.Mesh(new THREE.SphereGeometry(0.48, 32, 32), greenBodyMat);
-    torsoMesh.scale.set(1, 1.15, 0.92);
-    torsoMesh.position.set(0, 0.5, 0);
-    torsoMesh.castShadow = true;
-    bodyGroup.add(torsoMesh);
-
-    // White Vertical Zipper Detail
-    const zipperMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.92, 16), whiteZipperMat);
-    zipperMesh.position.set(0, 0.5, 0.44);
-    bodyGroup.add(zipperMesh);
-
-    // Black Collar
-    const collarMesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.065, 16, 32), darkCollarMat);
-    collarMesh.position.set(0, 0.98, 0);
-    collarMesh.rotation.x = Math.PI / 2;
-    bodyGroup.add(collarMesh);
-
-    // Green Arms & Beige Hands Firmly Gripping Handlebars
-    const leftArmGroup = new THREE.Group();
-    leftArmGroup.position.set(-0.42, 0.8, 0);
-    bodyGroup.add(leftArmGroup);
-
-    const leftArmMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(
-        new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(0, 0, 0),
-          new THREE.Vector3(-0.15, -0.25, 0.2),
-          new THREE.Vector3(-0.2, -0.2, 0.35)
-        ), 16, 0.09, 16, false
-      ), greenBodyMat
-    );
-    leftArmGroup.add(leftArmMesh);
-
-    const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 16), skinMat);
-    leftHand.position.set(-0.2, -0.2, 0.35);
-    leftArmGroup.add(leftHand);
-
-    const rightArmGroup = new THREE.Group();
-    rightArmGroup.position.set(0.42, 0.8, 0);
-    bodyGroup.add(rightArmGroup);
-
-    const rightArmMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(
-        new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(0, 0, 0),
-          new THREE.Vector3(0.15, -0.25, 0.2),
-          new THREE.Vector3(0.2, -0.2, 0.35)
-        ), 16, 0.09, 16, false
-      ), greenBodyMat
-    );
-    rightArmGroup.add(rightArmMesh);
-
-    const rightHand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 16), skinMat);
-    rightHand.position.set(0.2, -0.2, 0.35);
-    rightArmGroup.add(rightHand);
-
-    // Green Delivery Backpack (Attached to Back)
-    const bagMesh = new THREE.Mesh(new THREE.SphereGeometry(0.48, 32, 32), new THREE.MeshStandardMaterial({ color: 0x0B6B2B, roughness: 0.35 }));
-    bagMesh.scale.set(0.85, 1.1, 0.6);
-    bagMesh.position.set(0, 0.58, -0.42);
-    bagMesh.castShadow = true;
-    bodyGroup.add(bagMesh);
-
-    const stripeMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.12, 32, 1, false, -Math.PI * 0.4, Math.PI * 0.8), goldDetailMat);
-    stripeMesh.position.set(0, 0.58, -0.5);
-    stripeMesh.rotation.x = Math.PI / 2;
-    bodyGroup.add(stripeMesh);
-
-    // C) HEAD, BEIGE FACE, GREEN HELMET & BLACK HORIZONTAL VISOR
-    const headGroup = new THREE.Group();
-    headGroup.position.set(0, 1.45, 0);
-    bodyGroup.add(headGroup);
-
-    // Beige/Skin-Colored Face Base
-    const faceMesh = new THREE.Mesh(new THREE.SphereGeometry(0.56, 32, 32), skinMat);
-    faceMesh.castShadow = true;
-    headGroup.add(faceMesh);
-
-    // Green Helmet Dome
-    const helmetMesh = new THREE.Mesh(new THREE.SphereGeometry(0.59, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.53), greenHelmetMat);
-    headGroup.add(helmetMesh);
-
-    // Black Visor Brim / Visor Base
-    const visorBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.69, 0.05, 32, 1, false, -Math.PI * 0.35, Math.PI * 0.7), darkCollarMat);
-    visorBrim.position.set(0, 0.16, 0.25);
-    visorBrim.rotation.x = 0.18;
-    headGroup.add(visorBrim);
-
-    // BLACK HORIZONTAL VISOR / GOGGLE WITH CURVED SPECULAR HIGHLIGHT
-    const visorGeo = new THREE.CylinderGeometry(0.58, 0.58, 0.22, 32, 1, false, -Math.PI * 0.38, Math.PI * 0.76);
-    const visorMesh = new THREE.Mesh(visorGeo, blackVisorMat);
-    visorMesh.position.set(0, 0.08, 0.03);
-    headGroup.add(visorMesh);
-
-    // Curved Specular Glint Line on Visor
-    const glintGeo = new THREE.CylinderGeometry(0.59, 0.59, 0.04, 32, 1, false, -Math.PI * 0.2, Math.PI * 0.3);
-    const glintMesh = new THREE.Mesh(glintGeo, whiteZipperMat);
-    glintMesh.position.set(0, 0.12, 0.03);
-    headGroup.add(glintMesh);
-
-    // FACIAL EYES & BLINK RIG
-    const rightEyeGroup = new THREE.Group();
-    rightEyeGroup.position.set(0.2, -0.05, 0.52);
-    headGroup.add(rightEyeGroup);
-
-    const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), darkCollarMat);
-    rightEyeGroup.add(rightEye);
-
-    const rightShine = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), whiteZipperMat);
-    rightShine.position.set(0.02, 0.02, 0.05);
-    rightEyeGroup.add(rightShine);
-
-    const leftEyeGroup = new THREE.Group();
-    leftEyeGroup.position.set(-0.2, -0.05, 0.52);
-    headGroup.add(leftEyeGroup);
-
-    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), darkCollarMat);
-    leftEyeGroup.add(leftEye);
-
-    const leftShine = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), whiteZipperMat);
-    leftShine.position.set(0.02, 0.02, 0.05);
-    leftEyeGroup.add(leftShine);
-
-    // Friendly Cute Smile Curve
-    const mouthCurve = new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(-0.12, -0.22, 0.52),
-      new THREE.Vector3(0, -0.28, 0.55),
-      new THREE.Vector3(0.12, -0.22, 0.52)
-    );
-    const mouthMesh = new THREE.Mesh(new THREE.TubeGeometry(mouthCurve, 16, 0.022, 8, false), darkCollarMat);
-    headGroup.add(mouthMesh);
-
-    // D) EXPRESS PARCEL PACKAGE
-    const parcelGroup = new THREE.Group();
-    parcelGroup.position.set(0, 0.28, 0.72);
-    scooterGroup.add(parcelGroup);
-
-    const parcelBox = new THREE.Mesh(new THREE.SphereGeometry(0.28, 32, 32), parcelMat);
-    parcelBox.scale.set(0.85, 0.65, 0.65);
-    parcelBox.castShadow = true;
-    parcelGroup.add(parcelBox);
-
-    const ribbonH = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.06, 24), goldDetailMat);
-    ribbonH.scale.set(0.87, 1, 0.67);
-    parcelGroup.add(ribbonH);
-
-    // E) SUBTLE FLOATING AMBIENT PARTICLES
-    const particlesGroup = new THREE.Group();
-    const particleList = [];
-    for (let i = 0; i < 18; i++) {
-      const pMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.035, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0x138A36, transparent: true, opacity: Math.random() * 0.4 + 0.15 })
-      );
-      pMesh.position.set(
-        (Math.random() - 0.5) * 5,
-        (Math.random() - 0.5) * 3.5,
-        (Math.random() - 0.5) * 4
-      );
-      particlesGroup.add(pMesh);
-      particleList.push({ mesh: pMesh, speed: Math.random() * 0.04 + 0.015 });
-    }
-    scene.add(particlesGroup);
-
-    // ==========================================
-    // 6. KINEMATIC DAMPED SPRINGS & LOOP PHYSICS
-    // ==========================================
     let mouseX = 0;
     let mouseY = 0;
-    let targetMouseX = 0;
-    let targetMouseY = 0;
 
-    const handlePointerMove = (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left - rect.width / 2;
-      const y = e.clientY - rect.top - rect.height / 2;
-      mouseX = (x / rect.width) * 2;
-      mouseY = -(y / rect.height) * 2;
+    // ============================================================
+    // 3. REALISTIC SKY / ENVIRONMENT
+    // ============================================================
+
+    const skyCanvas = document.createElement("canvas");
+
+    skyCanvas.width = 2048;
+    skyCanvas.height = 1024;
+
+    const skyCtx = skyCanvas.getContext("2d");
+
+    // Sky
+    const skyGradient = skyCtx.createLinearGradient(
+      0,
+      0,
+      0,
+      1024
+    );
+
+    skyGradient.addColorStop(0, "#3F6793");
+    skyGradient.addColorStop(0.28, "#7198BB");
+    skyGradient.addColorStop(0.48, "#AFCADB");
+    skyGradient.addColorStop(0.60, "#DDE5E3");
+    skyGradient.addColorStop(0.72, "#E9E1D3");
+    skyGradient.addColorStop(1, "#A7A59C");
+
+    skyCtx.fillStyle = skyGradient;
+    skyCtx.fillRect(
+      0,
+      0,
+      2048,
+      1024
+    );
+
+    // Sun glow
+    const sunGradient =
+      skyCtx.createRadialGradient(
+        1530,
+        230,
+        15,
+        1530,
+        230,
+        430
+      );
+
+    sunGradient.addColorStop(
+      0,
+      "rgba(255,255,235,1)"
+    );
+
+    sunGradient.addColorStop(
+      0.12,
+      "rgba(255,249,220,.78)"
+    );
+
+    sunGradient.addColorStop(
+      0.35,
+      "rgba(255,231,190,.25)"
+    );
+
+    sunGradient.addColorStop(
+      1,
+      "rgba(255,225,180,0)"
+    );
+
+    skyCtx.fillStyle = sunGradient;
+
+    skyCtx.fillRect(
+      0,
+      0,
+      2048,
+      1024
+    );
+
+    // Soft clouds
+    for (let i = 0; i < 14; i++) {
+      const x =
+        100 +
+        i * 150;
+
+      const y =
+        380 +
+        Math.sin(i * 1.35) * 60;
+
+      const cloud =
+        skyCtx.createRadialGradient(
+          x,
+          y,
+          5,
+          x,
+          y,
+          190
+        );
+
+      cloud.addColorStop(
+        0,
+        "rgba(255,255,255,.18)"
+      );
+
+      cloud.addColorStop(
+        1,
+        "rgba(255,255,255,0)"
+      );
+
+      skyCtx.fillStyle = cloud;
+
+      skyCtx.beginPath();
+
+      skyCtx.ellipse(
+        x,
+        y,
+        250,
+        45,
+        0,
+        0,
+        Math.PI * 2
+      );
+
+      skyCtx.fill();
+    }
+
+    // Horizon haze
+    const horizonGradient =
+      skyCtx.createLinearGradient(
+        0,
+        530,
+        0,
+        1024
+      );
+
+    horizonGradient.addColorStop(
+      0,
+      "rgba(232,231,216,.8)"
+    );
+
+    horizonGradient.addColorStop(
+      1,
+      "rgba(145,145,137,.98)"
+    );
+
+    skyCtx.fillStyle =
+      horizonGradient;
+
+    skyCtx.fillRect(
+      0,
+      530,
+      2048,
+      494
+    );
+
+    const skyTexture =
+      new THREE.CanvasTexture(
+        skyCanvas
+      );
+
+    skyTexture.mapping =
+      THREE.EquirectangularReflectionMapping;
+
+    skyTexture.colorSpace =
+      THREE.SRGBColorSpace;
+
+    const pmremGenerator =
+      new THREE.PMREMGenerator(
+        renderer
+      );
+
+    pmremGenerator.compileEquirectangularShader();
+
+    const environment =
+      pmremGenerator.fromEquirectangular(
+        skyTexture
+      ).texture;
+
+    scene.environment =
+      environment;
+
+    scene.background =
+      environment;
+
+    scene.backgroundBlurriness =
+      0.58;
+
+    scene.backgroundIntensity =
+      0.9;
+
+    // Atmospheric fog
+    scene.fog = new THREE.Fog(
+      0xBAC5C7,
+      10,
+      31
+    );
+
+    // ============================================================
+    // 4. LIGHTING
+    // ============================================================
+
+    const hemisphere =
+      new THREE.HemisphereLight(
+        0xBBD6EF,
+        0x5D5549,
+        1.0
+      );
+
+    scene.add(hemisphere);
+
+    const ambient =
+      new THREE.AmbientLight(
+        0xFFFFFF,
+        0.18
+      );
+
+    scene.add(ambient);
+
+    // Main sunlight
+    const keyLight =
+      new THREE.DirectionalLight(
+        0xFFF0D0,
+        3.0
+      );
+
+    keyLight.position.set(
+      6,
+      10,
+      7
+    );
+
+    keyLight.castShadow = true;
+
+    keyLight.shadow.mapSize.width =
+      2048;
+
+    keyLight.shadow.mapSize.height =
+      2048;
+
+    keyLight.shadow.camera.near =
+      0.1;
+
+    keyLight.shadow.camera.far =
+      35;
+
+    keyLight.shadow.camera.left =
+      -6;
+
+    keyLight.shadow.camera.right =
+      6;
+
+    keyLight.shadow.camera.top =
+      6;
+
+    keyLight.shadow.camera.bottom =
+      -6;
+
+    keyLight.shadow.bias =
+      -0.00015;
+
+    keyLight.shadow.normalBias =
+      0.025;
+
+    scene.add(keyLight);
+
+    // Cool fill
+    const fillLight =
+      new THREE.DirectionalLight(
+        0xDDEEFF,
+        0.65
+      );
+
+    fillLight.position.set(
+      -6,
+      5,
+      4
+    );
+
+    scene.add(fillLight);
+
+    // Green rim
+    const greenRim =
+      new THREE.PointLight(
+        0x16A548,
+        2.5,
+        11
+      );
+
+    greenRim.position.set(
+      -4,
+      3.5,
+      -3
+    );
+
+    scene.add(greenRim);
+
+    // Warm rim
+    const warmRim =
+      new THREE.PointLight(
+        0xFFB52A,
+        1.6,
+        9
+      );
+
+    warmRim.position.set(
+      4,
+      1.5,
+      4
+    );
+
+    scene.add(warmRim);
+
+    // Camera fill
+    const followLight =
+      new THREE.PointLight(
+        0xFFFFFF,
+        0.7,
+        15
+      );
+
+    scene.add(followLight);
+
+    // ============================================================
+    // 5. REALISTIC MATERIALS
+    // ============================================================
+
+    const physicalMaterial = ({
+      color,
+      roughness,
+      metalness,
+      clearcoat = 0,
+      clearcoatRoughness = 0.25,
+      emissive = 0x000000,
+      emissiveIntensity = 0,
+    }) => {
+      return new THREE.MeshPhysicalMaterial({
+        color,
+        roughness,
+        metalness,
+        clearcoat,
+        clearcoatRoughness,
+        emissive,
+        emissiveIntensity,
+        envMapIntensity: 1.2,
+      });
+    };
+
+    const greenBodyMat =
+      physicalMaterial({
+        color: 0x128C3A,
+        roughness: 0.22,
+        metalness: 0.12,
+        clearcoat: 0.9,
+        clearcoatRoughness: 0.1,
+      });
+
+    const darkGreenMat =
+      physicalMaterial({
+        color: 0x075D29,
+        roughness: 0.2,
+        metalness: 0.15,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.1,
+      });
+
+    const skinMat =
+      physicalMaterial({
+        color: 0xE8AD83,
+        roughness: 0.48,
+        metalness: 0.0,
+      });
+
+    const blackMat =
+      physicalMaterial({
+        color: 0x111315,
+        roughness: 0.32,
+        metalness: 0.18,
+      });
+
+    const rubberMat =
+      physicalMaterial({
+        color: 0x101112,
+        roughness: 0.88,
+        metalness: 0.02,
+      });
+
+    const chromeMat =
+      physicalMaterial({
+        color: 0xE8EDF0,
+        roughness: 0.07,
+        metalness: 0.96,
+      });
+
+    const darkChromeMat =
+      physicalMaterial({
+        color: 0x51585C,
+        roughness: 0.18,
+        metalness: 0.88,
+      });
+
+    const goldMat =
+      physicalMaterial({
+        color: 0xFFB20A,
+        roughness: 0.16,
+        metalness: 0.82,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.08,
+      });
+
+    const parcelMat =
+      physicalMaterial({
+        color: 0xC88C4C,
+        roughness: 0.75,
+        metalness: 0,
+      });
+
+    const whiteMat =
+      physicalMaterial({
+        color: 0xFFFFFF,
+        roughness: 0.2,
+        metalness: 0,
+      });
+
+    const visorMat =
+      physicalMaterial({
+        color: 0x050607,
+        roughness: 0.025,
+        metalness: 0.92,
+        clearcoat: 1,
+        clearcoatRoughness: 0.03,
+      });
+
+    const tailLightMat =
+      physicalMaterial({
+        color: 0x670000,
+        roughness: 0.2,
+        metalness: 0,
+        emissive: 0xFF0505,
+        emissiveIntensity: 1.5,
+      });
+
+    const headlightMat =
+      physicalMaterial({
+        color: 0xFFFFFF,
+        roughness: 0.02,
+        metalness: 0.05,
+        emissive: 0xFFFFFF,
+        emissiveIntensity: 2.6,
+      });
+
+    // ============================================================
+    // 6. GROUND / ASPHALT
+    // ============================================================
+
+    const asphaltCanvas =
+      document.createElement("canvas");
+
+    asphaltCanvas.width = 1024;
+    asphaltCanvas.height = 1024;
+
+    const asphaltCtx =
+      asphaltCanvas.getContext("2d");
+
+    asphaltCtx.fillStyle =
+      "#363A3D";
+
+    asphaltCtx.fillRect(
+      0,
+      0,
+      1024,
+      1024
+    );
+
+    // Asphalt micro texture
+    for (
+      let i = 0;
+      i < 18000;
+      i++
+    ) {
+      const brightness =
+        25 +
+        Math.random() * 55;
+
+      const alpha =
+        0.06 +
+        Math.random() * 0.18;
+
+      asphaltCtx.fillStyle =
+        `rgba(${brightness},${brightness},${brightness},${alpha})`;
+
+      const size =
+        0.2 +
+        Math.random() * 2.4;
+
+      asphaltCtx.fillRect(
+        Math.random() * 1024,
+        Math.random() * 1024,
+        size,
+        size
+      );
+    }
+
+    // Small road cracks
+    asphaltCtx.strokeStyle =
+      "rgba(0,0,0,.16)";
+
+    asphaltCtx.lineWidth = 2;
+
+    for (
+      let i = 0;
+      i < 40;
+      i++
+    ) {
+      let x =
+        Math.random() *
+        1024;
+
+      let y =
+        Math.random() *
+        1024;
+
+      asphaltCtx.beginPath();
+
+      asphaltCtx.moveTo(
+        x,
+        y
+      );
+
+      for (
+        let j = 0;
+        j < 5;
+        j++
+      ) {
+        x +=
+          (Math.random() -
+            0.5) *
+          100;
+
+        y +=
+          Math.random() *
+          80;
+
+        asphaltCtx.lineTo(
+          x,
+          y
+        );
+      }
+
+      asphaltCtx.stroke();
+    }
+
+    // Lane marking
+    asphaltCtx.strokeStyle =
+      "rgba(240,230,205,.35)";
+
+    asphaltCtx.lineWidth = 12;
+
+    asphaltCtx.setLineDash([
+      90,
+      70,
+    ]);
+
+    asphaltCtx.beginPath();
+
+    asphaltCtx.moveTo(
+      512,
+      0
+    );
+
+    asphaltCtx.lineTo(
+      512,
+      1024
+    );
+
+    asphaltCtx.stroke();
+
+    const asphaltTexture =
+      new THREE.CanvasTexture(
+        asphaltCanvas
+      );
+
+    asphaltTexture.wrapS =
+      THREE.RepeatWrapping;
+
+    asphaltTexture.wrapT =
+      THREE.RepeatWrapping;
+
+    asphaltTexture.repeat.set(
+      5,
+      5
+    );
+
+    asphaltTexture.colorSpace =
+      THREE.SRGBColorSpace;
+
+    const asphaltMaterial =
+      new THREE.MeshStandardMaterial({
+        map: asphaltTexture,
+        roughness: 0.94,
+        metalness: 0.02,
+      });
+
+    const ground =
+      new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          50,
+          50
+        ),
+        asphaltMaterial
+      );
+
+    ground.rotation.x =
+      -Math.PI / 2;
+
+    ground.position.y =
+      -1.31;
+
+    ground.receiveShadow = true;
+
+    scene.add(ground);
+
+    // ============================================================
+    // 7. CONTACT SHADOW
+    // ============================================================
+
+    const shadowCanvas =
+      document.createElement("canvas");
+
+    shadowCanvas.width = 512;
+    shadowCanvas.height = 512;
+
+    const shadowCtx =
+      shadowCanvas.getContext("2d");
+
+    const shadowGradient =
+      shadowCtx.createRadialGradient(
+        256,
+        256,
+        5,
+        256,
+        256,
+        256
+      );
+
+    shadowGradient.addColorStop(
+      0,
+      "rgba(0,0,0,.65)"
+    );
+
+    shadowGradient.addColorStop(
+      0.35,
+      "rgba(0,0,0,.38)"
+    );
+
+    shadowGradient.addColorStop(
+      0.7,
+      "rgba(0,0,0,.12)"
+    );
+
+    shadowGradient.addColorStop(
+      1,
+      "rgba(0,0,0,0)"
+    );
+
+    shadowCtx.fillStyle =
+      shadowGradient;
+
+    shadowCtx.fillRect(
+      0,
+      0,
+      512,
+      512
+    );
+
+    const shadowTexture =
+      new THREE.CanvasTexture(
+        shadowCanvas
+      );
+
+    const shadowMaterial =
+      new THREE.MeshBasicMaterial({
+        map: shadowTexture,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.56,
+      });
+
+    const contactShadow =
+      new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          3.8,
+          2.5
+        ),
+        shadowMaterial
+      );
+
+    contactShadow.rotation.x =
+      -Math.PI / 2;
+
+    contactShadow.position.y =
+      -1.295;
+
+    scene.add(contactShadow);
+
+    // ============================================================
+    // 8. MASTER GROUP
+    // ============================================================
+
+    const orbitGroup =
+      new THREE.Group();
+
+    scene.add(orbitGroup);
+
+    const masterGroup =
+      new THREE.Group();
+
+    orbitGroup.add(
+      masterGroup
+    );
+
+    const scooterGroup =
+      new THREE.Group();
+
+    scooterGroup.position.y =
+      -0.58;
+
+    masterGroup.add(
+      scooterGroup
+    );
+
+    const bodyGroup =
+      new THREE.Group();
+
+    bodyGroup.position.y =
+      0.18;
+
+    masterGroup.add(
+      bodyGroup
+    );
+
+    // ============================================================
+    // 9. HELPER
+    // ============================================================
+
+    const castReceiveShadow = (
+      mesh
+    ) => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    };
+
+    const cylinderBetween = (
+      start,
+      end,
+      radius,
+      material,
+      segments = 18
+    ) => {
+      const direction =
+        new THREE.Vector3()
+          .subVectors(
+            end,
+            start
+          );
+
+      const length =
+        direction.length();
+
+      const geometry =
+        new THREE.CylinderGeometry(
+          radius,
+          radius,
+          length,
+          segments
+        );
+
+      const mesh =
+        new THREE.Mesh(
+          geometry,
+          material
+        );
+
+      mesh.position
+        .copy(start)
+        .add(end)
+        .multiplyScalar(0.5);
+
+      mesh.quaternion.setFromUnitVectors(
+        new THREE.Vector3(
+          0,
+          1,
+          0
+        ),
+        direction.normalize()
+      );
+
+      return castReceiveShadow(
+        mesh
+      );
+    };
+
+    // ============================================================
+    // 10. SCOOTER FRONT BODY
+    // ============================================================
+
+    const frontShield =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.62,
+            48,
+            32
+          ),
+          greenBodyMat
+        )
+      );
+
+    frontShield.scale.set(
+      0.92,
+      0.86,
+      0.48
+    );
+
+    frontShield.position.set(
+      0,
+      0.28,
+      0.38
+    );
+
+    scooterGroup.add(
+      frontShield
+    );
+
+    // Lower front panel
+    const lowerPanel =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.42,
+            40,
+            24
+          ),
+          darkGreenMat
+        )
+      );
+
+    lowerPanel.scale.set(
+      0.82,
+      0.58,
+      0.42
+    );
+
+    lowerPanel.position.set(
+      0,
+      -0.05,
+      0.43
+    );
+
+    scooterGroup.add(
+      lowerPanel
+    );
+
+    // ============================================================
+    // 11. FRONT GOLD BADGE
+    // ============================================================
+
+    const badge =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.14,
+          0.14,
+          0.045,
+          48
+        ),
+        goldMat
+      );
+
+    badge.rotation.x =
+      Math.PI / 2;
+
+    badge.position.set(
+      0,
+      0.30,
+      0.69
+    );
+
+    scooterGroup.add(
+      badge
+    );
+
+    // ============================================================
+    // 12. DECK
+    // ============================================================
+
+    const deck =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(
+            0.66,
+            0.18,
+            1.2
+          ),
+          greenBodyMat
+        )
+      );
+
+    deck.position.set(
+      0,
+      -0.43,
+      -0.12
+    );
+
+    deck.rotation.x =
+      -0.02;
+
+    scooterGroup.add(
+      deck
+    );
+
+    // Rubber foot area
+    const footBoard =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.48,
+          0.035,
+          0.7
+        ),
+        rubberMat
+      );
+
+    footBoard.position.set(
+      0,
+      -0.325,
+      -0.13
+    );
+
+    scooterGroup.add(
+      footBoard
+    );
+
+    // ============================================================
+    // 13. REAR BODY
+    // ============================================================
+
+    const rearBody =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.46,
+            40,
+            30
+          ),
+          greenBodyMat
+        )
+      );
+
+    rearBody.scale.set(
+      0.9,
+      0.62,
+      1.18
+    );
+
+    rearBody.position.set(
+      0,
+      -0.02,
+      -0.7
+    );
+
+    scooterGroup.add(
+      rearBody
+    );
+
+    // ============================================================
+    // 14. SEAT
+    // ============================================================
+
+    const seat =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.CapsuleGeometry(
+            0.25,
+            0.55,
+            8,
+            24
+          ),
+          blackMat
+        )
+      );
+
+    seat.rotation.z =
+      Math.PI / 2;
+
+    seat.position.set(
+      0,
+      0.17,
+      -0.30
+    );
+
+    scooterGroup.add(
+      seat
+    );
+
+    // ============================================================
+    // 15. TAIL LIGHT
+    // ============================================================
+
+    const tailLightMesh =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.25,
+          0.11,
+          0.055
+        ),
+        tailLightMat
+      );
+
+    tailLightMesh.position.set(
+      0,
+      0.07,
+      -1.18
+    );
+
+    scooterGroup.add(
+      tailLightMesh
+    );
+
+    const tailGlow =
+      new THREE.PointLight(
+        0xFF1010,
+        0.45,
+        2.5
+      );
+
+    tailGlow.position.set(
+      0,
+      0.07,
+      -1.22
+    );
+
+    scooterGroup.add(
+      tailGlow
+    );
+
+    // ============================================================
+    // 16. LICENSE PLATE
+    // ============================================================
+
+    const plate =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.27,
+          0.15,
+          0.025
+        ),
+        whiteMat
+      );
+
+    plate.position.set(
+      0,
+      -0.18,
+      -1.18
+    );
+
+    scooterGroup.add(
+      plate
+    );
+
+    // ============================================================
+    // 17. EXHAUST
+    // ============================================================
+
+    const exhaustGroup =
+      new THREE.Group();
+
+    exhaustGroup.position.set(
+      0.31,
+      -0.72,
+      -0.58
+    );
+
+    scooterGroup.add(
+      exhaustGroup
+    );
+
+    const exhaustPipe =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.045,
+          0.065,
+          0.58,
+          24
+        ),
+        chromeMat
+      );
+
+    exhaustPipe.rotation.x =
+      Math.PI / 2.2;
+
+    exhaustGroup.add(
+      exhaustPipe
+    );
+
+    const exhaustTip =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.065,
+          0.065,
+          0.08,
+          24
+        ),
+        blackMat
+      );
+
+    exhaustTip.position.z =
+      0.31;
+
+    exhaustTip.rotation.x =
+      Math.PI / 2.2;
+
+    exhaustGroup.add(
+      exhaustTip
+    );
+
+    // ============================================================
+    // 18. STEERING
+    // ============================================================
+
+    const steeringGroup =
+      new THREE.Group();
+
+    steeringGroup.position.set(
+      0,
+      0.60,
+      0.37
+    );
+
+    scooterGroup.add(
+      steeringGroup
+    );
+
+    // Stem
+    const steeringStem =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.038,
+          0.045,
+          0.45,
+          20
+        ),
+        darkChromeMat
+      );
+
+    steeringStem.position.y =
+      -0.22;
+
+    steeringGroup.add(
+      steeringStem
+    );
+
+    // Handlebar
+    const handleCurve =
+      new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(
+          -0.65,
+          0,
+          0
+        ),
+        new THREE.Vector3(
+          0,
+          0.12,
+          0.02
+        ),
+        new THREE.Vector3(
+          0.65,
+          0,
+          0
+        )
+      );
+
+    const handlebar =
+      new THREE.Mesh(
+        new THREE.TubeGeometry(
+          handleCurve,
+          32,
+          0.035,
+          12,
+          false
+        ),
+        blackMat
+      );
+
+    steeringGroup.add(
+      handlebar
+    );
+
+    // ============================================================
+    // 19. HEADLIGHT
+    // ============================================================
+
+    const headlightHousing =
+      new THREE.Mesh(
+        new THREE.TorusGeometry(
+          0.19,
+          0.035,
+          16,
+          48
+        ),
+        chromeMat
+      );
+
+    headlightHousing.position.set(
+      0,
+      0,
+      0.19
+    );
+
+    steeringGroup.add(
+      headlightHousing
+    );
+
+    const headlight =
+      new THREE.Mesh(
+        new THREE.SphereGeometry(
+          0.17,
+          40,
+          24
+        ),
+        headlightMat
+      );
+
+    headlight.scale.z =
+      0.38;
+
+    headlight.position.set(
+      0,
+      0,
+      0.19
+    );
+
+    steeringGroup.add(
+      headlight
+    );
+
+    const headlightGlow =
+      new THREE.PointLight(
+        0xFFFFFF,
+        0.8,
+        4
+      );
+
+    headlightGlow.position.set(
+      0,
+      0,
+      0.42
+    );
+
+    steeringGroup.add(
+      headlightGlow
+    );
+
+    // ============================================================
+    // 20. MIRRORS
+    // ============================================================
+
+    const createMirror = (
+      side
+    ) => {
+      const group =
+        new THREE.Group();
+
+      group.position.set(
+        side * 0.57,
+        0.22,
+        0
+      );
+
+      const stalk =
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            0.014,
+            0.02,
+            0.28,
+            16
+          ),
+          blackMat
+        );
+
+      stalk.rotation.z =
+        side > 0
+          ? -0.32
+          : 0.32;
+
+      group.add(
+        stalk
+      );
+
+      const mirror =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.105,
+            24,
+            16
+          ),
+          visorMat
+        );
+
+      mirror.scale.set(
+        1,
+        0.85,
+        0.32
+      );
+
+      mirror.position.set(
+        side * 0.055,
+        0.15,
+        0
+      );
+
+      group.add(
+        mirror
+      );
+
+      steeringGroup.add(
+        group
+      );
+    };
+
+    createMirror(-1);
+    createMirror(1);
+
+    // ============================================================
+    // 21. FRONT WHEEL + SUSPENSION
+    // ============================================================
+
+    const frontWheelPivot =
+      new THREE.Group();
+
+    frontWheelPivot.position.set(
+      0,
+      -0.87,
+      0.73
+    );
+
+    scooterGroup.add(
+      frontWheelPivot
+    );
+
+    const forkGroup =
+      new THREE.Group();
+
+    steeringGroup.add(
+      forkGroup
+    );
+
+    const forkCrown =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.28,
+          0.055,
+          0.09
+        ),
+        blackMat
+      );
+
+    forkCrown.position.set(
+      0,
+      -0.37,
+      0.3
+    );
+
+    forkGroup.add(
+      forkCrown
+    );
+
+    for (
+      const side of [-1, 1]
+    ) {
+      const forkOuter =
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            0.028,
+            0.032,
+            0.38,
+            20
+          ),
+          blackMat
+        );
+
+      forkOuter.position.set(
+        side * 0.13,
+        -0.56,
+        0.4
+      );
+
+      forkGroup.add(
+        forkOuter
+      );
+
+      const forkInner =
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            0.018,
+            0.018,
+            0.30,
+            20
+          ),
+          chromeMat
+        );
+
+      forkInner.position.set(
+        side * 0.13,
+        -0.72,
+        0.4
+      );
+
+      forkGroup.add(
+        forkInner
+      );
+    }
+
+    // ============================================================
+    // 22. REAR WHEEL
+    // ============================================================
+
+    const rearWheelGroup =
+      new THREE.Group();
+
+    rearWheelGroup.position.set(
+      0,
+      -0.87,
+      -0.57
+    );
+
+    scooterGroup.add(
+      rearWheelGroup
+    );
+
+    const createWheel =
+      (parent) => {
+        const tire =
+          new THREE.Mesh(
+            new THREE.TorusGeometry(
+              0.35,
+              0.105,
+              32,
+              72
+            ),
+            rubberMat
+          );
+
+        tire.castShadow = true;
+        tire.receiveShadow = true;
+
+        parent.add(
+          tire
+        );
+
+        const rim =
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              0.245,
+              0.245,
+              0.14,
+              48
+            ),
+            chromeMat
+          );
+
+        rim.rotation.x =
+          Math.PI / 2;
+
+        parent.add(
+          rim
+        );
+
+        const hub =
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              0.075,
+              0.075,
+              0.18,
+              24
+            ),
+            darkChromeMat
+          );
+
+        hub.rotation.x =
+          Math.PI / 2;
+
+        parent.add(
+          hub
+        );
+
+        for (
+          let i = 0;
+          i < 10;
+          i++
+        ) {
+          const spoke =
+            new THREE.Mesh(
+              new THREE.BoxGeometry(
+                0.46,
+                0.018,
+                0.018
+              ),
+              chromeMat
+            );
+
+          spoke.rotation.z =
+            (Math.PI * 2 * i) /
+            10;
+
+          parent.add(
+            spoke
+          );
+        }
+      };
+
+    createWheel(
+      frontWheelPivot
+    );
+
+    createWheel(
+      rearWheelGroup
+    );
+
+    // ============================================================
+    // 23. RIDER BODY
+    // ============================================================
+
+    const torso =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.49,
+            40,
+            32
+          ),
+          greenBodyMat
+        )
+      );
+
+    torso.scale.set(
+      1,
+      1.2,
+      0.92
+    );
+
+    torso.position.set(
+      0,
+      0.5,
+      0
+    );
+
+    bodyGroup.add(
+      torso
+    );
+
+    // Collar
+    const collar =
+      new THREE.Mesh(
+        new THREE.TorusGeometry(
+          0.35,
+          0.065,
+          16,
+          40
+        ),
+        blackMat
+      );
+
+    collar.rotation.x =
+      Math.PI / 2;
+
+    collar.position.set(
+      0,
+      0.99,
+      0
+    );
+
+    bodyGroup.add(
+      collar
+    );
+
+    // Zipper
+    const zipper =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.022,
+          0.022,
+          0.9,
+          16
+        ),
+        whiteMat
+      );
+
+    zipper.position.set(
+      0,
+      0.52,
+      0.44
+    );
+
+    bodyGroup.add(
+      zipper
+    );
+
+    // ============================================================
+    // 24. ARMS
+    // ============================================================
+
+    const createArm = (
+      side
+    ) => {
+      const armGroup =
+        new THREE.Group();
+
+      armGroup.position.set(
+        side * 0.40,
+        0.82,
+        0
+      );
+
+      bodyGroup.add(
+        armGroup
+      );
+
+      const shoulder =
+        new THREE.Vector3(
+          0,
+          0,
+          0
+        );
+
+      const elbow =
+        new THREE.Vector3(
+          side * 0.16,
+          -0.26,
+          0.21
+        );
+
+      const hand =
+        new THREE.Vector3(
+          side * 0.22,
+          -0.18,
+          0.4
+        );
+
+      armGroup.add(
+        cylinderBetween(
+          shoulder,
+          elbow,
+          0.09,
+          greenBodyMat
+        )
+      );
+
+      armGroup.add(
+        cylinderBetween(
+          elbow,
+          hand,
+          0.075,
+          greenBodyMat
+        )
+      );
+
+      const handMesh =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.085,
+            20,
+            16
+          ),
+          skinMat
+        );
+
+      handMesh.position.copy(
+        hand
+      );
+
+      armGroup.add(
+        handMesh
+      );
+    };
+
+    createArm(-1);
+    createArm(1);
+
+    // ============================================================
+    // 25. LEGS
+    // ============================================================
+
+    const createLeg = (
+      side
+    ) => {
+      const legGroup =
+        new THREE.Group();
+
+      legGroup.position.set(
+        side * 0.23,
+        0.1,
+        0.04
+      );
+
+      bodyGroup.add(
+        legGroup
+      );
+
+      const hip =
+        new THREE.Vector3(
+          0,
+          0,
+          0
+        );
+
+      const knee =
+        new THREE.Vector3(
+          side * 0.14,
+          -0.28,
+          0.27
+        );
+
+      const ankle =
+        new THREE.Vector3(
+          side * 0.16,
+          -0.62,
+          0.12
+        );
+
+      legGroup.add(
+        cylinderBetween(
+          hip,
+          knee,
+          0.105,
+          greenBodyMat
+        )
+      );
+
+      legGroup.add(
+        cylinderBetween(
+          knee,
+          ankle,
+          0.085,
+          blackMat
+        )
+      );
+
+      const shoe =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.12,
+            24,
+            16
+          ),
+          blackMat
+        );
+
+      shoe.scale.set(
+        1,
+        0.75,
+        1.65
+      );
+
+      shoe.position.set(
+        side * 0.16,
+        -0.67,
+        0.2
+      );
+
+      legGroup.add(
+        shoe
+      );
+    };
+
+    createLeg(-1);
+    createLeg(1);
+
+    // ============================================================
+    // 26. BACKPACK
+    // ============================================================
+
+    const backpack =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.5,
+            40,
+            28
+          ),
+          darkGreenMat
+        )
+      );
+
+    backpack.scale.set(
+      0.88,
+      1.12,
+      0.62
+    );
+
+    backpack.position.set(
+      0,
+      0.58,
+      -0.44
+    );
+
+    bodyGroup.add(
+      backpack
+    );
+
+    // Backpack front panel
+    const backpackPanel =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.48,
+          0.56,
+          0.045
+        ),
+        greenBodyMat
+      );
+
+    backpackPanel.position.set(
+      0,
+      0.58,
+      -0.82
+    );
+
+    bodyGroup.add(
+      backpackPanel
+    );
+
+    // Gold stripe
+    const backpackStripe =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.65,
+          0.08,
+          0.03
+        ),
+        goldMat
+      );
+
+    backpackStripe.position.set(
+      0,
+      0.60,
+      -0.82
+    );
+
+    bodyGroup.add(
+      backpackStripe
+    );
+
+    // Straps
+    for (
+      const side of [-1, 1]
+    ) {
+      const strapCurve =
+        new THREE.QuadraticBezierCurve3(
+          new THREE.Vector3(
+            side * 0.28,
+            0.93,
+            -0.25
+          ),
+          new THREE.Vector3(
+            side * 0.18,
+            0.72,
+            0.22
+          ),
+          new THREE.Vector3(
+            side * 0.12,
+            0.35,
+            0.4
+          )
+        );
+
+      const strap =
+        new THREE.Mesh(
+          new THREE.TubeGeometry(
+            strapCurve,
+            18,
+            0.035,
+            8,
+            false
+          ),
+          blackMat
+        );
+
+      bodyGroup.add(
+        strap
+      );
+    }
+
+    // ============================================================
+    // 27. HEAD
+    // ============================================================
+
+    const headGroup =
+      new THREE.Group();
+
+    headGroup.position.set(
+      0,
+      1.48,
+      0
+    );
+
+    bodyGroup.add(
+      headGroup
+    );
+
+    // Face
+    const face =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.55,
+            48,
+            36
+          ),
+          skinMat
+        )
+      );
+
+    headGroup.add(
+      face
+    );
+
+    // ============================================================
+    // 28. HELMET
+    // ============================================================
+
+    const helmet =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.59,
+            48,
+            32,
+            0,
+            Math.PI * 2,
+            0,
+            Math.PI * 0.58
+          ),
+          darkGreenMat
+        )
+      );
+
+    helmet.position.y =
+      0.02;
+
+    headGroup.add(
+      helmet
+    );
+
+    // Helmet ear sections
+    for (
+      const side of [-1, 1]
+    ) {
+      const ear =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.14,
+            20,
+            16
+          ),
+          darkGreenMat
+        );
+
+      ear.scale.z =
+        0.45;
+
+      ear.position.set(
+        side * 0.48,
+        -0.02,
+        0
+      );
+
+      headGroup.add(
+        ear
+      );
+    }
+
+    // Helmet vent
+    const helmetVent =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.08,
+          0.055,
+          0.15
+        ),
+        blackMat
+      );
+
+    helmetVent.position.set(
+      0,
+      0.38,
+      -0.38
+    );
+
+    headGroup.add(
+      helmetVent
+    );
+
+    // ============================================================
+    // 29. VISOR
+    // ============================================================
+
+    const visorBrim =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.65,
+          0.69,
+          0.055,
+          48,
+          1,
+          false,
+          -Math.PI * 0.42,
+          Math.PI * 0.84
+        ),
+        blackMat
+      );
+
+    visorBrim.position.set(
+      0,
+      0.17,
+      0.26
+    );
+
+    visorBrim.rotation.x =
+      0.16;
+
+    headGroup.add(
+      visorBrim
+    );
+
+    const visor =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.575,
+          0.575,
+          0.22,
+          48,
+          1,
+          false,
+          -Math.PI * 0.39,
+          Math.PI * 0.78
+        ),
+        visorMat
+      );
+
+    visor.position.set(
+      0,
+      0.07,
+      0.045
+    );
+
+    headGroup.add(
+      visor
+    );
+
+    // Visor highlight
+    const visorHighlight =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.58,
+          0.58,
+          0.018,
+          48,
+          1,
+          false,
+          -Math.PI * 0.18,
+          Math.PI * 0.32
+        ),
+        whiteMat
+      );
+
+    visorHighlight.position.set(
+      -0.13,
+      0.13,
+      0.06
+    );
+
+    visorHighlight.rotation.z =
+      -0.25;
+
+    headGroup.add(
+      visorHighlight
+    );
+
+    // ============================================================
+    // 30. EYES
+    // ============================================================
+
+    const eyeGroups = [];
+
+    for (
+      const side of [-1, 1]
+    ) {
+      const eyeGroup =
+        new THREE.Group();
+
+      eyeGroup.position.set(
+        side * 0.20,
+        -0.055,
+        0.51
+      );
+
+      headGroup.add(
+        eyeGroup
+      );
+
+      const eye =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.066,
+            20,
+            16
+          ),
+          blackMat
+        );
+
+      eyeGroup.add(
+        eye
+      );
+
+      const eyeShine =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.021,
+            12,
+            10
+          ),
+          whiteMat
+        );
+
+      eyeShine.position.set(
+        0.02,
+        0.025,
+        0.055
+      );
+
+      eyeGroup.add(
+        eyeShine
+      );
+
+      eyeGroups.push(
+        eyeGroup
+      );
+    }
+
+    // ============================================================
+    // 31. MOUTH
+    // ============================================================
+
+    const mouthCurve =
+      new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(
+          -0.12,
+          -0.22,
+          0.51
+        ),
+        new THREE.Vector3(
+          0,
+          -0.275,
+          0.55
+        ),
+        new THREE.Vector3(
+          0.12,
+          -0.22,
+          0.51
+        )
+      );
+
+    const mouth =
+      new THREE.Mesh(
+        new THREE.TubeGeometry(
+          mouthCurve,
+          20,
+          0.018,
+          10,
+          false
+        ),
+        blackMat
+      );
+
+    headGroup.add(
+      mouth
+    );
+
+    // ============================================================
+    // 32. DELIVERY PARCEL
+    // ============================================================
+
+    const parcelGroup =
+      new THREE.Group();
+
+    parcelGroup.position.set(
+      0,
+      0.3,
+      0.72
+    );
+
+    scooterGroup.add(
+      parcelGroup
+    );
+
+    const parcelBox =
+      castReceiveShadow(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(
+            0.52,
+            0.42,
+            0.42
+          ),
+          parcelMat
+        )
+      );
+
+    parcelGroup.add(
+      parcelBox
+    );
+
+    // Horizontal tape
+    const parcelTapeH =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.10,
+          0.43,
+          0.44
+        ),
+        goldMat
+      );
+
+    parcelGroup.add(
+      parcelTapeH
+    );
+
+    // Vertical tape
+    const parcelTapeV =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.53,
+          0.10,
+          0.43
+        ),
+        goldMat
+      );
+
+    parcelGroup.add(
+      parcelTapeV
+    );
+
+    // ============================================================
+    // 33. AMBIENT PARTICLES
+    // ============================================================
+
+    const particlesGroup =
+      new THREE.Group();
+
+    const particles = [];
+
+    const particleGeometry =
+      new THREE.SphereGeometry(
+        0.025,
+        8,
+        8
+      );
+
+    for (
+      let i = 0;
+      i < 30;
+      i++
+    ) {
+      const particleMaterial =
+        new THREE.MeshBasicMaterial({
+          color:
+            i % 2 === 0
+              ? 0x79CA91
+              : 0xFFD66B,
+          transparent: true,
+          opacity:
+            0.06 +
+            Math.random() * 0.18,
+        });
+
+      const particle =
+        new THREE.Mesh(
+          particleGeometry,
+          particleMaterial
+        );
+
+      particle.position.set(
+        (Math.random() - 0.5) * 6,
+        Math.random() * 4 - 1,
+        (Math.random() - 0.5) * 6
+      );
+
+      particlesGroup.add(
+        particle
+      );
+
+      particles.push({
+        mesh: particle,
+        speed:
+          0.12 +
+          Math.random() * 0.35,
+        phase:
+          Math.random() *
+          Math.PI *
+          2,
+      });
+    }
+
+    scene.add(
+      particlesGroup
+    );
+
+    // ============================================================
+    // 34. SPRING PHYSICS
+    // ============================================================
+
+    const createSpring = (
+      stiffness,
+      damping
+    ) => {
+      const spring = {
+        value: 0,
+        velocity: 0,
+        target: 0,
+      };
+
+      spring.update = (
+        dt
+      ) => {
+        const force =
+          (spring.target -
+            spring.value) *
+          stiffness -
+          spring.velocity *
+          damping;
+
+        spring.velocity +=
+          force * dt;
+
+        spring.value +=
+          spring.velocity * dt;
+
+        return spring.value;
+      };
+
+      return spring;
+    };
+
+    const leanSpring =
+      createSpring(
+        75,
+        11
+      );
+
+    const suspensionSpring =
+      createSpring(
+        230,
+        18
+      );
+
+    const bodySpring =
+      createSpring(
+        90,
+        13
+      );
+
+    const backpackSpring =
+      createSpring(
+        110,
+        12
+      );
+
+    const parcelSpring =
+      createSpring(
+        125,
+        12
+      );
+
+    // ============================================================
+    // 35. POINTER CONTROLS
+    // ============================================================
+
+    const handlePointerDown = (
+      event
+    ) => {
+      isDragging = true;
+
+      orbit.autoRotate =
+        false;
+
+      orbit.idleTimer = 0;
+
+      lastPointerX =
+        event.clientX;
+
+      lastPointerY =
+        event.clientY;
+
+      container.style.cursor =
+        "grabbing";
+
+      try {
+        renderer.domElement.setPointerCapture(
+          event.pointerId
+        );
+      } catch { }
+    };
+
+    const handlePointerMove = (
+      event
+    ) => {
+      const rect =
+        container.getBoundingClientRect();
+
+      mouseX =
+        ((event.clientX -
+          rect.left) /
+          rect.width) *
+        2 -
+        1;
+
+      mouseY =
+        -(
+          ((event.clientY -
+            rect.top) /
+            rect.height) *
+          2 -
+          1
+        );
+
+      if (!isDragging) {
+        return;
+      }
+
+      const dx =
+        event.clientX -
+        lastPointerX;
+
+      const dy =
+        event.clientY -
+        lastPointerY;
+
+      orbit.targetYaw +=
+        dx * 0.007;
+
+      orbit.targetPitch =
+        THREE.MathUtils.clamp(
+          orbit.targetPitch -
+          dy * 0.005,
+          MIN_PITCH,
+          MAX_PITCH
+        );
+
+      lastPointerX =
+        event.clientX;
+
+      lastPointerY =
+        event.clientY;
+    };
+
+    const handlePointerUp = () => {
+      isDragging = false;
+
+      orbit.idleTimer = 0;
+
+      container.style.cursor =
+        "grab";
     };
 
     const handlePointerLeave = () => {
       mouseX = 0;
       mouseY = 0;
+
+      if (isDragging) {
+        isDragging = false;
+
+        container.style.cursor =
+          "grab";
+      }
     };
 
-    container.addEventListener('pointermove', handlePointerMove);
-    container.addEventListener('pointerleave', handlePointerLeave);
+    const handleWheel = (
+      event
+    ) => {
+      event.preventDefault();
 
-    // State Variables for Kinematic Chain & Natural Blinking
-    let nextBlinkTime = 2.0;
+      orbit.targetRadius =
+        THREE.MathUtils.clamp(
+          orbit.targetRadius +
+          event.deltaY * 0.003,
+          MIN_RADIUS,
+          MAX_RADIUS
+        );
+    };
+
+    container.style.cursor =
+      "grab";
+
+    container.style.touchAction =
+      "none";
+
+    container.addEventListener(
+      "pointerdown",
+      handlePointerDown
+    );
+
+    window.addEventListener(
+      "pointermove",
+      handlePointerMove
+    );
+
+    window.addEventListener(
+      "pointerup",
+      handlePointerUp
+    );
+
+    container.addEventListener(
+      "pointerleave",
+      handlePointerLeave
+    );
+
+    container.addEventListener(
+      "wheel",
+      handleWheel,
+      {
+        passive: false,
+      }
+    );
+
+    // ============================================================
+    // 36. BLINK STATE
+    // ============================================================
+
+    let nextBlinkTime =
+      2 +
+      Math.random() * 2;
+
     let isBlinking = false;
-    let blinkDuration = 0.15;
+
     let blinkProgress = 0;
 
-    // Kinematic Spring Positional Tracking
-    let bodyY = 0;
-    let bodyRotY = 0;
-    let headRotY = 0;
-    let headRotZ = 0;
-    let steeringRotY = 0;
+    const blinkDuration =
+      0.12;
 
-    const clock = new THREE.Clock();
-    let animFrameId;
+    // ============================================================
+    // 37. ANIMATION
+    // ============================================================
+
+    const clock =
+      new THREE.Clock();
+
+    let animationFrameId;
+
+    let wheelRotation = 0;
 
     const animate = () => {
-      animFrameId = requestAnimationFrame(animate);
-      const delta = Math.min(clock.getDelta(), 0.05); // Cap delta to prevent spikes
-      const elapsedTime = clock.getElapsedTime();
+      animationFrameId =
+        requestAnimationFrame(
+          animate
+        );
 
-      // Exponential frame-rate independent lerp dampening for mouse response
-      const mouseDamp = 1 - Math.exp(-6 * delta);
-      targetMouseX = THREE.MathUtils.lerp(targetMouseX, mouseX, mouseDamp);
-      targetMouseY = THREE.MathUtils.lerp(targetMouseY, mouseY, mouseDamp);
+      const delta =
+        Math.min(
+          clock.getDelta(),
+          0.033
+        );
 
-      // Continuous 3D Wheel Rotation around central horizontal axle
-      wheelsList.forEach(w => {
-        w.rotation.x += delta * 15;
-      });
+      const elapsedTime =
+        clock.getElapsedTime();
 
-      // 1. PRIMARY MOTION: SCOOTER SUSPENSION & ROAD VIBRATION
-      const scooterBounce = Math.sin(elapsedTime * 4.2) * 0.05 + Math.cos(elapsedTime * 8.4) * 0.01;
-      const autoSteerWave = Math.sin(elapsedTime * 0.9) * 0.04;
-      
-      steeringRotY = THREE.MathUtils.lerp(steeringRotY, targetMouseX * 0.35 + autoSteerWave, 1 - Math.exp(-8 * delta));
-      steeringGroup.rotation.y = steeringRotY;
+      // ----------------------------------------------------------
+      // CAMERA
+      // ----------------------------------------------------------
 
-      // Suspension compression on front fork
-      forkGroup.position.y = Math.sin(elapsedTime * 8.4) * 0.012;
+      if (!isDragging) {
+        orbit.idleTimer +=
+          delta;
 
-      // Master Scooter Ride Height & Pitch Damping
-      scooterGroup.position.y = -0.6 + scooterBounce;
-      scooterGroup.rotation.z = -steeringRotY * 0.15; // Scooter leans slightly into turns
+        if (
+          orbit.idleTimer >
+          2.4
+        ) {
+          orbit.autoRotate =
+            true;
+        }
 
-      // 2. SECONDARY MOTION: BODY FOLLOWS SCOOTER WITH DELAY & OVERSHOOT
-      const targetBodyY = scooterBounce * 0.7;
-      bodyY = THREE.MathUtils.lerp(bodyY, targetBodyY, 1 - Math.exp(-10 * delta));
-      bodyGroup.position.y = 0.2 + bodyY;
+        if (
+          orbit.autoRotate
+        ) {
+          orbit.targetYaw +=
+            orbit.autoRotateSpeed *
+            delta;
+        }
+      }
 
-      bodyRotY = THREE.MathUtils.lerp(bodyRotY, targetMouseX * 0.25, 1 - Math.exp(-7 * delta));
-      bodyGroup.rotation.y = bodyRotY;
-      bodyGroup.rotation.z = -steeringRotY * 0.08;
+      const cameraDamping =
+        1 -
+        Math.exp(
+          -5.5 * delta
+        );
 
-      // 3. SECONDARY MOTION: HEAD FOLLOWS BODY WITH INERTIA & DELAY
-      headRotY = THREE.MathUtils.lerp(headRotY, targetMouseX * 0.35 + Math.sin(elapsedTime * 1.8) * 0.05, 1 - Math.exp(-5 * delta));
-      headRotZ = THREE.MathUtils.lerp(headRotZ, Math.sin(elapsedTime * 2.5) * 0.035, 1 - Math.exp(-5 * delta));
+      orbit.yaw =
+        THREE.MathUtils.lerp(
+          orbit.yaw,
+          orbit.targetYaw,
+          cameraDamping
+        );
 
-      headGroup.rotation.y = headRotY;
-      headGroup.rotation.z = headRotZ;
-      headGroup.rotation.x = -targetMouseY * 0.12 + Math.sin(elapsedTime * 3.5) * 0.02;
+      orbit.pitch =
+        THREE.MathUtils.lerp(
+          orbit.pitch,
+          orbit.targetPitch,
+          cameraDamping
+        );
 
-      // 4. FACIAL BLINKING LOGIC (NATURAL 3-6s RANDOM INTERVALS)
-      if (elapsedTime > nextBlinkTime && !isBlinking) {
-        isBlinking = true;
-        blinkProgress = 0;
+      orbit.radius =
+        THREE.MathUtils.lerp(
+          orbit.radius,
+          orbit.targetRadius,
+          cameraDamping
+        );
+
+      const cameraX =
+        orbit.radius *
+        Math.sin(
+          orbit.yaw
+        ) *
+        Math.cos(
+          orbit.pitch
+        );
+
+      const cameraY =
+        0.55 +
+        orbit.radius *
+        Math.sin(
+          orbit.pitch
+        );
+
+      const cameraZ =
+        orbit.radius *
+        Math.cos(
+          orbit.yaw
+        ) *
+        Math.cos(
+          orbit.pitch
+        );
+
+      // Cinematic micro movement
+      const jitterX =
+        Math.sin(
+          elapsedTime * 11.3
+        ) *
+        0.002 +
+        Math.sin(
+          elapsedTime * 18.2
+        ) *
+        0.001;
+
+      const jitterY =
+        Math.sin(
+          elapsedTime * 8.2
+        ) *
+        0.002;
+
+      camera.position.set(
+        cameraX + jitterX,
+        cameraY + jitterY,
+        cameraZ
+      );
+
+      camera.lookAt(
+        0,
+        0.30,
+        0
+      );
+
+      followLight.position.set(
+        cameraX * 0.55,
+        cameraY + 1.4,
+        cameraZ * 0.55
+      );
+
+      // ----------------------------------------------------------
+      // SPEED
+      // ----------------------------------------------------------
+
+      const speedCycle =
+        (elapsedTime *
+          0.055) %
+        1;
+
+      const acceleration =
+        0.5 -
+        0.5 *
+        Math.cos(
+          speedCycle *
+          Math.PI *
+          2
+        );
+
+      const speed =
+        0.72 +
+        acceleration *
+        0.35;
+
+      // ----------------------------------------------------------
+      // ROAD NOISE
+      // ----------------------------------------------------------
+
+      const roadNoise =
+        Math.sin(
+          elapsedTime * 4.1
+        ) *
+        0.027 +
+        Math.sin(
+          elapsedTime * 7.7 +
+          1.2
+        ) *
+        0.013 +
+        Math.sin(
+          elapsedTime * 12.7 +
+          0.4
+        ) *
+        0.006;
+
+      const roadWave =
+        Math.sin(
+          elapsedTime * 1.25
+        ) *
+        0.012;
+
+      const roadMotion =
+        roadNoise +
+        roadWave;
+
+      // ----------------------------------------------------------
+      // STEERING
+      // ----------------------------------------------------------
+
+      const autoSteer =
+        Math.sin(
+          elapsedTime * 0.85
+        ) *
+        0.035;
+
+      const targetSteering =
+        mouseX * 0.30 +
+        autoSteer;
+
+      steeringGroup.rotation.y =
+        THREE.MathUtils.lerp(
+          steeringGroup.rotation.y,
+          targetSteering,
+          1 -
+          Math.exp(
+            -8 * delta
+          )
+        );
+
+      const steering =
+        steeringGroup.rotation.y;
+
+      // ----------------------------------------------------------
+      // WHEELS
+      // ----------------------------------------------------------
+
+      wheelRotation +=
+        delta *
+        15 *
+        speed;
+
+      frontWheelPivot.rotation.x =
+        wheelRotation;
+
+      rearWheelGroup.rotation.x =
+        wheelRotation;
+
+      // Front wheel steering
+      frontWheelPivot.rotation.y =
+        steering * 0.70;
+
+      // ----------------------------------------------------------
+      // SUSPENSION
+      // ----------------------------------------------------------
+
+      suspensionSpring.target =
+        roadMotion * 1.5;
+
+      const suspension =
+        suspensionSpring.update(
+          delta
+        );
+
+      scooterGroup.position.y =
+        -0.58 +
+        roadMotion +
+        suspension * 0.05;
+
+      scooterGroup.rotation.x =
+        -roadMotion * 0.15;
+
+      // ----------------------------------------------------------
+      // LEAN
+      // ----------------------------------------------------------
+
+      leanSpring.target =
+        -steering *
+        (0.45 +
+          speed * 0.42);
+
+      const lean =
+        leanSpring.update(
+          delta
+        );
+
+      scooterGroup.rotation.z =
+        lean * 0.48;
+
+      // ----------------------------------------------------------
+      // RIDER BODY
+      // ----------------------------------------------------------
+
+      bodySpring.target =
+        roadMotion *
+        0.65;
+
+      const bodyBounce =
+        bodySpring.update(
+          delta
+        );
+
+      bodyGroup.position.y =
+        0.18 +
+        bodyBounce;
+
+      // Rider counterbalance
+      bodyGroup.rotation.z =
+        lean * 0.16;
+
+      bodyGroup.rotation.y =
+        THREE.MathUtils.lerp(
+          bodyGroup.rotation.y,
+          mouseX * 0.15,
+          1 -
+          Math.exp(
+            -5 * delta
+          )
+        );
+
+      // Natural breathing
+      const breathing =
+        Math.sin(
+          elapsedTime * 1.35
+        ) *
+        0.008;
+
+      bodyGroup.scale.y =
+        1 +
+        breathing;
+
+      // ----------------------------------------------------------
+      // HEAD INERTIA
+      // ----------------------------------------------------------
+
+      headGroup.rotation.y =
+        THREE.MathUtils.lerp(
+          headGroup.rotation.y,
+          mouseX * 0.32,
+          1 -
+          Math.exp(
+            -4.5 * delta
+          )
+        );
+
+      headGroup.rotation.x =
+        THREE.MathUtils.lerp(
+          headGroup.rotation.x,
+          -mouseY * 0.08,
+          1 -
+          Math.exp(
+            -4 * delta
+          )
+        );
+
+      headGroup.rotation.z =
+        Math.sin(
+          elapsedTime * 1.7
+        ) *
+        0.018 -
+        lean * 0.06;
+
+      // ----------------------------------------------------------
+      // BACKPACK
+      // ----------------------------------------------------------
+
+      backpackSpring.target =
+        roadMotion;
+
+      const backpackMotion =
+        backpackSpring.update(
+          delta
+        );
+
+      backpack.position.y =
+        0.58 +
+        backpackMotion *
+        0.55;
+
+      backpack.rotation.z =
+        backpackMotion *
+        0.12;
+
+      // ----------------------------------------------------------
+      // PARCEL
+      // ----------------------------------------------------------
+
+      parcelSpring.target =
+        roadMotion;
+
+      const parcelMotion =
+        parcelSpring.update(
+          delta
+        );
+
+      parcelGroup.position.y =
+        0.30 +
+        parcelMotion *
+        0.45;
+
+      parcelGroup.rotation.z =
+        parcelMotion *
+        0.18;
+
+      // ----------------------------------------------------------
+      // ENGINE VIBRATION
+      // ----------------------------------------------------------
+
+      exhaustGroup.rotation.z =
+        Math.sin(
+          elapsedTime *
+          20 *
+          speed
+        ) *
+        0.008;
+
+      // ----------------------------------------------------------
+      // BLINKING
+      // ----------------------------------------------------------
+
+      if (
+        !isBlinking &&
+        elapsedTime >
+        nextBlinkTime
+      ) {
+        isBlinking =
+          true;
+
+        blinkProgress =
+          0;
       }
 
       if (isBlinking) {
-        blinkProgress += delta / blinkDuration;
-        const eyeScaleY = Math.abs(Math.sin(blinkProgress * Math.PI));
-        rightEyeGroup.scale.y = 1 - eyeScaleY * 0.9;
-        leftEyeGroup.scale.y = 1 - eyeScaleY * 0.9;
+        blinkProgress +=
+          delta /
+          blinkDuration;
 
-        if (blinkProgress >= 1) {
-          isBlinking = false;
-          nextBlinkTime = elapsedTime + 3.0 + Math.random() * 3.5;
+        const blinkAmount =
+          Math.sin(
+            blinkProgress *
+            Math.PI
+          );
+
+        eyeGroups.forEach(
+          (eye) => {
+            eye.scale.y =
+              1 -
+              blinkAmount *
+              0.92;
+          }
+        );
+
+        if (
+          blinkProgress >=
+          1
+        ) {
+          isBlinking =
+            false;
+
+          eyeGroups.forEach(
+            (eye) => {
+              eye.scale.y =
+                1;
+            }
+          );
+
+          nextBlinkTime =
+            elapsedTime +
+            2.8 +
+            Math.random() *
+            4.2;
         }
       }
 
-      // 5. CAMERA FLOATING PARALLAX
-      camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetMouseX * 0.15, 1 - Math.exp(-4 * delta));
-      camera.position.y = THREE.MathUtils.lerp(camera.position.y, 1.35 + targetMouseY * 0.1, 1 - Math.exp(-4 * delta));
-      camera.lookAt(0, 0.4, 0);
+      // ----------------------------------------------------------
+      // CONTACT SHADOW
+      // ----------------------------------------------------------
 
-      // Ground Shadow Scale & Opacity Damping based on bounce
-      const shadowScale = 1 - scooterBounce * 0.6;
-      groundShadow.scale.set(shadowScale, shadowScale, 1);
-      shadowMat.opacity = 0.52 - scooterBounce * 0.4;
+      const shadowScale =
+        1 -
+        roadMotion *
+        2.2;
 
-      // Ambient Floating Particles
-      particleList.forEach(p => {
-        p.mesh.position.z += p.speed * (delta * 60);
-        if (p.mesh.position.z > 3.8) {
-          p.mesh.position.z = -4.5;
-          p.mesh.position.x = (Math.random() - 0.5) * 5;
-          p.mesh.position.y = (Math.random() - 0.5) * 3.5;
+      contactShadow.scale.set(
+        shadowScale,
+        1,
+        shadowScale
+      );
+
+      shadowMaterial.opacity =
+        THREE.MathUtils.clamp(
+          0.56 -
+          Math.abs(
+            roadMotion
+          ) *
+          1.8,
+          0.30,
+          0.58
+        );
+
+      // ----------------------------------------------------------
+      // PARTICLES
+      // ----------------------------------------------------------
+
+      particles.forEach(
+        (particle) => {
+          const mesh =
+            particle.mesh;
+
+          mesh.position.z +=
+            particle.speed *
+            delta;
+
+          mesh.position.x +=
+            Math.sin(
+              elapsedTime *
+              0.35 +
+              particle.phase
+            ) *
+            0.0007;
+
+          mesh.position.y +=
+            Math.sin(
+              elapsedTime *
+              0.8 +
+              particle.phase
+            ) *
+            0.0008;
+
+          if (
+            mesh.position.z >
+            4
+          ) {
+            mesh.position.z =
+              -4;
+
+            mesh.position.x =
+              (Math.random() -
+                0.5) *
+              6;
+
+            mesh.position.y =
+              Math.random() *
+              4 -
+              1;
+          }
         }
-      });
+      );
 
-      renderer.render(scene, camera);
+      // ----------------------------------------------------------
+      // RENDER
+      // ----------------------------------------------------------
+
+      renderer.render(
+        scene,
+        camera
+      );
     };
+
+    // ============================================================
+    // 38. RESIZE
+    // ============================================================
+
+    const handleResize = () => {
+      if (!container) return;
+
+      const width =
+        container.clientWidth ||
+        400;
+
+      const height =
+        container.clientHeight ||
+        400;
+
+      camera.aspect =
+        width / height;
+
+      camera.updateProjectionMatrix();
+
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio ||
+          1,
+          2
+        )
+      );
+
+      renderer.setSize(
+        width,
+        height,
+        false
+      );
+    };
+
+    handleResize();
+
+    window.addEventListener(
+      "resize",
+      handleResize
+    );
 
     animate();
 
-    // 7. RESPONSIVE RESIZE HANDLER
-    const handleResize = () => {
-      if (!container) return;
-      const newW = container.clientWidth;
-      const newH = container.clientHeight;
-      camera.aspect = newW / newH;
-      camera.updateProjectionMatrix();
-      renderer.setSize(newW, newH);
-    };
-
-    window.addEventListener('resize', handleResize);
+    // ============================================================
+    // 39. CLEANUP
+    // ============================================================
 
     return () => {
-      container.removeEventListener('pointermove', handlePointerMove);
-      container.removeEventListener('pointerleave', handlePointerLeave);
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animFrameId);
-      if (container && renderer.domElement) {
-        container.removeChild(renderer.domElement);
-      }
+      cancelAnimationFrame(
+        animationFrameId
+      );
+
+      container.removeEventListener(
+        "pointerdown",
+        handlePointerDown
+      );
+
+      window.removeEventListener(
+        "pointermove",
+        handlePointerMove
+      );
+
+      window.removeEventListener(
+        "pointerup",
+        handlePointerUp
+      );
+
+      container.removeEventListener(
+        "pointerleave",
+        handlePointerLeave
+      );
+
+      container.removeEventListener(
+        "wheel",
+        handleWheel
+      );
+
+      window.removeEventListener(
+        "resize",
+        handleResize
+      );
+
+      scene.traverse(
+        (object) => {
+          if (
+            object.geometry
+          ) {
+            object.geometry.dispose();
+          }
+
+          if (
+            object.material
+          ) {
+            if (
+              Array.isArray(
+                object.material
+              )
+            ) {
+              object.material.forEach(
+                (material) => {
+                  material.dispose();
+                }
+              );
+            } else {
+              object.material.dispose();
+            }
+          }
+        }
+      );
+
+      asphaltTexture.dispose();
+      skyTexture.dispose();
+      shadowTexture.dispose();
+      environment.dispose();
+
+      pmremGenerator.dispose();
+
       renderer.dispose();
+
+      if (
+        renderer.domElement &&
+        renderer.domElement.parentNode ===
+        container
+      ) {
+        container.removeChild(
+          renderer.domElement
+        );
+      }
     };
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
-      className={`relative w-full h-[340px] md:h-[440px] flex items-center justify-center cursor-grab active:cursor-grabbing ${className}`}
-    >
-      {/* Soft Ambient Radial Backlight */}
-      <div className="absolute inset-0 bg-radial from-[#138A36]/25 via-[#138A36]/5 to-transparent blur-3xl pointer-events-none"></div>
-    </div>
+    <div
+      ref={containerRef}
+      className={`
+        relative
+        w-full
+        h-[340px]
+        md:h-[440px]
+        flex
+        items-center
+        justify-center
+        overflow-hidden
+        rounded-2xl
+        ${className}
+      `}
+    />
   );
 }

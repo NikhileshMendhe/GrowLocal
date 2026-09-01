@@ -210,10 +210,23 @@ export default function App() {
   const [authRole, setAuthRole] = useState("customer");
   const [currentUser, setCurrentUser] = useState(null);
   const [pendingRedirect, setPendingRedirect] = useState(null);
+  const [pendingUserAction, setPendingUserAction] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
+  };
+
+  // Helper to intercept unauthenticated user actions and resume after login
+  const requireUserAuth = (actionType, payload, onProceed) => {
+    if (currentUser) {
+      onProceed();
+    } else {
+      setPendingUserAction({ type: actionType, payload, onProceed });
+      setAuthRole("customer");
+      setShowAuthModal(true);
+      triggerToast("🔐 Account Required: Please log in or create a free account to continue.");
+    }
   };
 
   // Main Navigation State initialized from URL location
@@ -448,21 +461,26 @@ export default function App() {
   };
 
   const handleToggleSave = (shopId) => {
-    setSavedShopIds(prev => {
-      const updated = prev.includes(shopId) ? prev.filter(id => id !== shopId) : [...prev, shopId];
-      localStorage.setItem('growlocal_saved_shops', JSON.stringify(updated));
-      return updated;
+    requireUserAuth('save', shopId, () => {
+      setSavedShopIds(prev => {
+        const updated = prev.includes(shopId) ? prev.filter(id => id !== shopId) : [...prev, shopId];
+        localStorage.setItem('growlocal_saved_shops', JSON.stringify(updated));
+        return updated;
+      });
+      triggerToast(savedShopIds.includes(shopId) ? "Shop removed from saved list" : "✓ Shop saved to your collection!");
     });
   };
 
   const handleSendMessage = (text) => {
-    const newMsg = {
-      id: `msg-${Date.now()}`,
-      sender: activePlatform === "merchant" ? "shop" : "customer",
-      text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages([...messages, newMsg]);
+    requireUserAuth('chat', text, () => {
+      const newMsg = {
+        id: `msg-${Date.now()}`,
+        sender: activePlatform === "merchant" ? "shop" : "customer",
+        text,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, newMsg]);
+    });
   };
 
   const handleSendCustomOffer = (offerObj) => {
@@ -473,38 +491,40 @@ export default function App() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       offer: offerObj
     };
-    setMessages([...messages, newOfferMsg]);
+    setMessages(prev => [...prev, newOfferMsg]);
   };
 
   const handleReserveProduct = (productToReserve, size) => {
-    const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
-    const userPhone = currentUser?.phone || "+91 98765 43210";
-    const code = `GL-R-${Math.floor(10000 + Math.random() * 90000)}`;
+    requireUserAuth('reserve', { productToReserve, size }, () => {
+      const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
+      const userPhone = currentUser?.phone || "+91 98765 43210";
+      const code = `GL-R-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    const newRes = {
-      id: code,
-      reservationCode: code,
-      customerName: userName,
-      customerPhone: userPhone,
-      shopId: productToReserve.shopId || "shop-1",
-      shopName: productToReserve.shopName || "Trendy Wear",
-      shopAddress: "Shop #14, Main Market, Model Town, Butibori, Nagpur",
-      productName: productToReserve.name || productToReserve.productName,
-      productImage: productToReserve.images ? productToReserve.images[0] : productToReserve.productImage,
-      size: size || "L",
-      price: typeof productToReserve.price === 'number' ? `₹${productToReserve.price}` : productToReserve.price || "₹1,299",
-      reservedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      pickupTime: "Today by 7:00 PM",
-      status: "Confirmed",
-      qrCode: `${code}-NGP`
-    };
+      const newRes = {
+        id: code,
+        reservationCode: code,
+        customerName: userName,
+        customerPhone: userPhone,
+        shopId: productToReserve.shopId || "shop-1",
+        shopName: productToReserve.shopName || "Trendy Wear",
+        shopAddress: "Shop #14, Main Market, Model Town, Butibori, Nagpur",
+        productName: productToReserve.name || productToReserve.productName,
+        productImage: productToReserve.images ? productToReserve.images[0] : productToReserve.productImage,
+        size: size || "L",
+        price: typeof productToReserve.price === 'number' ? `₹${productToReserve.price}` : productToReserve.price || "₹1,299",
+        reservedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        pickupTime: "Today by 7:00 PM",
+        status: "Confirmed",
+        qrCode: `${code}-NGP`
+      };
 
-    reservationService.saveReservationLocally(newRes);
-    setReservations(reservationService.getStoredReservations());
-    triggerToast(`✓ Product reserved! Show QR code at ${newRes.shopName}`);
-    if (typeof window !== 'undefined') window.history.pushState({}, '', '/reservations');
-    setActivePlatform("customer");
-    setActiveTab("reservations");
+      reservationService.saveReservationLocally(newRes);
+      setReservations(reservationService.getStoredReservations());
+      triggerToast(`✓ Product reserved! Show QR code at ${newRes.shopName}`);
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/reservations');
+      setActivePlatform("customer");
+      setActiveTab("reservations");
+    });
   };
 
   const handleAddProduct = (newProd) => {
@@ -512,27 +532,32 @@ export default function App() {
   };
 
   const handleSubmitDemand = (demandObj) => {
-    const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
-    const userPhone = currentUser?.phone || "+91 98765 43210";
-    const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
+    requireUserAuth('demand', demandObj, () => {
+      const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
+      const userPhone = currentUser?.phone || "+91 98765 43210";
+      const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const newEnq = {
-      id: code,
-      customerName: userName,
-      customerPhone: userPhone,
-      productRequested: demandObj.productName || demandObj.description,
-      category: demandObj.category || "General Local Retail",
-      targetArea: demandObj.targetArea || demandObj.area || "Sitabuldi, Nagpur",
-      budget: demandObj.maxBudget ? `₹${demandObj.maxBudget}` : demandObj.budget || "₹1,500",
-      submittedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      status: "Pending Quotes",
-      merchantResponsesCount: 0,
-      bestQuote: "Awaiting Shop Responses"
-    };
+      const newEnq = {
+        id: code,
+        customerName: userName,
+        customerPhone: userPhone,
+        productRequested: demandObj.productName || demandObj.description || "Product Demand Request",
+        category: demandObj.category || "General Local Retail",
+        targetArea: demandObj.targetArea || demandObj.area || "Sitabuldi, Nagpur",
+        budget: demandObj.maxBudget ? `₹${demandObj.maxBudget}` : demandObj.budget || "₹1,500",
+        submittedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        status: "Pending Merchant Offers",
+        responsesCount: 0,
+        merchantQuotes: []
+      };
 
-    enquiryService.saveEnquiryLocally(newEnq);
-    setEnquiries(enquiryService.getStoredEnquiries());
-    setShowDemandModal(false);
+      enquiryService.saveEnquiryLocally(newEnq);
+      setEnquiries(enquiryService.getStoredEnquiries());
+      triggerToast(`✓ Demand request submitted to nearby verified shops!`);
+      setShowDemandModal(false);
+      setActivePlatform("customer");
+      setActiveTab("enquiries");
+    });
   };
 
   // Connected Admin Mutation Handlers
@@ -978,6 +1003,7 @@ export default function App() {
                     onOpenPhotoSearch={() => setShowPhotoSearchModal(true)}
                     onOpenDemandRequest={() => setShowDemandModal(true)}
                     onOpenLocationModal={() => setShowLocationModal(true)}
+                    onOpenAuthModal={(role) => { setAuthRole(role); setShowAuthModal(true); }}
                     currentLocation={currentLocation}
                     cmsContent={cmsContent}
                   />
@@ -1342,17 +1368,25 @@ export default function App() {
                   <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("search"); }} className="hover:text-[#138A36]">Popular Categories</button></li>
                   <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("search"); }} className="hover:text-[#138A36]">Product Search</button></li>
                   <li><button onClick={() => setShowDemandModal(true)} className="hover:text-[#138A36]">Tell Shops What You Need</button></li>
+                  <li><button onClick={() => {
+                    setActivePlatform("customer");
+                    setActiveTab("home");
+                    setTimeout(() => {
+                      const el = document.getElementById('how-it-works-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }} className="hover:text-[#138A36]">How It Works</button></li>
                 </ul>
               </div>
 
               <div>
                 <h4 className="font-bold text-xs text-[#111111] uppercase tracking-wider mb-3">Businesses</h4>
                 <ul className="space-y-2 text-xs text-[#666666]">
-                  <li><button onClick={() => { setAuthRole("merchant"); setShowAuthModal(true); }} className="hover:text-[#138A36]">List Your Shop Free</button></li>
+                  <li><button onClick={() => { setAuthRole("merchant"); setShowAuthModal(true); }} className="hover:text-[#138A36]">List Your Shop</button></li>
+                  <li><button onClick={() => { setAuthRole("merchant"); setShowAuthModal(true); }} className="hover:text-[#138A36]">Merchant Login</button></li>
                   <li><button onClick={() => setActivePlatform("merchant")} className="hover:text-[#138A36]">Merchant Dashboard</button></li>
                   <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantCreators"); }} className="hover:text-[#138A36]">GrowLocal Creators</button></li>
-                  <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantSubscription"); }} className="hover:text-[#138A36]">Membership Plans</button></li>
-                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36] font-semibold text-[#138A36]">Vendor Terms & Conditions</button></li>
+                  <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantSubscription"); }} className="hover:text-[#138A36]">Business Growth</button></li>
                 </ul>
               </div>
 
@@ -1360,7 +1394,8 @@ export default function App() {
                 <h4 className="font-bold text-xs text-[#111111] uppercase tracking-wider mb-3">Company</h4>
                 <ul className="space-y-2 text-xs text-[#666666]">
                   <li><button onClick={() => setActivePlatform("landing")} className="hover:text-[#138A36]">About GrowLocal</button></li>
-                  <li><button onClick={() => { window.history.pushState({}, '', '/admin'); setActivePlatform("admin"); }} className="hover:text-[#138A36] font-bold text-[#138A36]">Super Admin Panel</button></li>
+                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Vendor Terms & Conditions</button></li>
+                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Privacy Policy</button></li>
                   <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Terms of Service</button></li>
                 </ul>
               </div>
@@ -1413,7 +1448,8 @@ export default function App() {
       {showAuthModal && (
         <AuthModal
           initialMode={authRole}
-          onClose={() => setShowAuthModal(false)}
+          interceptNotice={pendingUserAction ? "Login required to save items, enquire with shops, and reserve products." : null}
+          onClose={() => { setShowAuthModal(false); setPendingUserAction(null); }}
           onOpenTerms={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }}
           onLoginSuccess={(userData) => {
             setCurrentUser(userData);
@@ -1427,6 +1463,16 @@ export default function App() {
               merchantService.registerMerchantLocally(userData);
               setMerchants(merchantService.getStoredMerchants());
               setPendingVerifications(merchantService.getStoredPendingVerifications());
+            }
+
+            // Resume intercepted action if user clicked reserve/save/enquiry while logged out
+            if (pendingUserAction && typeof pendingUserAction.onProceed === 'function') {
+              const actionToResume = pendingUserAction;
+              setPendingUserAction(null);
+              setTimeout(() => {
+                actionToResume.onProceed();
+              }, 150);
+              return;
             }
 
             const target = pendingRedirect || {};

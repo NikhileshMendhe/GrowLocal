@@ -150,13 +150,13 @@ export default function MobileHeader({
               {/* Customer Links */}
               {activePlatform === "customer" && (
                 <div className="space-y-1 text-xs font-semibold text-[#111111] pt-2">
-                  <p className="text-[10px] font-extrabold text-[#666666] uppercase px-2 mb-1">Customer Navigation</p>
+                  <p className="text-[10px] font-extrabold text-[#666666] uppercase px-2 mb-1">Navigation</p>
                   <button
                     onClick={() => { setActiveTab("home"); setDrawerOpen(false); }}
-                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
+                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left font-bold"
                   >
                     <Home className="w-4 h-4 text-[#138A36]" />
-                    <span>Home Page</span>
+                    <span>Home</span>
                   </button>
                   <button
                     onClick={() => { 
@@ -167,7 +167,7 @@ export default function MobileHeader({
                     className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
                   >
                     <Search className="w-4 h-4 text-[#138A36]" />
-                    <span>Discover & Search</span>
+                    <span>Discover</span>
                   </button>
                   <button
                     onClick={() => { 
@@ -178,43 +178,53 @@ export default function MobileHeader({
                     className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
                   >
                     <Grid className="w-4 h-4 text-[#138A36]" />
-                    <span>Browse Categories</span>
+                    <span>Categories</span>
                   </button>
                   <button
-                    onClick={() => { setActiveTab("searchResults"); setDrawerOpen(false); }}
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      if (typeof window !== 'undefined') {
+                        const el = document.getElementById('how-it-works-section');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        else setActiveTab("home");
+                      }
+                    }}
+                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#138A36]" />
+                    <span>How It Works</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      if (typeof window !== 'undefined') {
+                        const el = document.getElementById('community-section');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        else setActiveTab("home");
+                      }
+                    }}
                     className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
                   >
                     <Store className="w-4 h-4 text-[#138A36]" />
-                    <span>Nearby Shops</span>
+                    <span>Community</span>
                   </button>
-                  <button
-                    onClick={() => { onOpenDemandModal(); setDrawerOpen(false); }}
-                    className="w-full p-2.5 bg-[#EAF7EE] text-[#138A36] font-bold rounded-xl flex items-center gap-3 text-left"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Tell Shops What You Need</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab("enquiries"); setDrawerOpen(false); }}
-                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
-                  >
-                    <MessageSquare className="w-4 h-4 text-[#138A36]" />
-                    <span>My Inquiries & Offers</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab("saved"); setDrawerOpen(false); }}
-                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
-                  >
-                    <Bookmark className="w-4 h-4 text-[#138A36]" />
-                    <span>Saved Shops</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab("profile"); setDrawerOpen(false); }}
-                    className="w-full p-2.5 rounded-xl hover:bg-gray-100 flex items-center gap-3 text-left"
-                  >
-                    <User className="w-4 h-4 text-[#138A36]" />
-                    <span>Customer Profile</span>
-                  </button>
+
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    <button
+                      onClick={() => { onOpenAuthModal("customer"); setDrawerOpen(false); }}
+                      className="w-full bg-white hover:bg-gray-50 text-[#111111] border border-[#E5E7E5] font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      <User className="w-4 h-4 text-[#138A36]" />
+                      <span>User Login</span>
+                    </button>
+                    <button
+                      onClick={() => { onOpenAuthModal("merchant"); setDrawerOpen(false); }}
+                      className="w-full bg-[#138A36] text-white font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      <Store className="w-4 h-4" />
+                      <span>Merchant Login</span>
+                    </button>
+                  </div>
                 </div>
               )}
 

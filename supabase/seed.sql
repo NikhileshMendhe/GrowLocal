@@ -19,18 +19,18 @@ ON CONFLICT DO NOTHING;
 
 -- Insert Locations
 INSERT INTO public.locations (id, city, state, pincode, area, latitude, longitude, is_active) VALUES
-('l0000000-0000-0000-0000-000000000001', 'Nagpur', 'Maharashtra', '441108', 'Butibori, Nagpur', 21.0112, 79.0024, true),
-('l0000000-0000-0000-0000-000000000002', 'Nagpur', 'Maharashtra', '440012', 'Sitabuldi, Nagpur', 21.1458, 79.0882, true),
-('l0000000-0000-0000-0000-000000000003', 'Nagpur', 'Maharashtra', '440001', 'Civil Lines, Nagpur', 21.1528, 79.0700, true),
-('l0000000-0000-0000-0000-000000000004', 'Nagpur', 'Maharashtra', '440015', 'Wardha Road, Nagpur', 21.1000, 79.0500, true),
-('l0000000-0000-0000-0000-000000000005', 'Nagpur', 'Maharashtra', '440010', 'Dharampeth, Nagpur', 21.1400, 79.0600, true)
+('a0000000-0000-0000-0000-000000000001', 'Nagpur', 'Maharashtra', '441108', 'Butibori, Nagpur', 21.0112, 79.0024, true),
+('a0000000-0000-0000-0000-000000000002', 'Nagpur', 'Maharashtra', '440012', 'Sitabuldi, Nagpur', 21.1458, 79.0882, true),
+('a0000000-0000-0000-0000-000000000003', 'Nagpur', 'Maharashtra', '440001', 'Civil Lines, Nagpur', 21.1528, 79.0700, true),
+('a0000000-0000-0000-0000-000000000004', 'Nagpur', 'Maharashtra', '440015', 'Wardha Road, Nagpur', 21.1000, 79.0500, true),
+('a0000000-0000-0000-0000-000000000005', 'Nagpur', 'Maharashtra', '440010', 'Dharampeth, Nagpur', 21.1400, 79.0600, true)
 ON CONFLICT DO NOTHING;
 
 -- Insert Subscription Plans
 INSERT INTO public.subscription_plans (id, name, price, billing_interval, features, is_active) VALUES
-('sp000000-0000-0000-0000-000000000001', 'Free Starter', 0, 'month', '["10 listings", "Direct enquiries"]'::jsonb, true),
-('sp000000-0000-0000-0000-000000000002', 'Grow Plan', 299, 'month', '["50 listings", "Verified Badge", "Demand alerts"]'::jsonb, true),
-('sp000000-0000-0000-0000-000000000003', 'Pro Business', 799, 'month', '["Unlimited listings", "Creator integration", "Heatmap insights"]'::jsonb, true)
+('b0000000-0000-0000-0000-000000000001', 'Free Starter', 0, 'month', '["10 listings", "Direct enquiries"]'::jsonb, true),
+('b0000000-0000-0000-0000-000000000002', 'Grow Plan', 299, 'month', '["50 listings", "Verified Badge", "Demand alerts"]'::jsonb, true),
+('b0000000-0000-0000-0000-000000000003', 'Pro Business', 799, 'month', '["Unlimited listings", "Creator integration", "Heatmap insights"]'::jsonb, true)
 ON CONFLICT DO NOTHING;
 
 -- Insert Homepage CMS Sections
