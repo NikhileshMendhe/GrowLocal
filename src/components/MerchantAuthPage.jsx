@@ -64,6 +64,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       setLoading(false);
       if (error) { setErrorMsg(error.message || 'Failed to create account.'); return; }
       onLoginSuccess({
+        id: data?.user?.id,
         role: 'merchant',
         name: ownerName || email.split('@')[0],
         email,
@@ -84,8 +85,9 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
         setErrorMsg(res.error.message || 'Invalid email or password.'); 
         return; 
       }
-      const displayName = res.data?.profile?.full_name || res.data?.user?.email?.split('@')[0] || email.split('@')[0];
+      const displayName = res.data?.profile?.full_name || res.data?.user?.user_metadata?.full_name || res.data?.user?.email?.split('@')[0] || email.split('@')[0];
       onLoginSuccess({
+        id: res.data?.user?.id,
         role: 'merchant',
         name: displayName,
         email,

@@ -4,6 +4,86 @@ const MERCHANTS_STORAGE_KEY = 'growlocal_registered_merchants';
 const VERIFICATIONS_STORAGE_KEY = 'growlocal_pending_verifications';
 
 export const merchantService = {
+  // Check if merchant exists in Supabase by email or user ID
+  async checkMerchantExists(email, userId) {
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const isUuid = (val) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+    // 1. Check local storage
+    try {
+      const localMerchants = this.getStoredMerchants();
+      if (localMerchants.some(m => m.email?.toLowerCase() === cleanEmail)) return true;
+    } catch (_) {}
+
+    // 2. Check Supabase
+    if (isSupabaseConfigured) {
+      try {
+        if (cleanEmail) {
+          const { data, error } = await supabase
+            .from('merchants')
+            .select('id, email, user_id')
+            .ilike('email', cleanEmail)
+            .limit(1);
+          if (!error && data && data.length > 0) return true;
+        }
+
+        if (userId && isUuid(userId)) {
+          const { data, error } = await supabase
+            .from('merchants')
+            .select('id, email, user_id')
+            .eq('user_id', userId)
+            .limit(1);
+          if (!error && data && data.length > 0) return true;
+        }
+      } catch (e) {
+        console.warn('checkMerchantExists Supabase check error:', e);
+      }
+    }
+
+    return false;
+  },
+
+  // Register merchant in Supabase & local storage
+  async registerMerchantInSupabase(userObj) {
+    if (!userObj || !userObj.email) return null;
+    const cleanEmail = userObj.email.toLowerCase().trim();
+    const isUuid = (val) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+    this.registerMerchantLocally(userObj);
+
+    if (!isSupabaseConfigured) return null;
+
+    try {
+      const { data: existing } = await supabase
+        .from('merchants')
+        .select('*')
+        .ilike('email', cleanEmail)
+        .maybeSingle();
+
+      if (existing) return existing;
+
+      const { data, error } = await supabase
+        .from('merchants')
+        .insert([{
+          business_name: userObj.shopName || userObj.name || `${cleanEmail.split('@')[0]}'s Store`,
+          owner_name: userObj.name || cleanEmail.split('@')[0] || "Store Manager",
+          email: cleanEmail,
+          phone: userObj.phone || "+91 98765 43210",
+          status: 'active',
+          verification_status: 'pending',
+          ...(isUuid(userObj.id) ? { user_id: userObj.id } : {})
+        }])
+        .select()
+        .single();
+
+      if (error) console.warn('Supabase registerMerchant notice:', error);
+      return data;
+    } catch (e) {
+      console.warn('registerMerchantInSupabase error:', e);
+      return null;
+    }
+  },
+
   // Helper to read stored merchants
   getStoredMerchants() {
     try {

@@ -236,11 +236,21 @@ export default function App() {
     }
   };
 
-  // handleAddShop: persist locally + add to shared state for Customer Home sync
-  const handleAddShop = (newShop) => {
-    shopService.saveShopLocally(newShop);
-    setShops(prev => [newShop, ...prev.filter(s => s.id !== newShop.id)]);
-    triggerToast(`✓ "${newShop.name}" is now live on GrowLocal Customer Home!`);
+  // handleAddShop: save to Supabase + local storage and update shared state
+  const handleAddShop = async (newShop) => {
+    try {
+      const { data: savedShop } = await shopService.createShop(newShop);
+      const shopToUse = savedShop || newShop;
+      setShops(prev => [shopToUse, ...prev.filter(s => s.id !== shopToUse.id)]);
+      triggerToast(`✓ "${shopToUse.name}" is now live on GrowLocal!`);
+      return shopToUse;
+    } catch (e) {
+      console.warn('handleAddShop fallback notice:', e);
+      shopService.saveShopLocally(newShop);
+      setShops(prev => [newShop, ...prev.filter(s => s.id !== newShop.id)]);
+      triggerToast(`✓ "${newShop.name}" is live!`);
+      return newShop;
+    }
   };
 
   // Central Auth Opener: "merchant" role opens dedicated MerchantAuthPage, "customer" opens shared modal
@@ -562,15 +572,20 @@ export default function App() {
     });
   };
 
-  const handleAddProduct = (newProd) => {
-    // Persist to localStorage so the product survives refreshes and appears on Customer Home immediately
+  const handleAddProduct = async (newProd) => {
     try {
-      const existing = JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
-      const updated = [newProd, ...existing.filter(p => p.id !== newProd.id)];
-      localStorage.setItem('growlocal_merchant_products', JSON.stringify(updated));
-    } catch (_) {}
-    setProducts(prev => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
-    triggerToast(`🎉 "${newProd.name}" is now live on GrowLocal Customer Home!`);
+      const { data: savedProd } = await productService.createProduct(newProd);
+      const prodToUse = savedProd || newProd;
+      setProducts(prev => [prodToUse, ...prev.filter(p => p.id !== prodToUse.id)]);
+      triggerToast(`🎉 "${prodToUse.name}" is now live on GrowLocal Customer Home!`);
+      return prodToUse;
+    } catch (e) {
+      console.warn('handleAddProduct error:', e);
+      productService.saveProductLocally(newProd);
+      setProducts(prev => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
+      triggerToast(`🎉 "${newProd.name}" is live!`);
+      return newProd;
+    }
   };
 
   const handleSubmitDemand = (demandObj) => {
@@ -709,36 +724,51 @@ export default function App() {
             setActiveTab('home');
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
           }}
-          onLoginSuccess={(userData) => {
+          onLoginSuccess={async (userData) => {
             setCurrentUser(userData);
-            if (userData.email && (userData.role === 'merchant' || !userData.role)) {
-              merchantService.registerMerchantLocally(userData);
+            const cleanEmail = (userData.email || '').toLowerCase().trim();
+
+            if (cleanEmail && (userData.role === 'merchant' || !userData.role)) {
+              merchantService.registerMerchantInSupabase(userData);
               setMerchants(merchantService.getStoredMerchants());
             }
 
-            // Determine if merchant already has a shop (returning) or is new
-            let existingShops = [];
-            try {
-              existingShops = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-            } catch (_) {}
-            const merchantHasShop = existingShops.some(
-              s => s.merchantId === userData.id ||
-                   (s.name && userData.shopName && s.name.toLowerCase() === userData.shopName.toLowerCase()) ||
-                   (s.merchantEmail && s.merchantEmail.toLowerCase() === (userData.email || '').toLowerCase())
+            // 1. Check in loaded shops state
+            const inStateShop = shops.some(
+              s => (cleanEmail && s.merchantEmail?.toLowerCase() === cleanEmail) ||
+                   (cleanEmail && s.email?.toLowerCase() === cleanEmail) ||
+                   (userData.id && s.merchantId === userData.id) ||
+                   (userData.shopName && s.name?.toLowerCase() === userData.shopName.toLowerCase())
             );
+
+            // 2. Check in Supabase & local storage for existing shop
+            const hasShop = inStateShop || await shopService.checkMerchantHasShop(cleanEmail, userData.id, userData.shopName);
+
+            // 3. Check in Supabase & local storage for existing merchant record
+            const hasMerchantRecord = await merchantService.checkMerchantExists(cleanEmail, userData.id);
+
+            // 4. Check if account already completed onboarding in local storage vault
+            let accountOnboardingNotRequired = false;
+            try {
+              const accounts = JSON.parse(localStorage.getItem('growlocal_registered_accounts') || '[]');
+              const acc = accounts.find(a => a.email?.toLowerCase() === cleanEmail);
+              if (acc && acc.onboardingRequired === false) accountOnboardingNotRequired = true;
+            } catch (_) {}
+
+            const isReturningMerchant = Boolean(hasShop || hasMerchantRecord || accountOnboardingNotRequired);
 
             const target = pendingRedirect || {};
             setPendingRedirect(null);
             if (typeof window !== 'undefined') window.history.pushState({}, '', target.path || '/merchant');
 
-            if (merchantHasShop) {
+            if (isReturningMerchant) {
               // Returning merchant — go straight to dashboard
-              triggerToast(`✓ Welcome back to your Merchant Dashboard, ${userData.name || userData.email}!`);
+              triggerToast(`✓ Welcome back to your Merchant Dashboard, ${userData.name || cleanEmail}!`);
               setActivePlatform('merchant');
               setActiveTab(target.tab || 'merchantDashboard');
             } else {
-              // New merchant — show shop registration wizard first
-              triggerToast(`👋 Welcome, ${userData.name || userData.email}! Let's set up your shop.`);
+              // Truly new merchant with no shop & no database record — show shop registration wizard first
+              triggerToast(`👋 Welcome, ${userData.name || cleanEmail}! Let's set up your shop.`);
               setActivePlatform('merchantOnboarding');
             }
           }}
@@ -749,11 +779,9 @@ export default function App() {
       {activePlatform === 'merchantOnboarding' && (
         <MerchantOnboardingWizard
           currentUser={currentUser}
-          onSaveShop={(newShop) => {
-            // Stamp the shop with merchantEmail for future returning-user detection
+          onSaveShop={async (newShop) => {
             const stampedShop = { ...newShop, merchantEmail: currentUser?.email || '' };
-            shopService.saveShopLocally(stampedShop);
-            setShops(prev => [stampedShop, ...prev.filter(s => s.id !== stampedShop.id)]);
+            await handleAddShop(stampedShop);
           }}
           onComplete={(newShop) => {
             triggerToast(`🎉 "${newShop.name}" is live on GrowLocal! Welcome to your dashboard.`);

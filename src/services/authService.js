@@ -80,22 +80,22 @@ export const authService = {
       name: fullName || cleanEmail.split('@')[0],
       email: cleanEmail,
       password: password,
-      role: role
+      role: role,
+      // A merchant profile is created only after the shop setup checklist is complete.
+      onboardingRequired: role === 'merchant'
     };
 
     // Save credentials into vault
     this.saveAccountToVault(newAccount);
 
-    // Sync to user & merchant service tables
+    // Customers are ready immediately; merchants complete their shop setup first.
     if (role === 'customer') {
       userService.registerCustomerLocally({ name: newAccount.name, email: cleanEmail, role });
-    } else if (role === 'merchant') {
-      merchantService.registerMerchantLocally({ name: newAccount.name, email: cleanEmail, role });
     }
 
     if (!isSupabaseConfigured) {
-      this.saveLocalSession({ name: newAccount.name, email: cleanEmail, role });
-      return { data: { user: { id: `user-${Date.now()}`, email: cleanEmail }, profile: { fullName: newAccount.name, role } }, error: null };
+      this.saveLocalSession({ name: newAccount.name, email: cleanEmail, role, onboardingRequired: newAccount.onboardingRequired });
+      return { data: { user: { id: `user-${Date.now()}`, email: cleanEmail }, profile: { fullName: newAccount.name, role }, onboardingRequired: newAccount.onboardingRequired }, error: null };
     }
 
     // Supabase Auth SignUp
@@ -129,17 +129,17 @@ export const authService = {
         name: profile?.full_name || newAccount.name,
         email: cleanEmail,
         role: role,
-        id: data.user.id
+        id: data.user.id,
+        onboardingRequired: newAccount.onboardingRequired
       };
 
       this.saveLocalSession(userSession);
       if (role === 'customer') userService.registerCustomerLocally(userSession);
-      if (role === 'merchant') merchantService.registerMerchantLocally(userSession);
-      return { data: { user: data.user, profile }, error: null };
+      return { data: { user: data.user, profile, onboardingRequired: newAccount.onboardingRequired }, error: null };
     }
 
-    this.saveLocalSession({ name: newAccount.name, email: cleanEmail, role });
-    return { data, error: null };
+    this.saveLocalSession({ name: newAccount.name, email: cleanEmail, role, onboardingRequired: newAccount.onboardingRequired });
+    return { data: { ...data, onboardingRequired: newAccount.onboardingRequired }, error: null };
   },
 
   // Log in user with password verification
@@ -194,7 +194,8 @@ export const authService = {
       const authenticatedUser = {
         name: existingAccount.name || cleanEmail.split('@')[0],
         email: cleanEmail,
-        role: assignedRole
+        role: assignedRole,
+        onboardingRequired: Boolean(existingAccount.onboardingRequired)
       };
 
       // Save updated role in vault if logged in as merchant
@@ -210,7 +211,8 @@ export const authService = {
       return { 
         data: { 
           user: { email: cleanEmail }, 
-          profile: { full_name: authenticatedUser.name, role: authenticatedUser.role } 
+          profile: { full_name: authenticatedUser.name, role: authenticatedUser.role },
+          onboardingRequired: authenticatedUser.onboardingRequired
         }, 
         error: null 
       };
@@ -220,6 +222,27 @@ export const authService = {
       data: null, 
       error: { message: "No account found with this email address. Please click 'First time user? Create New Account' below to sign up." } 
     };
+  },
+
+  // Complete the merchant onboarding record only after a shop has been listed.
+  completeMerchantOnboarding(email, shopName) {
+    try {
+      const cleanEmail = email?.toLowerCase().trim();
+      if (!cleanEmail) return;
+      const accounts = this.getRegisteredAccounts();
+      const index = accounts.findIndex(account => account.email?.toLowerCase() === cleanEmail);
+      if (index >= 0) {
+        accounts[index] = { ...accounts[index], onboardingRequired: false, shopName };
+        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+      }
+
+      const session = this.getStoredSession();
+      if (session?.email?.toLowerCase() === cleanEmail) {
+        this.saveLocalSession({ ...session, onboardingRequired: false, shopName });
+      }
+    } catch (e) {
+      console.warn('Could not complete merchant onboarding:', e);
+    }
   },
 
   // Log out user
