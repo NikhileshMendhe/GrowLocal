@@ -23,6 +23,7 @@ export default function CustomerHome({
 }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [productSearch, setProductSearch] = useState('');
+  const verifiedShopsCount = shops.filter(shop => shop.verified || shop.is_verified).length;
 
   const iconMap = {
     Shirt: Shirt,
@@ -56,12 +57,12 @@ export default function CustomerHome({
   });
 
   return (
-    <div className="space-y-12 pb-20">
+    <div className="homepage-shell space-y-12 pb-20">
 
       {/* =========================================================
           1. HERO SECTION
       ========================================================= */}
-      <section className="relative overflow-hidden bg-white border-b border-[#E5E7E5] rounded-b-[2.5rem] shadow-sm">
+      <section className="homepage-hero relative overflow-hidden bg-white border-b border-[#E5E7E5] rounded-b-[2.5rem] shadow-sm">
 
         {/* Soft decorative background */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -76,57 +77,10 @@ export default function CustomerHome({
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 pb-8 md:pt-10 md:pb-10">
 
-          {/* =====================================================
-              TOP BAR
-          ===================================================== */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-7">
-
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#DDF3E3] bg-[#EAF7EE] px-3.5 py-1.5 text-[11px] font-black tracking-wide text-[#138A36]">
-
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#138A36] opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#138A36]" />
-              </span>
-
-              <Sparkles className="w-3.5 h-3.5" />
-
-              <span>
-                Demand-Driven Local Commerce
-              </span>
-
-            </div>
-
-
-            {/* LOCATION SELECTOR */}
-            <button
-              onClick={onOpenLocationModal}
-              className="group w-fit self-start sm:self-auto flex items-center gap-2.5 rounded-2xl border border-[#E5E7E5] bg-white/90 px-3.5 py-2.5 shadow-sm backdrop-blur hover:border-[#BDE7C9] hover:bg-[#F7FCF8] transition-all duration-300 cursor-pointer"
-            >
-
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#EAF7EE] text-[#138A36] group-hover:scale-105 transition-transform">
-                <MapPin className="w-4 h-4" />
-              </span>
-
-              <span className="text-left">
-
-                <span className="block text-[9px] uppercase tracking-[0.16em] font-black text-[#888888]">
-                  Shopping nearby
-                </span>
-
-                <span className="block text-xs font-extrabold text-[#111111]">
-                  {currentLocation?.area || "Your Area"}
-
-                  <span className="text-[#138A36]"> • </span>
-
-                  {currentLocation?.radius || "3 km"}
-                </span>
-
-              </span>
-
-              <ChevronRight className="w-4 h-4 text-[#999999] group-hover:text-[#138A36] group-hover:translate-x-0.5 transition-all" />
-
-            </button>
-
+          <div className="hero-ornament" aria-hidden="true">
+            <span className="hero-ornament-dot hero-ornament-dot-one" />
+            <span className="hero-ornament-dot hero-ornament-dot-two" />
+            <span className="hero-ornament-line" />
           </div>
 
 
@@ -156,7 +110,7 @@ export default function CustomerHome({
 
 
               {/* Main heading */}
-              <h1 className="font-poppins text-4xl sm:text-5xl lg:text-[4.15rem] font-black leading-[0.98] tracking-[-0.045em] text-[#111111]">
+              <h1 className="homepage-title font-poppins text-4xl sm:text-5xl lg:text-[4.15rem] font-black leading-[0.98] tracking-[-0.045em] text-[#111111]">
 
                 {cmsContent?.heroHeadline || (
                   <>
@@ -256,7 +210,7 @@ export default function CustomerHome({
 
 
                 {/* Search benefits */}
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-[11px] font-bold text-[#888888]">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-[11px] font-bold text-[#888888]">
 
                   <span className="flex items-center gap-1.5">
 
@@ -288,17 +242,34 @@ export default function CustomerHome({
 
               </div>
 
+              <div className="homepage-social-proof mt-6 flex flex-wrap items-center gap-3">
+                <div className="flex -space-x-2">
+                  {['#0B6B2B', '#F5A524', '#164E63', '#7C3AED'].map((color, index) => (
+                    <span key={color} className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-black text-white" style={{ backgroundColor: color }}>
+                      {['N', 'A', 'P', 'R'][index]}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[11px] font-bold text-[#555555]">
+                  <span className="text-[#138A36]">Trusted by local shoppers</span> across Nagpur
+                </p>
+              </div>
+
             </div>
 
 
             {/* ===================================================
                 RIGHT VISUAL
             =================================================== */}
-            <div className="relative min-h-[360px] sm:min-h-[430px] lg:min-h-[500px] flex items-center justify-center">
+            <div className="homepage-visual relative min-h-[360px] sm:min-h-[430px] lg:min-h-[500px] flex items-center justify-center">
 
 
               {/* Main visual background */}
               <div className="absolute inset-4 sm:inset-8 rounded-[2.75rem] bg-gradient-to-br from-[#EAF7EE] via-white to-[#DDF3E3] border border-[#DDF3E3] shadow-[0_25px_70px_rgba(19,138,54,0.10)]" />
+
+              <div className="homepage-visual-label absolute top-11 right-9 sm:right-14 z-20 rounded-full px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#0B6B2B]">
+                Made for Nagpur
+              </div>
 
 
               {/* Large rotating ring */}
@@ -368,6 +339,11 @@ export default function CustomerHome({
 
               </div>
 
+              <div className="homepage-delivery-card absolute bottom-6 left-6 sm:left-10 z-20 rounded-2xl px-3.5 py-3 shadow-xl">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#138A36]">Discover today</p>
+                <p className="mt-0.5 text-xs font-extrabold text-[#111111]">Real stores. Real stock.</p>
+              </div>
+
 
               {/* =================================================
                   MAIN IMAGE
@@ -380,7 +356,7 @@ export default function CustomerHome({
                 <img
                   src="/growlocal.png"
                   alt="GrowLocal"
-                  className="relative w-full h-full object-contain drop-shadow-[0_28px_28px_rgba(17,17,17,0.18)] transition-transform duration-700 hover:scale-[1.035]"
+                  className="homepage-scooter relative w-full h-full object-contain drop-shadow-[0_28px_28px_rgba(17,17,17,0.18)] transition-transform duration-700 hover:scale-[1.035]"
                 />
 
               </div>
@@ -399,7 +375,7 @@ export default function CustomerHome({
           {/* =====================================================
               TRUST METRICS
           ===================================================== */}
-          <div className="mt-8 overflow-hidden rounded-2xl border border-[#E5E7E5] bg-white/90 shadow-sm backdrop-blur">
+          <div className="homepage-metrics mt-8 overflow-hidden rounded-2xl border border-[#E5E7E5] bg-white/90 shadow-sm backdrop-blur">
 
             <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-[#E5E7E5]">
 
@@ -502,12 +478,12 @@ export default function CustomerHome({
       {/* =========================================================
           MAIN CONTENT CONTAINER
       ========================================================= */}
-      <div className="max-w-7xl mx-auto px-4 space-y-12">
+      <div className="homepage-content max-w-7xl mx-auto px-4 space-y-12">
 
         {/* =======================================================
             2. CATEGORIES FILTER STRIP — Immediately Below Hero
         ======================================================= */}
-        <section className="space-y-4">
+        <section className="homepage-categories space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -581,7 +557,7 @@ export default function CustomerHome({
         {/* =======================================================
             3. MAIN PRODUCTS SHOWCASE — The Heart of GrowLocal
         ======================================================= */}
-        <section className="space-y-6 scroll-mt-24" id="products-section">
+        <section className="homepage-products space-y-6 scroll-mt-24" id="products-section">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-[#E5E7E5] shadow-xs">
             <div>
               <div className="flex items-center gap-2">
@@ -622,7 +598,7 @@ export default function CustomerHome({
 
           {/* PRODUCT CARDS OR UNAVAILABLE EMPTY STATE */}
           {filteredProducts.length === 0 ? (
-            <div className="bg-gradient-to-br from-white to-[#F8FAF8] rounded-3xl border-2 border-dashed border-[#C6E6D0] p-8 md:p-14 text-center space-y-6 shadow-sm">
+            <div className="homepage-empty-state bg-gradient-to-br from-white to-[#F8FAF8] rounded-3xl border-2 border-dashed border-[#C6E6D0] p-8 md:p-14 text-center space-y-6 shadow-sm">
               <div className="w-20 h-20 rounded-3xl bg-[#EAF7EE] flex items-center justify-center text-4xl mx-auto border border-[#DDF3E3] shadow-inner">
                 📦
               </div>
@@ -675,7 +651,7 @@ export default function CustomerHome({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="homepage-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
               {filteredProducts.map((prod, idx) => {
                 const discountPct = prod.originalPrice > prod.price
                   ? Math.round(((prod.originalPrice - prod.price) / prod.originalPrice) * 100)
@@ -819,7 +795,7 @@ export default function CustomerHome({
         {/* =======================================================
             4. VERIFIED SHOPS & INVENTORY SHOWCASE
         ======================================================= */}
-        <section className="space-y-6 pt-4">
+        <section className="homepage-shops space-y-6 pt-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -846,7 +822,7 @@ export default function CustomerHome({
           </div>
 
           {shops.length === 0 ? (
-            <div className="bg-white rounded-3xl border-2 border-dashed border-[#E5E7E5] p-10 text-center space-y-4 shadow-xs">
+            <div className="homepage-shops-empty bg-white rounded-3xl border-2 border-dashed border-[#E5E7E5] p-10 text-center space-y-4 shadow-xs">
               <div className="w-16 h-16 rounded-2xl bg-[#F8FAF8] flex items-center justify-center text-3xl mx-auto border border-[#E5E7E5]">
                 🏪
               </div>
@@ -1134,7 +1110,7 @@ export default function CustomerHome({
             8. MERCHANT PROMO BANNER
         ======================================================= */}
         <section
-          className="relative rounded-3xl overflow-hidden"
+          className="homepage-merchant relative rounded-3xl overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #0B3D1A 0%, #138A36 55%, #1aad44 100%)' }}
         >
           <div className="relative p-6 md:p-10 flex flex-col md:flex-row items-center gap-8">
@@ -1189,7 +1165,7 @@ export default function CustomerHome({
         {/* =======================================================
             9. FINAL BOTTOM CTA
         ======================================================= */}
-        <section className="bg-gradient-to-br from-[#138A36] to-[#0B6B2B] text-white rounded-3xl p-8 md:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
+        <section className="homepage-final-cta bg-gradient-to-br from-[#138A36] to-[#0B6B2B] text-white rounded-3xl p-8 md:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
           <div className="max-w-2xl mx-auto space-y-3">
             <h2 className="text-2xl md:text-4xl font-black font-poppins tracking-tight">
               Ready to shop from local stores?
