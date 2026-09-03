@@ -90,6 +90,7 @@ export default function MerchantShopSetupModal({ onClose, onSaveShop, currentUse
     const newShop = {
       id: `shop-${Date.now()}`,
       merchantId: currentUser?.id || `merchant-${Date.now()}`,
+      merchantEmail: currentUser?.email || '',
       name: shopName,
       category: catLabel,
       address: address || `${city}, Maharashtra`,

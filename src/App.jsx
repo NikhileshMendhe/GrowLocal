@@ -8,6 +8,7 @@ import DemandRequestModal from './components/DemandRequestModal';
 import AuthModal from './components/AuthModal';
 import MerchantAuthPage from './components/MerchantAuthPage';
 import MerchantShopSetupModal from './components/MerchantShopSetupModal';
+import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
 import Toast from './components/Toast';
 
 // Mock Datasets
@@ -710,16 +711,55 @@ export default function App() {
           }}
           onLoginSuccess={(userData) => {
             setCurrentUser(userData);
-            triggerToast(`✓ Welcome to your Merchant Dashboard, ${userData.name || userData.email}!`);
             if (userData.email && (userData.role === 'merchant' || !userData.role)) {
               merchantService.registerMerchantLocally(userData);
               setMerchants(merchantService.getStoredMerchants());
             }
+
+            // Determine if merchant already has a shop (returning) or is new
+            let existingShops = [];
+            try {
+              existingShops = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
+            } catch (_) {}
+            const merchantHasShop = existingShops.some(
+              s => s.merchantId === userData.id ||
+                   (s.name && userData.shopName && s.name.toLowerCase() === userData.shopName.toLowerCase()) ||
+                   (s.merchantEmail && s.merchantEmail.toLowerCase() === (userData.email || '').toLowerCase())
+            );
+
             const target = pendingRedirect || {};
             setPendingRedirect(null);
             if (typeof window !== 'undefined') window.history.pushState({}, '', target.path || '/merchant');
+
+            if (merchantHasShop) {
+              // Returning merchant — go straight to dashboard
+              triggerToast(`✓ Welcome back to your Merchant Dashboard, ${userData.name || userData.email}!`);
+              setActivePlatform('merchant');
+              setActiveTab(target.tab || 'merchantDashboard');
+            } else {
+              // New merchant — show shop registration wizard first
+              triggerToast(`👋 Welcome, ${userData.name || userData.email}! Let's set up your shop.`);
+              setActivePlatform('merchantOnboarding');
+            }
+          }}
+        />
+      )}
+
+      {/* MERCHANT ONBOARDING WIZARD — Full-screen wizard for new merchants only */}
+      {activePlatform === 'merchantOnboarding' && (
+        <MerchantOnboardingWizard
+          currentUser={currentUser}
+          onSaveShop={(newShop) => {
+            // Stamp the shop with merchantEmail for future returning-user detection
+            const stampedShop = { ...newShop, merchantEmail: currentUser?.email || '' };
+            shopService.saveShopLocally(stampedShop);
+            setShops(prev => [stampedShop, ...prev.filter(s => s.id !== stampedShop.id)]);
+          }}
+          onComplete={(newShop) => {
+            triggerToast(`🎉 "${newShop.name}" is live on GrowLocal! Welcome to your dashboard.`);
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
             setActivePlatform('merchant');
-            setActiveTab(target.tab || 'merchantDashboard');
+            setActiveTab('merchantDashboard');
           }}
         />
       )}
