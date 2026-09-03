@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X, LogOut, ShieldCheck } from 'lucide-react';
 import Header from './components/Header';
 import MobileHeader from './components/MobileHeader';
 import BottomNavigation from './components/BottomNavigation';
@@ -214,6 +215,7 @@ export default function App() {
   const [showDemandModal, setShowDemandModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showShopSetupModal, setShowShopSetupModal] = useState(false);
+  const [showExitMerchantModal, setShowExitMerchantModal] = useState(false);
   const [authRole, setAuthRole] = useState("customer");
   const [currentUser, setCurrentUser] = useState(null);
   const [pendingRedirect, setPendingRedirect] = useState(null);
@@ -222,6 +224,19 @@ export default function App() {
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
+  };
+
+  // Secure exit from Merchant Portal: logs out session and returns to Customer Home
+  const handleConfirmExitMerchantLogout = () => {
+    setShowExitMerchantModal(false);
+    setCurrentUser(null);
+    authService.logout();
+    setActivePlatform('customer');
+    setActiveTab('home');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+    }
+    triggerToast("👋 You have been logged out. Welcome to GrowLocal Marketplace!");
   };
 
   // Helper to intercept unauthenticated user actions and resume after login
@@ -269,6 +284,27 @@ export default function App() {
   const [activePlatform, setActivePlatform] = useState(initialRoute.platform); 
   const [activeTab, setActiveTab] = useState(initialRoute.tab); 
   const [currentAdminTab, setCurrentAdminTab] = useState(initialRoute.adminTab);
+
+  // Browser Back Button & Exit Guard for Merchant Portal
+  useEffect(() => {
+    if (activePlatform !== 'merchant') return;
+
+    if (typeof window !== 'undefined') {
+      // Push guard entry so laptop/browser back button hits popstate
+      window.history.pushState({ merchantGuard: true }, '', window.location.pathname);
+
+      const handlePopState = () => {
+        // Intercept browser back button on laptop / computer
+        window.history.pushState({ merchantGuard: true }, '', window.location.pathname);
+        setShowExitMerchantModal(true);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [activePlatform]);
 
   // Central URL Navigation Function with Protected Authentication Gate
   const navigateToPath = (path, platform, tab, adminTabName) => {
@@ -775,7 +811,7 @@ export default function App() {
         />
       )}
 
-      {/* MERCHANT ONBOARDING WIZARD — Full-screen wizard for new merchants only */}
+      {/* MERCHANT ONBOARDING WIZARD — Full-screen creative shop setup wizard */}
       {activePlatform === 'merchantOnboarding' && (
         <MerchantOnboardingWizard
           currentUser={currentUser}
@@ -784,10 +820,15 @@ export default function App() {
             await handleAddShop(stampedShop);
           }}
           onComplete={(newShop) => {
-            triggerToast(`🎉 "${newShop.name}" is live on GrowLocal! Welcome to your dashboard.`);
+            triggerToast(`🎉 "${newShop.name}" is live on GrowLocal! Here is Your Shop.`);
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
             setActivePlatform('merchant');
+            setActiveTab('merchantShopProfile');
+          }}
+          onClose={() => {
+            setActivePlatform('merchant');
             setActiveTab('merchantDashboard');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
           }}
         />
       )}
@@ -1112,19 +1153,20 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onSwitchPlatform={(platform) => {
-            setActivePlatform(platform);
             if (platform === 'customer') {
-              setActiveTab('home');
-              if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+              setShowExitMerchantModal(true);
+            } else {
+              setActivePlatform(platform);
             }
           }}
+          onRequestExitToCustomer={() => setShowExitMerchantModal(true)}
           currentUser={currentUser}
           merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
           shops={shops}
           products={products}
           enquiries={enquiries}
           reservations={reservations}
-          onAddShop={() => setShowShopSetupModal(true)}
+          onAddShop={() => setActivePlatform('merchantOnboarding')}
           onLogout={() => {
             setCurrentUser(null);
             authService.logout();
@@ -1140,7 +1182,8 @@ export default function App() {
               onNavigateMerchant={setActiveTab}
               currentUser={currentUser}
               merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
-              onAddShop={() => setShowShopSetupModal(true)}
+              shops={shops}
+              onAddShop={() => setActivePlatform('merchantOnboarding')}
               onLogout={() => {
                 setCurrentUser(null);
                 authService.logout();
@@ -1181,13 +1224,29 @@ export default function App() {
 
           {activeTab === "merchantShopProfile" && (
             <MerchantShopProfile
-              shop={shops.find(s => s.merchantId === currentUser?.id) || shops[0]}
+              shop={shops.find(s => 
+                (currentUser?.id && s.merchantId === currentUser?.id) ||
+                (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
+              ) || shops[0]}
+              products={products}
               onPreviewPublic={() => {
-                const curShop = shops.find(s => s.merchantId === currentUser?.id) || shops[0];
-                setSelectedShopId(curShop.id);
+                const curShop = shops.find(s => 
+                  (currentUser?.id && s.merchantId === currentUser?.id) ||
+                  (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
+                ) || shops[0];
+                setSelectedShopId(curShop?.id);
                 setActivePlatform("customer");
                 setActiveTab("shopProfile");
               }}
+              onSaveShop={async (updatedShop) => {
+                try {
+                  await shopService.updateShop(updatedShop.id, updatedShop);
+                } catch (e) {
+                  shopService.saveShopLocally(updatedShop);
+                }
+                setShops(prev => prev.map(s => s.id === updatedShop.id ? { ...s, ...updatedShop } : s));
+              }}
+              onNavigate={setActiveTab}
               onShowToast={triggerToast}
             />
           )}
@@ -1205,21 +1264,8 @@ export default function App() {
             />
           )}
 
-          {activeTab === "merchantCreators" && (
-            <MerchantCreatorCampaigns
-              creators={creators}
-              onShowToast={triggerToast}
-            />
-          )}
-
           {activeTab === "merchantOffers" && (
             <MerchantOffers
-              onShowToast={triggerToast}
-            />
-          )}
-
-          {activeTab === "merchantSubscription" && (
-            <MerchantSubscription
               onShowToast={triggerToast}
             />
           )}
@@ -1620,6 +1666,67 @@ export default function App() {
             setShowShopSetupModal(false);
           }}
         />
+      )}
+
+      {/* ── EXIT MERCHANT PORTAL LOGOUT CONFIRMATION POPUP ── */}
+      {showExitMerchantModal && (
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center border border-gray-200 shadow-2xl relative space-y-4 font-sans animate-in zoom-in-95 duration-200">
+            {/* Close / Cancel Button */}
+            <button
+              onClick={() => setShowExitMerchantModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              title="Cancel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Warning / Logout Icon */}
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-2xl shadow-xs">
+              <LogOut className="w-7 h-7" />
+            </div>
+
+            {/* Header & Notice */}
+            <div>
+              <h3 className="text-lg font-black text-[#111111] font-poppins">
+                Exit Merchant Portal?
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                You are about to return to the customer marketplace.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 text-left text-xs text-gray-600 space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-gray-800">
+                <ShieldCheck className="w-4 h-4 text-[#138A36] shrink-0" />
+                <span>Session Protection Required</span>
+              </div>
+              <p className="leading-relaxed">
+                To safeguard your store orders, live customer inquiries, and private merchant inventory, returning to the customer view requires logging out of your Merchant session.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowExitMerchantModal(false)}
+                className="w-full sm:flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Stay in Merchant Portal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmExitMerchantLogout}
+                className="w-full sm:flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out & Go Home</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {toastMessage && (

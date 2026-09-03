@@ -32,10 +32,16 @@ export default function MerchantDashboard({
   onNavigateMerchant,
   currentUser,
   merchantProfile,
+  shops,
   onAddShop,
   onLogout,
 }) {
-  const shopName = merchantProfile?.businessName || currentUser?.shopName || currentUser?.name || 'My Store';
+  const currentShop = shops?.find(s => 
+    (currentUser?.id && s.merchantId === currentUser?.id) ||
+    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
+  );
+  const hasListedShop = Boolean(currentShop || merchantProfile?.businessName || currentUser?.shopName);
+  const shopName = currentShop?.name || merchantProfile?.businessName || currentUser?.shopName || currentUser?.name || 'My Store';
   const ownerName = merchantProfile?.ownerName || currentUser?.name || 'Store Manager';
   const userEmail = currentUser?.email || merchantProfile?.email || '';
   const isVerified = merchantProfile?.verificationStatus === 'approved' || merchantProfile?.verified;
@@ -45,7 +51,6 @@ export default function MerchantDashboard({
   ).length || 0;
 
   const recentEnquiries = (enquiries || []).slice(0, 3);
-  const hasShop = Boolean(merchantProfile?.businessName || currentUser?.shopName);
 
   const kpiItems = [
     {
@@ -76,6 +81,18 @@ export default function MerchantDashboard({
   ];
 
   const quickActions = [
+    {
+      id: 'merchantShopProfile',
+      icon: Store,
+      title: 'Your Shop',
+      subtitle: hasListedShop ? 'Live storefront, timings & address' : 'Set up your shop storefront',
+      iconColor: '#138A36',
+      iconBg: '#EAF7EE',
+      iconBorder: '#CDEED5',
+      badge: hasListedShop ? 'Live' : 'Action Needed',
+      badgeBg: hasListedShop ? 'bg-[#EAF7EE] text-[#138A36] border border-[#CDEED5]' : 'bg-amber-50 text-amber-700 border border-amber-200',
+      onClick: () => onNavigateMerchant('merchantShopProfile')
+    },
     {
       id: 'merchantProducts',
       icon: PackagePlus,
@@ -184,7 +201,17 @@ export default function MerchantDashboard({
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-col sm:items-end shrink-0">
-            {onAddShop && (
+            {hasListedShop ? (
+              <button
+                onClick={() => onNavigateMerchant('merchantShopProfile')}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-[#138A36] hover:bg-emerald-50 rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
+                title="View & Manage Your Shop"
+              >
+                <Store className="w-4 h-4" />
+                <span>Your Shop</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : onAddShop ? (
               <button
                 onClick={onAddShop}
                 className="flex items-center gap-2 px-4 py-2 bg-white text-[#138A36] hover:bg-emerald-50 rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
@@ -193,7 +220,7 @@ export default function MerchantDashboard({
                 <Store className="w-4 h-4" />
                 <span>+ Setup / Add Shop</span>
               </button>
-            )}
+            ) : null}
             {onLogout && (
               <button
                 onClick={onLogout}
@@ -219,8 +246,8 @@ export default function MerchantDashboard({
         </div>
       </div>
 
-      {/* ── No Shop Prompt ────────────────────────────────── */}
-      {!hasShop && onAddShop && (
+      {/* ── No Shop Prompt (hidden once shop is listed) ── */}
+      {!hasListedShop && onAddShop && (
         <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-dashed border-amber-300 rounded-2xl p-4 sm:p-5 mb-5 flex items-center gap-3 sm:gap-4">
           <span className="text-3xl sm:text-4xl shrink-0">🏪</span>
           <div className="flex-1 min-w-0">
@@ -282,8 +309,8 @@ export default function MerchantDashboard({
         </div>
       </div>
 
-      {/* ── Prominent Store Setup / Management Card ── */}
-      {onAddShop && (
+      {/* ── Prominent Store Setup / Management Card (hidden once shop is listed) ── */}
+      {onAddShop && !hasListedShop && (
         <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-[#F0FDF4] via-white to-[#EAF7EE] border-2 border-[#CDEED5] rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-[#138A36] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">

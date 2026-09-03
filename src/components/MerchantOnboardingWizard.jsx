@@ -96,7 +96,7 @@ function ConfettiBurst() {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function MerchantOnboardingWizard({ currentUser, onComplete, onSaveShop }) {
+export default function MerchantOnboardingWizard({ currentUser, onComplete, onSaveShop, onClose }) {
   const [step, setStep] = useState(1);
 
   // Step 2 — Category
@@ -218,9 +218,26 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
             <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Merchant Onboarding</p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '20px', padding: '6px 14px' }}>
-          <Zap style={{ width: '13px', height: '13px', color: '#FFD700' }} />
-          <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff' }}>Setup in 2 min</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '20px', padding: '6px 14px' }}>
+            <Zap style={{ width: '13px', height: '13px', color: '#FFD700' }} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff' }}>Setup in 2 min</span>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: 'rgba(255,255,255,0.18)', border: 'none',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', fontSize: '14px', fontWeight: 800,
+                transition: 'background 0.2s'
+              }}
+              title="Close Onboarding"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 

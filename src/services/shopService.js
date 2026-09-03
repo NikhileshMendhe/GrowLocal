@@ -197,6 +197,42 @@ export const shopService = {
     return { data: resultShop, error: null };
   },
 
+  // Update shop details in Supabase and local cache
+  async updateShop(shopId, updates) {
+    let formatted = { ...updates };
+    if (isSupabaseConfigured && isUuid(shopId)) {
+      try {
+        const updateRow = {};
+        if (updates.name !== undefined) updateRow.name = updates.name;
+        if (updates.about !== undefined) updateRow.description = updates.about;
+        if (updates.description !== undefined) updateRow.description = updates.description;
+        if (updates.address !== undefined) updateRow.address = updates.address;
+        if (updates.city !== undefined) updateRow.city = updates.city;
+        if (updates.coverImage !== undefined) updateRow.cover_image_url = updates.coverImage;
+        if (updates.logoImage !== undefined) updateRow.logo_url = updates.logoImage;
+        if (updates.phone !== undefined) updateRow.phone = updates.phone;
+        updateRow.updated_at = new Date().toISOString();
+
+        const { data, error } = await supabase
+          .from('shops')
+          .update(updateRow)
+          .eq('id', shopId)
+          .select('*, categories(name)')
+          .single();
+
+        if (!error && data) {
+          formatted = this.formatShopRow(data);
+        } else if (error) {
+          console.warn('Supabase updateShop notice:', error);
+        }
+      } catch (err) {
+        console.warn('Supabase updateShop network error:', err);
+      }
+    }
+    this.saveShopLocally(formatted);
+    return { data: formatted, error: null };
+  },
+
   // Save a merchant-created shop locally
   saveShopLocally(shop) {
     try {

@@ -10,6 +10,7 @@ export default function MerchantLayout({
   activeTab,
   setActiveTab,
   onSwitchPlatform,
+  onRequestExitToCustomer,
   currentUser,
   merchantProfile,
   shops,
@@ -22,11 +23,21 @@ export default function MerchantLayout({
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const currentShop = shops?.find(s => s.merchantId === currentUser?.id) || shops?.[0] || {
+  const currentShop = shops?.find(s => 
+    (currentUser?.id && s.merchantId === currentUser?.id) ||
+    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
+  ) || shops?.[0] || {
     name: merchantProfile?.businessName || currentUser?.shopName || 'My Store',
     category: 'Local Retail',
     verified: true
   };
+
+  const hasListedShop = Boolean(
+    shops?.some(s => 
+      (currentUser?.id && s.merchantId === currentUser?.id) ||
+      (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
+    )
+  );
 
   const shopName = currentShop.name || merchantProfile?.businessName || currentUser?.shopName || 'My Store';
   const ownerName = merchantProfile?.ownerName || currentUser?.name || 'Store Manager';
@@ -44,10 +55,8 @@ export default function MerchantLayout({
     { id: 'merchantEnquiries', label: 'Enquiries', icon: Inbox, count: enquiries?.length, badge: pendingEnquiriesCount > 0 ? pendingEnquiriesCount : null, badgeColor: 'bg-amber-500 text-white' },
     { id: 'merchantReservations', label: 'Reservations', icon: ShoppingBag, count: reservations?.length },
     { id: 'merchantAnalytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'merchantCreators', label: 'Creators', icon: Sparkles },
     { id: 'merchantOffers', label: 'Offers', icon: Tag },
-    { id: 'merchantShopProfile', label: 'Store Profile', icon: Store },
-    { id: 'merchantSubscription', label: 'Plan & Billing', icon: CreditCard },
+    { id: 'merchantShopProfile', label: 'Your Shop', icon: Store, badge: hasListedShop ? 'Live' : null, badgeColor: 'bg-[#138A36] text-white' },
   ];
 
   return (
@@ -97,11 +106,11 @@ export default function MerchantLayout({
 
           {/* Right: Store Pill & Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* View As Customer button */}
+            {/* View As Customer button (intercepted with logout confirm) */}
             <button
-              onClick={() => onSwitchPlatform('customer')}
+              onClick={() => onRequestExitToCustomer ? onRequestExitToCustomer() : onSwitchPlatform('customer')}
               className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors shrink-0"
-              title="Preview Customer Marketplace"
+              title="Return to Customer Marketplace"
             >
               <Eye className="w-3.5 h-3.5 text-gray-500" />
               <span className="hidden md:inline">Customer View</span>
@@ -133,8 +142,8 @@ export default function MerchantLayout({
               )}
             </div>
 
-            {/* Add Shop quick trigger (All screens - prominently lookable) */}
-            {onAddShop && (
+            {/* Add Shop quick trigger (hidden once shop is listed) */}
+            {onAddShop && !hasListedShop && (
               <button
                 onClick={onAddShop}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#138A36] hover:bg-[#0F752C] text-white text-xs font-black rounded-xl transition-all duration-200 shadow-xs hover:shadow-md shrink-0 cursor-pointer"
@@ -187,16 +196,17 @@ export default function MerchantLayout({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  onSwitchPlatform('customer');
                   setMobileNavOpen(false);
+                  if (onRequestExitToCustomer) onRequestExitToCustomer();
+                  else onSwitchPlatform('customer');
                 }}
                 className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
               >
                 <Eye className="w-3.5 h-3.5 text-gray-500" />
-                <span>View Customer App</span>
+                <span>Customer View</span>
               </button>
 
-              {onAddShop && (
+              {onAddShop && !hasListedShop && (
                 <button
                   onClick={() => {
                     onAddShop();
@@ -287,8 +297,8 @@ export default function MerchantLayout({
               <p className="text-[11px] text-gray-600 truncate">{currentShop.address || 'Nagpur, Maharashtra'}</p>
             </div>
 
-            {/* High-visibility Add / Setup Shop button */}
-            {onAddShop && (
+            {/* High-visibility Add / Setup Shop button (hidden if shop is already listed) */}
+            {onAddShop && !hasListedShop && (
               <button
                 onClick={onAddShop}
                 className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-[#138A36] to-[#1aad44] hover:from-[#0F752C] hover:to-[#138A36] text-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
@@ -303,6 +313,37 @@ export default function MerchantLayout({
                   </div>
                 </div>
                 <ArrowUpRight className="w-3.5 h-3.5 text-white/90 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            )}
+
+            {/* Quick Link to Your Shop when shop is listed */}
+            {hasListedShop && (
+              <button
+                onClick={() => setActiveTab('merchantShopProfile')}
+                className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-200 cursor-pointer group ${
+                  activeTab === 'merchantShopProfile'
+                    ? 'bg-gradient-to-r from-[#138A36] to-[#0F752C] text-white shadow-sm'
+                    : 'bg-gradient-to-r from-[#EAF7EE] to-[#DCF5E3] hover:from-[#DCF5E3] hover:to-[#CEEED6] border border-[#CDEED5] text-[#138A36]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                    activeTab === 'merchantShopProfile' ? 'bg-white/20 text-white' : 'bg-[#138A36] text-white'
+                  }`}>
+                    <Store className="w-4 h-4" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className={`text-xs font-black leading-tight truncate ${
+                      activeTab === 'merchantShopProfile' ? 'text-white' : 'text-[#111111]'
+                    }`}>Your Shop</p>
+                    <p className={`text-[10px] font-bold leading-tight ${
+                      activeTab === 'merchantShopProfile' ? 'text-white/80' : 'text-[#138A36]'
+                    }`}>View & Manage Storefront</p>
+                  </div>
+                </div>
+                <ArrowUpRight className={`w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform ${
+                  activeTab === 'merchantShopProfile' ? 'text-white' : 'text-[#138A36]'
+                }`} />
               </button>
             )}
 
@@ -348,7 +389,7 @@ export default function MerchantLayout({
             {/* Bottom Quick Tools */}
             <div className="pt-3 border-t border-[#E5E7E5] space-y-2">
               <button
-                onClick={() => onSwitchPlatform('customer')}
+                onClick={() => onRequestExitToCustomer ? onRequestExitToCustomer() : onSwitchPlatform('customer')}
                 className="w-full py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl flex items-center justify-between transition-colors"
               >
                 <div className="flex items-center gap-2">
