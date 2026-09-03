@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, ArrowRight, Store, CheckCircle2, ShieldCheck, MapPin, MessageSquare, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
 
-export default function MarketingLanding({ onStartShopping, onOpenMerchantAuth }) {
+export default function MarketingLanding({ onStartShopping, onOpenMerchantAuth, onOpenMerchantMarketing }) {
   return (
     <div className="space-y-16 pb-20">
       {/* 1. Hero Section */}
@@ -29,11 +29,11 @@ export default function MarketingLanding({ onStartShopping, onOpenMerchantAuth }
             </button>
 
             <button
-              onClick={() => onOpenMerchantAuth("merchant")}
-              className="w-full sm:w-auto bg-white border-2 border-[#138A36] text-[#138A36] hover:bg-[#EAF7EE] font-bold text-sm md:text-base px-8 py-4 rounded-2xl transition-all flex items-center justify-center gap-2"
+              onClick={() => onOpenMerchantMarketing ? onOpenMerchantMarketing() : onOpenMerchantAuth("merchant")}
+              className="w-full sm:w-auto bg-white border-2 border-[#138A36] text-[#138A36] hover:bg-[#138A36] hover:text-white font-bold text-sm md:text-base px-8 py-4 rounded-2xl transition-all flex items-center justify-center gap-2"
             >
               <Store className="w-5 h-5" />
-              <span>List Your Shop Free</span>
+              <span>Grow Your Business →</span>
             </button>
           </div>
 

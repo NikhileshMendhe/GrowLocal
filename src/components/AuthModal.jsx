@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, Store, User, ArrowRight, CheckCircle2, ShieldCheck, Key } from 'lucide-react';
 import { authService } from '../services/authService';
 
-export default function AuthModal({ initialMode = "customer", onClose, onLoginSuccess }) {
+export default function AuthModal({ 
+  initialMode = "customer", 
+  interceptNotice, 
+  customTitle, 
+  customDescription,
+  onClose, 
+  onOpenTerms, 
+  onLoginSuccess 
+}) {
   const [role, setRole] = useState(initialMode); // customer, merchant, admin
   const [isSignUp, setIsSignUp] = useState(false);
   const [authMethod, setAuthMethod] = useState("email"); // email or phone
@@ -99,28 +107,6 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
           <X className="w-5 h-5" />
         </button>
 
-        {/* Role Selector Tabs */}
-        <div className="flex bg-[#F7F8F7] p-1 rounded-xl mb-4 border border-[#E5E7E5]">
-          <button
-            onClick={() => { setRole("customer"); setErrorMsg(""); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-              role === "customer" ? "bg-white text-[#138A36] shadow-xs font-black" : "text-[#666666] hover:text-[#111111]"
-            }`}
-          >
-            <User className="w-4 h-4" />
-            <span>User Login</span>
-          </button>
-          <button
-            onClick={() => { setRole("merchant"); setErrorMsg(""); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-              role === "merchant" ? "bg-[#138A36] text-white shadow-xs font-black" : "text-[#666666] hover:text-[#111111]"
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            <span>Merchant Login</span>
-          </button>
-        </div>
-
         {/* Intercept / Dynamic Notice */}
         {interceptNotice && (
           <div className="mb-4 p-3 bg-[#EAF7EE] border border-[#DDF3E3] text-[#138A36] rounded-2xl text-xs font-bold flex items-center gap-2">
@@ -129,20 +115,13 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
           </div>
         )}
 
+
         <div className="text-center mb-5">
           <h3 className="text-xl font-extrabold text-[#111111] font-poppins">
-            {customTitle ? customTitle : (
-              isSignUp 
-                ? (role === "merchant" ? "Register Your Business" : "Create GrowLocal User Account")
-                : (role === "merchant" ? "Grow Your Local Business" : "Welcome to GrowLocal")
-            )}
+            {customTitle ? customTitle : (isSignUp ? "Create GrowLocal Account" : "Welcome to GrowLocal")}
           </h3>
           <p className="text-xs text-[#666666] mt-1">
-            {customDescription ? customDescription : (
-              role === "merchant"
-                ? "Connect with nearby customers and turn local demand into real sales."
-                : "Find local. Buy local. Grow local. Discover shops and reserve products near you."
-            )}
+            {customDescription ? customDescription : "Find local. Buy local. Grow local. Discover shops and reserve products near you."}
           </p>
         </div>
 
@@ -175,15 +154,13 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
             <>
               {isSignUp && (
                 <div>
-                  <label className="block text-xs font-bold text-[#111111] mb-1">
-                    {role === "merchant" ? "Business / Shop Name *" : "Full Name *"}
-                  </label>
+                  <label className="block text-xs font-bold text-[#111111] mb-1">Full Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder={role === "merchant" ? "e.g. Trendy Wear Nagpur" : "e.g. Aman Verma"}
-                    value={role === "merchant" ? shopName : fullName}
-                    onChange={(e) => role === "merchant" ? setShopName(e.target.value) : setFullName(e.target.value)}
+                    placeholder="e.g. Aman Verma"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#138A36] font-medium"
                   />
                 </div>
@@ -237,7 +214,7 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
                 disabled={loading}
                 className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md text-xs mt-3 cursor-pointer"
               >
-                <span>{loading ? "Processing..." : isSignUp ? "Create GrowLocal Account" : `Log In to ${role.toUpperCase()}`}</span>
+                <span>{loading ? "Processing..." : isSignUp ? "Create GrowLocal Account" : "Log In to GrowLocal"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </>
@@ -279,19 +256,9 @@ export default function AuthModal({ initialMode = "customer", onClose, onLoginSu
               {isSignUp ? "Already have an account? Log In" : "First time user? Create New Account"}
             </button>
 
-            {role === "merchant" && isSignUp && (
+            {isSignUp && (
               <p className="text-[10px] text-center text-gray-500 pt-1">
-                By registering your business, you agree to GrowLocal's{" "}
-                <button 
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    if (onOpenTerms) onOpenTerms();
-                  }}
-                  className="text-[#138A36] underline font-bold cursor-pointer"
-                >
-                  Vendor Terms & Conditions
-                </button>
+                By creating an account, you agree to GrowLocal's Terms of Service.
               </p>
             )}
           </div>

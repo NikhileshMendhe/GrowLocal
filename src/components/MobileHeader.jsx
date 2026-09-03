@@ -11,7 +11,8 @@ export default function MobileHeader({
   activeTab,
   setActiveTab,
   onOpenDemandModal,
-  onNavigatePath
+  onNavigatePath,
+  onOpenMerchantMarketing
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -115,13 +116,17 @@ export default function MobileHeader({
                   </button>
 
                   <button
-                    onClick={() => { handleNav('/merchant', 'merchant', 'merchantDashboard'); setDrawerOpen(false); }}
+                    onClick={() => { 
+                      if (onOpenMerchantMarketing) onOpenMerchantMarketing();
+                      else if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+                      setDrawerOpen(false); 
+                    }}
                     className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 ${
-                      activePlatform === "merchant" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
+                      activePlatform === "merchantMarketing" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
                     }`}
                   >
-                    <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>Merchant</span>
+                    <Store className="w-3.5 h-3.5" />
+                    <span>For Merchants</span>
                   </button>
                 </div>
               </div>
@@ -140,11 +145,15 @@ export default function MobileHeader({
 
               {/* Primary CTA */}
               <button
-                onClick={() => { onOpenAuthModal("merchant"); setDrawerOpen(false); }}
+                onClick={() => { 
+                  if (onOpenMerchantMarketing) onOpenMerchantMarketing(); 
+                  else onOpenAuthModal("merchant"); 
+                  setDrawerOpen(false); 
+                }}
                 className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs py-3 rounded-xl shadow-md flex items-center justify-center gap-2"
               >
                 <Store className="w-4 h-4" />
-                <span>List Your Shop Free</span>
+                <span>Why Sell on GrowLocal? →</span>
               </button>
 
               {/* Customer Links */}

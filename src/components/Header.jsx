@@ -11,7 +11,8 @@ export default function Header({
   setActivePlatform,
   savedCount = 0,
   enquiriesCount = 0,
-  onNavigatePath
+  onNavigatePath,
+  onOpenMerchantMarketing
 }) {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '/';
 
@@ -48,13 +49,13 @@ export default function Header({
                 Customer App
               </button>
               <button
-                onClick={() => handleNav('/merchant', 'merchant', 'merchantDashboard')}
+                onClick={() => onOpenMerchantMarketing ? onOpenMerchantMarketing() : null}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1 ${
-                  activePlatform === "merchant" ? "bg-[#138A36] text-white" : "text-gray-300 hover:text-white"
+                  activePlatform === "merchantMarketing" ? "bg-yellow-400 text-[#0B3D1A]" : "text-yellow-300 hover:text-yellow-200"
                 }`}
               >
-                <LayoutDashboard className="w-3 h-3" />
-                <span>Merchant Portal</span>
+                <Store className="w-3 h-3" />
+                <span>For Merchants</span>
               </button>
               <button
                 onClick={() => handleNav('/overview', 'landing', 'home')}
@@ -67,11 +68,11 @@ export default function Header({
             </div>
 
             <button
-              onClick={() => onOpenAuthModal("merchant")}
-              className="text-xs font-semibold text-[#DDF3E3] hover:text-white underline flex items-center gap-1 cursor-pointer"
+              onClick={() => onOpenMerchantMarketing ? onOpenMerchantMarketing() : onOpenAuthModal('merchant')}
+              className="text-xs font-semibold text-yellow-300 hover:text-yellow-200 underline flex items-center gap-1 cursor-pointer"
             >
               <Store className="w-3.5 h-3.5" />
-              <span>Merchant Sign In</span>
+              <span>List Your Shop Free</span>
             </button>
           </div>
         </div>

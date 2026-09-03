@@ -25,7 +25,10 @@ export default function CustomerShopProfile({
 
   if (!shop) return null;
 
-  const shopProducts = products.filter(p => p.shopId === shop.id || p.shopName === shop.name);
+  const shopProducts = (products || []).filter(p => 
+    p.shopId === shop.id || 
+    (p.shopName && shop.name && p.shopName.trim().toLowerCase() === shop.name.trim().toLowerCase())
+  );
 
   return (
     <div className="max-w-4xl mx-auto pb-16 space-y-6">
@@ -198,23 +201,71 @@ export default function CustomerShopProfile({
           </button>
         </div>
 
-        {/* 5. Shop Products Grid */}
-        <div className="space-y-4">
+        {/* 3. Shop Inventory & Live Products Showcase */}
+        <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#111111] font-poppins">Products ({shopProducts.length})</h2>
-            <span className="text-xs text-[#666666]">In stock at store</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🛍️</span>
+                <h2 className="text-lg md:text-xl font-black text-[#111111] font-poppins">
+                  Store Inventory ({shopProducts.length})
+                </h2>
+              </div>
+              <p className="text-xs text-[#666666] mt-0.5">
+                {shopProducts.length > 0 
+                  ? `Live in-store stock available at ${shop.name}`
+                  : `Digital catalog for this neighborhood store`}
+              </p>
+            </div>
+            {shopProducts.length > 0 && (
+              <span className="text-xs font-bold text-[#138A36] bg-[#EAF7EE] px-3 py-1 rounded-full border border-[#DDF3E3]">
+                ✓ In-Store Stock
+              </span>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {shopProducts.map((prod) => (
-              <ProductCard
-                key={prod.id}
-                product={prod}
-                onClick={onSelectProduct}
-                onAskAvailability={(p) => onOpenChat(shop)}
-              />
-            ))}
-          </div>
+          {shopProducts.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-[#E5E7E5] p-8 text-center space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-[#F7F8F7] flex items-center justify-center text-3xl mx-auto border border-[#E5E7E5]">
+                📦
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-extrabold text-base text-[#111111]">
+                  Sorry, currently no products are available in this store's inventory.
+                </h3>
+                <p className="text-xs text-[#666666] leading-relaxed">
+                  {shop.name} hasn't published digital inventory items yet, but their physical store is open at {shop.address}. You can message them directly to check item availability and prices!
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => onOpenChat(shop)}
+                  className="bg-[#138A36] hover:bg-[#0B6B2B] text-white text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-2 transition-all shadow-md cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Message {shop.name} to Ask</span>
+                </button>
+                <button
+                  onClick={() => setShowMap(true)}
+                  className="bg-[#F7F8F7] hover:bg-[#EAF7EE] text-[#111111] hover:text-[#138A36] text-xs font-bold px-4 py-3 rounded-xl border border-[#E5E7E5] flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Navigation className="w-4 h-4" />
+                  <span>View Location & Directions</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {shopProducts.map((prod) => (
+                <ProductCard
+                  key={prod.id}
+                  product={prod}
+                  onClick={onSelectProduct}
+                  onAskAvailability={(p) => onOpenChat(shop)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 6. Shop Photos Gallery */}

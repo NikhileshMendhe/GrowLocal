@@ -6,6 +6,8 @@ import LocationSelector from './components/LocationSelector';
 import PhotoSearchModal from './components/PhotoSearchModal';
 import DemandRequestModal from './components/DemandRequestModal';
 import AuthModal from './components/AuthModal';
+import MerchantAuthPage from './components/MerchantAuthPage';
+import MerchantShopSetupModal from './components/MerchantShopSetupModal';
 import Toast from './components/Toast';
 
 // Mock Datasets
@@ -61,6 +63,7 @@ import CustomerProfile from './views/CustomerProfile';
 import VendorTerms from './views/VendorTerms';
 
 // Merchant Views
+import MerchantLayout from './views/MerchantLayout';
 import MerchantDashboard from './views/MerchantDashboard';
 import MerchantChats from './views/MerchantChats';
 import MerchantEnquiries from './views/MerchantEnquiries';
@@ -103,6 +106,7 @@ import AdminStorageOverview from './views/admin/AdminStorageOverview';
 
 // Landing Page
 import MarketingLanding from './views/MarketingLanding';
+import MerchantMarketingPage from './views/MerchantMarketingPage';
 import { 
   authService, 
   userService, 
@@ -195,6 +199,7 @@ const parseUrlRoute = () => {
   if (path === '/reservations') return { platform: 'customer', tab: 'reservations', adminTab: 'dashboard' };
   if (path === '/profile') return { platform: 'customer', tab: 'profile', adminTab: 'dashboard' };
   if (path === '/overview' || path === '/landing') return { platform: 'landing', tab: 'home', adminTab: 'dashboard' };
+  if (path === '/for-merchants' || path === '/grow' || path === '/merchant-info') return { platform: 'merchantMarketing', tab: 'home', adminTab: 'dashboard' };
 
   return { platform: 'customer', tab: 'home', adminTab: 'dashboard' };
 };
@@ -207,6 +212,7 @@ export default function App() {
   const [showPhotoSearchModal, setShowPhotoSearchModal] = useState(false);
   const [showDemandModal, setShowDemandModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showShopSetupModal, setShowShopSetupModal] = useState(false);
   const [authRole, setAuthRole] = useState("customer");
   const [currentUser, setCurrentUser] = useState(null);
   const [pendingRedirect, setPendingRedirect] = useState(null);
@@ -229,6 +235,25 @@ export default function App() {
     }
   };
 
+  // handleAddShop: persist locally + add to shared state for Customer Home sync
+  const handleAddShop = (newShop) => {
+    shopService.saveShopLocally(newShop);
+    setShops(prev => [newShop, ...prev.filter(s => s.id !== newShop.id)]);
+    triggerToast(`✓ "${newShop.name}" is now live on GrowLocal Customer Home!`);
+  };
+
+  // Central Auth Opener: "merchant" role opens dedicated MerchantAuthPage, "customer" opens shared modal
+  const handleOpenAuthModal = (role = "customer") => {
+    if (role === "merchant") {
+      setPendingRedirect({ path: '/merchant', platform: 'merchant', tab: 'merchantDashboard' });
+      setActivePlatform('merchantAuth');
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
+    } else {
+      setAuthRole(role || "customer");
+      setShowAuthModal(true);
+    }
+  };
+
   // Main Navigation State initialized from URL location
   const [activePlatform, setActivePlatform] = useState(initialRoute.platform); 
   const [activeTab, setActiveTab] = useState(initialRoute.tab); 
@@ -240,17 +265,17 @@ export default function App() {
     if (platform === 'merchant' || (path && path.startsWith('/merchant'))) {
       const isMerchantAuth = currentUser && (currentUser.role === 'merchant' || currentUser.role === 'admin');
       if (!isMerchantAuth) {
-        setAuthRole("merchant");
+        // Show dedicated Merchant Auth full-page instead of modal
         setPendingRedirect({ path: path || '/merchant', platform: 'merchant', tab: tab || 'merchantDashboard', adminTabName });
-        setShowAuthModal(true);
-        triggerToast("🔐 Merchant Authentication Required: Please sign in or create a merchant account first.");
+        setActivePlatform('merchantAuth');
+        if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
         return;
       }
     }
 
     // Check if user is attempting to access Super Admin Panel
     if (platform === 'admin' || (path && path.startsWith('/admin'))) {
-      const isAdminAuth = currentUser && currentUser.role === 'admin';
+      const isAdminAuth = currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
       if (!isAdminAuth) {
         setAuthRole("admin");
         setPendingRedirect({ path: path || '/admin', platform: 'admin', tab: 'dashboard', adminTabName: adminTabName || 'dashboard' });
@@ -273,16 +298,13 @@ export default function App() {
     const handlePopState = () => {
       const route = parseUrlRoute();
       if (route.platform === 'merchant') {
-        const isMerchantAuth = currentUser && (currentUser.role === 'merchant' || currentUser.role === 'admin');
+        const isMerchantAuth = currentUser && (currentUser.role === 'merchant' || currentUser.role === 'admin' || currentUser.role === 'super_admin');
         if (!isMerchantAuth) {
-          setAuthRole("merchant");
-          setShowAuthModal(true);
-          setActivePlatform("customer");
-          setActiveTab("home");
+          setActivePlatform('merchantAuth');
           return;
         }
       } else if (route.platform === 'admin') {
-        const isAdminAuth = currentUser && currentUser.role === 'admin';
+        const isAdminAuth = currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
         if (!isAdminAuth) {
           setAuthRole("admin");
           setShowAuthModal(true);
@@ -291,6 +313,7 @@ export default function App() {
           return;
         }
       }
+
       setActivePlatform(route.platform);
       setActiveTab(route.tab);
       if (route.adminTab) setCurrentAdminTab(route.adminTab);
@@ -302,8 +325,16 @@ export default function App() {
 
   // Shared Master Platform Data State
   const [currentLocation, setCurrentLocation] = useState(INITIAL_LOCATION);
-  const [shops, setShops] = useState(INITIAL_SHOPS);
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [shops, setShops] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
+    } catch (_) { return []; }
+  });
+  const [products, setProducts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
+    } catch (_) { return []; }
+  });
   const [enquiries, setEnquiries] = useState(() => enquiryService.getStoredEnquiries());
   const [messages, setMessages] = useState(INITIAL_CHAT_MESSAGES);
   const [reservations, setReservations] = useState(() => reservationService.getStoredReservations());
@@ -340,6 +371,7 @@ export default function App() {
   const [demandHeatmap, setDemandHeatmap] = useState(DEMAND_HEATMAP_CLUSTERS);
   const [systemHealth, setSystemHealth] = useState(SYSTEM_HEALTH_SERVICES);
   const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
+  const [kpiMetrics, setKpiMetrics] = useState(null);
 
   // Selections & Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -358,13 +390,9 @@ export default function App() {
           // If unauthenticated and on merchant or admin URL path, prompt for credentials
           const initial = parseUrlRoute();
           if (initial.platform === 'merchant') {
-            setAuthRole("merchant");
             setPendingRedirect({ path: '/merchant', platform: 'merchant', tab: 'merchantDashboard' });
-            setShowAuthModal(true);
-            setActivePlatform("customer");
-            setActiveTab("home");
-            if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
-            triggerToast("🔐 Merchant Authentication Required: Please sign in to access Merchant Portal.");
+            setActivePlatform('merchantAuth');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
           } else if (initial.platform === 'admin') {
             setAuthRole("admin");
             setPendingRedirect({ path: '/admin', platform: 'admin', tab: 'dashboard', adminTabName: 'dashboard' });
@@ -396,6 +424,12 @@ export default function App() {
 
         const { data: fetchedEnq } = await enquiryService.getEnquiries();
         if (fetchedEnq && fetchedEnq.length > 0) setEnquiries(fetchedEnq);
+
+        const fetchedKPIs = await adminService.getDashboardKPIs();
+        if (fetchedKPIs) setKpiMetrics(fetchedKPIs);
+
+        const { data: fetchedLogs } = await adminService.getAuditLogs();
+        if (fetchedLogs && fetchedLogs.length > 0) setAuditLogs(fetchedLogs);
       } catch (err) {
         console.error("Backend loading notice:", err);
       }
@@ -528,7 +562,14 @@ export default function App() {
   };
 
   const handleAddProduct = (newProd) => {
-    setProducts([newProd, ...products]);
+    // Persist to localStorage so the product survives refreshes and appears on Customer Home immediately
+    try {
+      const existing = JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
+      const updated = [newProd, ...existing.filter(p => p.id !== newProd.id)];
+      localStorage.setItem('growlocal_merchant_products', JSON.stringify(updated));
+    } catch (_) {}
+    setProducts(prev => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
+    triggerToast(`🎉 "${newProd.name}" is now live on GrowLocal Customer Home!`);
   };
 
   const handleSubmitDemand = (demandObj) => {
@@ -659,8 +700,49 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F7F8F7] flex flex-col font-sans selection:bg-[#EAF7EE] selection:text-[#138A36] overflow-x-hidden">
       
+      {/* MERCHANT AUTH PAGE — Full-screen dedicated merchant sign-in/up */}
+      {activePlatform === 'merchantAuth' && (
+        <MerchantAuthPage
+          onSwitchToCustomer={() => {
+            setActivePlatform('customer');
+            setActiveTab('home');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+          }}
+          onLoginSuccess={(userData) => {
+            setCurrentUser(userData);
+            triggerToast(`✓ Welcome to your Merchant Dashboard, ${userData.name || userData.email}!`);
+            if (userData.email && (userData.role === 'merchant' || !userData.role)) {
+              merchantService.registerMerchantLocally(userData);
+              setMerchants(merchantService.getStoredMerchants());
+            }
+            const target = pendingRedirect || {};
+            setPendingRedirect(null);
+            if (typeof window !== 'undefined') window.history.pushState({}, '', target.path || '/merchant');
+            setActivePlatform('merchant');
+            setActiveTab(target.tab || 'merchantDashboard');
+          }}
+        />
+      )}
+
+      {/* MERCHANT MARKETING PAGE — Full-screen "Why be a Merchant" landing */}
+      {activePlatform === 'merchantMarketing' && (
+        <MerchantMarketingPage
+          onJoinAsMerchant={() => {
+            setPendingRedirect({ path: '/merchant', platform: 'merchant', tab: 'merchantDashboard' });
+            setActivePlatform('merchantAuth');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
+          }}
+          onSwitchToCustomer={() => {
+            setActivePlatform('customer');
+            setActiveTab('home');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+          }}
+        />
+      )}
+
       {/* 1. SUPER ADMIN PLATFORM VIEW */}
-      {activePlatform === "admin" ? (
+      {activePlatform === 'admin' && (
+
         <AdminLayout
           currentAdminTab={currentAdminTab}
           setCurrentAdminTab={setCurrentAdminTab}
@@ -682,11 +764,16 @@ export default function App() {
           {currentAdminTab === "dashboard" && (
             <AdminDashboard
               stats={MERCHANT_STATS}
+              kpiMetrics={kpiMetrics}
               customers={customers}
               merchants={merchants}
+              shops={shops}
+              products={products}
               pendingVerifications={pendingVerifications}
               enquiries={enquiries}
               reservations={reservations}
+              offers={offers}
+              auditLogs={auditLogs}
               onNavigate={setCurrentAdminTab}
               onOpenQuickActionModal={(action) => {
                 triggerToast(`Executing admin action: ${action}`);
@@ -949,7 +1036,130 @@ export default function App() {
             />
           )}
         </AdminLayout>
-      ) : (
+      )}
+
+      {/* 2. DEDICATED MERCHANT PLATFORM VIEW — Standalone Full Merchant Portal */}
+      {activePlatform === 'merchant' && (
+        <MerchantLayout
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onSwitchPlatform={(platform) => {
+            setActivePlatform(platform);
+            if (platform === 'customer') {
+              setActiveTab('home');
+              if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+            }
+          }}
+          currentUser={currentUser}
+          merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
+          shops={shops}
+          products={products}
+          enquiries={enquiries}
+          reservations={reservations}
+          onAddShop={() => setShowShopSetupModal(true)}
+          onLogout={() => {
+            setCurrentUser(null);
+            authService.logout();
+            setActivePlatform('merchantAuth');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
+            triggerToast("Signed out of Merchant Portal");
+          }}
+        >
+          {(activeTab === "merchantDashboard" || activeTab === "home") && (
+            <MerchantDashboard
+              stats={MERCHANT_STATS}
+              enquiries={enquiries}
+              onNavigateMerchant={setActiveTab}
+              currentUser={currentUser}
+              merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
+              onAddShop={() => setShowShopSetupModal(true)}
+              onLogout={() => {
+                setCurrentUser(null);
+                authService.logout();
+                setActivePlatform('merchantAuth');
+                if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
+                triggerToast("Signed out of Merchant Portal");
+              }}
+            />
+          )}
+
+          {activeTab === "merchantChats" && (
+            <MerchantChats
+              enquiries={enquiries}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              onSendCustomOffer={handleSendCustomOffer}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantEnquiries" && (
+            <MerchantEnquiries
+              enquiries={enquiries}
+              onOpenChat={() => setActiveTab("merchantChats")}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantProducts" && (
+            <MerchantProducts
+              products={products}
+              shops={shops}
+              currentUser={currentUser}
+              onAddProduct={handleAddProduct}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantShopProfile" && (
+            <MerchantShopProfile
+              shop={shops.find(s => s.merchantId === currentUser?.id) || shops[0]}
+              onPreviewPublic={() => {
+                const curShop = shops.find(s => s.merchantId === currentUser?.id) || shops[0];
+                setSelectedShopId(curShop.id);
+                setActivePlatform("customer");
+                setActiveTab("shopProfile");
+              }}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantReservations" && (
+            <MerchantReservations
+              reservations={reservations}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantAnalytics" && (
+            <MerchantAnalytics
+              stats={MERCHANT_STATS}
+            />
+          )}
+
+          {activeTab === "merchantCreators" && (
+            <MerchantCreatorCampaigns
+              creators={creators}
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantOffers" && (
+            <MerchantOffers
+              onShowToast={triggerToast}
+            />
+          )}
+
+          {activeTab === "merchantSubscription" && (
+            <MerchantSubscription
+              onShowToast={triggerToast}
+            />
+          )}
+        </MerchantLayout>
+      )}
+
+      {/* 3. CUSTOMER & LANDING PLATFORM VIEWS */}
+      {activePlatform !== 'admin' && activePlatform !== 'merchant' && activePlatform !== 'merchantAuth' && activePlatform !== 'merchantMarketing' && (
         <>
           {/* Global Desktop Header */}
           <Header
@@ -958,12 +1168,16 @@ export default function App() {
             currentLocation={currentLocation}
             onOpenLocationModal={() => setShowLocationModal(true)}
             onOpenDemandModal={() => setShowDemandModal(true)}
-            onOpenAuthModal={(role) => { setAuthRole(role); setShowAuthModal(true); }}
+            onOpenAuthModal={handleOpenAuthModal}
             activePlatform={activePlatform}
             setActivePlatform={setActivePlatform}
             savedCount={savedShopIds.length}
             enquiriesCount={enquiries.length}
             onNavigatePath={navigateToPath}
+            onOpenMerchantMarketing={() => {
+              setActivePlatform('merchantMarketing');
+              if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+            }}
           />
 
           {/* Global Mobile Header */}
@@ -971,12 +1185,16 @@ export default function App() {
             currentLocation={currentLocation}
             onOpenLocationModal={() => setShowLocationModal(true)}
             onOpenSearch={() => { setActivePlatform("customer"); setActiveTab("search"); }}
-            onOpenAuthModal={(role) => { setAuthRole(role); setShowAuthModal(true); }}
+            onOpenAuthModal={handleOpenAuthModal}
             activePlatform={activePlatform}
             setActivePlatform={setActivePlatform}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             onOpenDemandModal={() => setShowDemandModal(true)}
+            onOpenMerchantMarketing={() => {
+              setActivePlatform('merchantMarketing');
+              if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+            }}
           />
 
           {/* Main Content View Switcher */}
@@ -985,7 +1203,11 @@ export default function App() {
             {activePlatform === "landing" && (
               <MarketingLanding
                 onStartShopping={() => { setActivePlatform("customer"); setActiveTab("home"); }}
-                onOpenMerchantAuth={(role) => { setAuthRole(role); setShowAuthModal(true); }}
+                onOpenMerchantAuth={() => handleOpenAuthModal("merchant")}
+                onOpenMerchantMarketing={() => {
+                  setActivePlatform('merchantMarketing');
+                  if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+                }}
               />
             )}
 
@@ -1003,7 +1225,11 @@ export default function App() {
                     onOpenPhotoSearch={() => setShowPhotoSearchModal(true)}
                     onOpenDemandRequest={() => setShowDemandModal(true)}
                     onOpenLocationModal={() => setShowLocationModal(true)}
-                    onOpenAuthModal={(role) => { setAuthRole(role); setShowAuthModal(true); }}
+                    onOpenAuthModal={handleOpenAuthModal}
+                    onOpenMerchantMarketing={() => {
+                      setActivePlatform('merchantMarketing');
+                      if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+                    }}
                     currentLocation={currentLocation}
                     cmsContent={cmsContent}
                   />
@@ -1109,7 +1335,7 @@ export default function App() {
                 {activeTab === "profile" && (
                   <CustomerProfile
                     onNavigate={setActiveTab}
-                    onOpenAuthModal={(role) => { setAuthRole(role); setShowAuthModal(true); }}
+                    onOpenAuthModal={handleOpenAuthModal}
                     onSwitchPlatform={setActivePlatform}
                     savedCount={savedShopIds.length}
                     enquiriesCount={enquiries.length}
@@ -1126,225 +1352,11 @@ export default function App() {
                 {(activeTab === "vendorTerms" || activeTab === "terms") && (
                   <VendorTerms
                     onNavigate={setActiveTab}
-                    onOpenMerchantAuth={() => { setAuthRole("merchant"); setShowAuthModal(true); }}
+                    onOpenMerchantAuth={() => handleOpenAuthModal("merchant")}
                     onShowToast={triggerToast}
                   />
                 )}
               </>
-            )}
-
-            {/* MERCHANT / BUSINESS PLATFORM VIEWS */}
-            {activePlatform === "merchant" && (
-              <div className="max-w-7xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row gap-4 md:gap-6">
-                <aside className="w-full md:w-64 bg-white border border-[#E5E7E5] rounded-2xl md:rounded-3xl p-3 md:p-4 shadow-xs space-y-3 md:space-y-4 shrink-0 h-fit">
-                  <div className="p-3 bg-[#EAF7EE] rounded-2xl border border-[#DDF3E3] flex items-center justify-between md:block">
-                    <div>
-                      <span className="text-[10px] font-extrabold text-[#138A36] uppercase tracking-wider block">Logged In Shop</span>
-                      <p className="font-bold text-sm text-[#111111] truncate">{shops[0].name}</p>
-                      <p className="text-[11px] text-[#666666]">Model Town, Nagpur</p>
-                    </div>
-                    <button
-                      onClick={() => setActivePlatform("customer")}
-                      className="md:hidden bg-white text-[#138A36] text-[10px] font-bold px-2.5 py-1 rounded-lg border border-[#DDF3E3]"
-                    >
-                      Customer View
-                    </button>
-                  </div>
-
-                  <nav className="flex md:flex-col gap-1.5 overflow-x-auto no-scrollbar pb-1 md:pb-0 text-xs font-bold text-[#111111]">
-                    <button
-                      onClick={() => setActiveTab("merchantDashboard")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantDashboard" || activeTab === "home" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <LayoutDashboard className="w-4 h-4 shrink-0" />
-                      <span>Dashboard</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantProducts")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantProducts" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <Package className="w-4 h-4 shrink-0" />
-                      <span>Products ({products.length})</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantChats")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantChats" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <MessageSquare className="w-4 h-4 shrink-0" />
-                      <span>Chats</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantEnquiries")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantEnquiries" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <Inbox className="w-4 h-4 shrink-0" />
-                      <span>Enquiries ({enquiries.length})</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantReservations")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantReservations" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <ShoppingBag className="w-4 h-4 shrink-0" />
-                      <span>Reservations ({reservations.length})</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantAnalytics")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantAnalytics" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <TrendingUp className="w-4 h-4 shrink-0" />
-                      <span>Analytics</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantCreators")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantCreators" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <Sparkles className="w-4 h-4 shrink-0" />
-                      <span>Creators</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantOffers")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantOffers" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <Tag className="w-4 h-4 shrink-0" />
-                      <span>Offers</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantShopProfile")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantShopProfile" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <Store className="w-4 h-4 shrink-0" />
-                      <span>Profile</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab("merchantSubscription")}
-                      className={`px-3 py-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 transition-colors shrink-0 ${
-                        activeTab === "merchantSubscription" ? "bg-[#138A36] text-white" : "bg-gray-50 md:bg-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <Tag className="w-4 h-4 shrink-0" />
-                      <span>Plans</span>
-                    </button>
-                  </nav>
-
-                  <div className="hidden md:block pt-2 border-t border-[#E5E7E5]">
-                    <button
-                      onClick={() => setActivePlatform("customer")}
-                      className="w-full p-2.5 bg-[#F7F8F7] hover:bg-gray-200 text-[#111111] text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <span>Customer App View</span>
-                    </button>
-                  </div>
-                </aside>
-
-                <div className="flex-1 min-w-0">
-                  {(activeTab === "merchantDashboard" || activeTab === "home") && (
-                    <MerchantDashboard
-                      stats={MERCHANT_STATS}
-                      enquiries={enquiries}
-                      onNavigateMerchant={setActiveTab}
-                      currentUser={currentUser}
-                      merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
-                    />
-                  )}
-
-                  {activeTab === "merchantChats" && (
-                    <MerchantChats
-                      enquiries={enquiries}
-                      messages={messages}
-                      onSendMessage={handleSendMessage}
-                      onSendCustomOffer={handleSendCustomOffer}
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantEnquiries" && (
-                    <MerchantEnquiries
-                      enquiries={enquiries}
-                      onOpenChat={() => setActiveTab("merchantChats")}
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantProducts" && (
-                    <MerchantProducts
-                      products={products}
-                      onAddProduct={handleAddProduct}
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantShopProfile" && (
-                    <MerchantShopProfile
-                      shop={shops[0]}
-                      onPreviewPublic={() => {
-                        setSelectedShopId(shops[0].id);
-                        setActivePlatform("customer");
-                        setActiveTab("shopProfile");
-                      }}
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantReservations" && (
-                    <MerchantReservations
-                      reservations={reservations}
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantAnalytics" && (
-                    <MerchantAnalytics
-                      stats={MERCHANT_STATS}
-                    />
-                  )}
-
-                  {activeTab === "merchantCreators" && (
-                    <MerchantCreatorCampaigns
-                      creators={creators}
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantOffers" && (
-                    <MerchantOffers
-                      onShowToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === "merchantSubscription" && (
-                    <MerchantSubscription
-                      onShowToast={triggerToast}
-                    />
-                  )}
-                </div>
-              </div>
             )}
           </main>
 
@@ -1382,11 +1394,42 @@ export default function App() {
               <div>
                 <h4 className="font-bold text-xs text-[#111111] uppercase tracking-wider mb-3">Businesses</h4>
                 <ul className="space-y-2 text-xs text-[#666666]">
-                  <li><button onClick={() => { setAuthRole("merchant"); setShowAuthModal(true); }} className="hover:text-[#138A36]">List Your Shop</button></li>
-                  <li><button onClick={() => { setAuthRole("merchant"); setShowAuthModal(true); }} className="hover:text-[#138A36]">Merchant Login</button></li>
+                  <li>
+                    <button 
+                      onClick={() => { 
+                        setActivePlatform('merchantMarketing'); 
+                        if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants'); 
+                      }} 
+                      className="hover:text-[#138A36] text-[#138A36] font-bold"
+                    >
+                      🌱 Why Join as Merchant?
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => { 
+                        setActivePlatform('merchantMarketing'); 
+                        if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants'); 
+                      }} 
+                      className="hover:text-[#138A36]"
+                    >
+                      List Your Shop Free
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => { 
+                        setActivePlatform('merchantAuth'); 
+                        if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant'); 
+                      }} 
+                      className="hover:text-[#138A36]"
+                    >
+                      Merchant Portal Login
+                    </button>
+                  </li>
                   <li><button onClick={() => setActivePlatform("merchant")} className="hover:text-[#138A36]">Merchant Dashboard</button></li>
                   <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantCreators"); }} className="hover:text-[#138A36]">GrowLocal Creators</button></li>
-                  <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantSubscription"); }} className="hover:text-[#138A36]">Business Growth</button></li>
+                  <li><button onClick={() => { setActivePlatform("merchant"); setActiveTab("merchantSubscription"); }} className="hover:text-[#138A36]">Pricing & Plans</button></li>
                 </ul>
               </div>
 
@@ -1418,6 +1461,10 @@ export default function App() {
             setActivePlatform={setActivePlatform}
             savedCount={savedShopIds.length}
             enquiriesCount={enquiries.length}
+            onOpenMerchantMarketing={() => {
+              setActivePlatform('merchantMarketing');
+              if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+            }}
           />
         </>
       )}
@@ -1492,6 +1539,17 @@ export default function App() {
               setActivePlatform("customer");
               setActiveTab("profile");
             }
+          }}
+        />
+      )}
+
+      {showShopSetupModal && (
+        <MerchantShopSetupModal
+          currentUser={currentUser}
+          onClose={() => setShowShopSetupModal(false)}
+          onSaveShop={(newShop) => {
+            handleAddShop(newShop);
+            setShowShopSetupModal(false);
           }}
         />
       )}

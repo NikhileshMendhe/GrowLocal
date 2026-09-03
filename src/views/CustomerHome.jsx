@@ -1,12 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Search, Camera, Mic, ArrowRight, ShieldCheck, MessageSquare,
   MapPin, Heart, Sparkles, ChevronRight, Shirt, Footprints, Glasses,
   Watch, Smartphone, ShoppingBag, Home as HomeIcon, Dumbbell, Gem, Store,
   User, CheckCircle2, Lock, Clock, TrendingUp, Users, Compass, Eye, CornerDownRight
 } from 'lucide-react';
-import ShopCard from '../components/ShopCard';
-import ProductCard from '../components/ProductCard';
 
 export default function CustomerHome({
   shops = [],
@@ -19,9 +17,13 @@ export default function CustomerHome({
   onOpenDemandRequest,
   onOpenLocationModal,
   onOpenAuthModal,
+  onOpenMerchantMarketing,
   currentLocation,
   cmsContent
 }) {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [productSearch, setProductSearch] = useState('');
+
   const iconMap = {
     Shirt: Shirt,
     Footprints: Footprints,
@@ -41,8 +43,17 @@ export default function CustomerHome({
     }
   };
 
-  const verifiedShopsCount = shops.length > 0 ? Math.max(230, shops.length * 15) : 230;
-  const productsCount = products.length > 0 ? Math.max(10000, products.length * 250) : 10000;
+  const filteredProducts = (products || []).filter(p => {
+    const matchesCat = selectedCategory === 'all' || 
+      p.category?.toLowerCase() === selectedCategory.toLowerCase() ||
+      (selectedCategory === 'Clothes' && p.category?.toLowerCase()?.includes('cloth')) ||
+      (selectedCategory === 'Footwear' && p.category?.toLowerCase()?.includes('foot'));
+    const matchesSearch = !productSearch || 
+      p.name?.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.category?.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.shopName?.toLowerCase().includes(productSearch.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
 
   return (
     <div className="space-y-12 pb-20">
@@ -488,911 +499,724 @@ export default function CustomerHome({
 
       </section>
 
-
       {/* =========================================================
-          2. CUSTOMER AND MERCHANT SPLIT CARDS
+          MAIN CONTENT CONTAINER
       ========================================================= */}
       <div className="max-w-7xl mx-auto px-4 space-y-12">
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* CUSTOMER CARD */}
-          <div className="bg-white border-2 border-[#E5E7E5] hover:border-[#138A36] rounded-3xl p-6 md:p-8 space-y-5 transition-all shadow-xs flex flex-col justify-between group">
-
-            <div className="space-y-3">
-
-              <div className="w-12 h-12 bg-[#EAF7EE] text-[#138A36] rounded-2xl flex items-center justify-center">
-
-                <User className="w-6 h-6" />
-
-              </div>
-
-              <span className="text-xs font-extrabold uppercase tracking-widest text-[#138A36] font-mono">
-                For Shoppers
-              </span>
-
-              <h3 className="text-2xl font-black text-[#111111] font-poppins">
-                I am a Customer
-              </h3>
-
-              <p className="text-xs md:text-sm text-[#666666] leading-relaxed font-medium">
-                Discover nearby shops, find products, enquire about availability, save favourites and reserve products for pickup.
-              </p>
-
-            </div>
-
-
-            <div className="pt-2 space-y-2">
-
-              <button
-                onClick={() => onOpenAuthModal ? onOpenAuthModal("customer") : null}
-                className="w-full bg-white hover:bg-gray-50 text-[#111111] hover:text-[#138A36] border-2 border-[#E5E7E5] hover:border-[#138A36] font-extrabold text-sm py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-              >
-
-                <span>
-                  User Login
-                </span>
-
-                <ArrowRight className="w-4 h-4 text-[#138A36]" />
-
-              </button>
-
-              <p className="text-[11px] text-center text-[#666666] font-semibold">
-                New here? Explore GrowLocal to discover nearby retail.
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* MERCHANT CARD */}
-          <div className="bg-[#111111] text-white rounded-3xl p-6 md:p-8 space-y-5 transition-all shadow-md flex flex-col justify-between relative overflow-hidden group">
-
-            <div className="space-y-3 z-10">
-
-              <div className="w-12 h-12 bg-white/10 text-green-400 rounded-2xl flex items-center justify-center border border-white/10">
-
-                <Store className="w-6 h-6" />
-
-              </div>
-
-              <span className="text-xs font-extrabold uppercase tracking-widest text-green-400 font-mono">
-                For Retail Businesses
-              </span>
-
-              <h3 className="text-2xl font-black text-white font-poppins">
-                I am a Merchant
-              </h3>
-
-              <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-medium">
-                List your shop, showcase products, receive customer enquiries and turn local demand into real customers.
-              </p>
-
-            </div>
-
-
-            <div className="pt-2 space-y-2 z-10">
-
-              <button
-                onClick={() => onOpenAuthModal ? onOpenAuthModal("merchant") : null}
-                className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-sm py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-101"
-              >
-
-                <span>
-                  Merchant Login
-                </span>
-
-                <ArrowRight className="w-4 h-4" />
-
-              </button>
-
-              <p className="text-[11px] text-center text-slate-400 font-semibold">
-                Want to grow your local business? Join 230+ Nagpur shops.
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-
         {/* =======================================================
-            3. YOUR LOCAL MARKETPLACE
+            2. CATEGORIES FILTER STRIP — Immediately Below Hero
         ======================================================= */}
-        <section className="bg-[#F7F8F7] border border-[#E5E7E5] rounded-3xl p-6 md:p-10 space-y-8">
-
-          <div className="max-w-3xl mx-auto text-center space-y-3">
-
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#138A36] bg-[#EAF7EE] px-3 py-1 rounded-full border border-[#DDF3E3]">
-              The Local Retail Friction Solved
-            </span>
-
-            <h2 className="text-2xl md:text-4xl font-black text-[#111111] font-poppins">
-              Your Local Marketplace, Reimagined.
-            </h2>
-
-            <p className="text-xs md:text-sm text-[#666666] leading-relaxed font-medium">
-              Finding something nearby shouldn't mean calling multiple shops or travelling from store to store. GrowLocal connects customer demand directly with verified local businesses.
-            </p>
-
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏷️</span>
+                <h2 className="text-xl md:text-2xl font-black text-[#111111] font-poppins">
+                  Explore by Category
+                </h2>
+              </div>
+              <p className="text-xs text-[#666666] mt-0.5">
+                Quickly filter real items available from verified stores in your area
+              </p>
+            </div>
+            {selectedCategory !== 'all' && (
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className="text-xs font-bold text-[#138A36] bg-[#EAF7EE] px-3 py-1.5 rounded-full hover:bg-[#DDF3E3] transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>Reset to All</span>
+                <span>✕</span>
+              </button>
+            )}
           </div>
 
+          <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all shrink-0 cursor-pointer shadow-xs ${
+                selectedCategory === 'all'
+                  ? 'bg-[#138A36] text-white shadow-md shadow-[#138A36]/20'
+                  : 'bg-white text-[#111111] border border-[#E5E7E5] hover:border-[#138A36] hover:bg-[#EAF7EE]'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>All Products ({products.length})</span>
+            </button>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-3 shadow-xs">
-
-              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-                <Search className="w-5 h-5" />
-              </div>
-
-              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
-                1. DISCOVER LOCAL
-              </h3>
-
-              <p className="text-xs text-[#666666] leading-relaxed">
-                Find nearby verified shops and products in your area without travelling store-to-store.
-              </p>
-
-            </div>
-
-
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-3 shadow-xs">
-
-              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-
-              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
-                2. CONNECT DIRECTLY
-              </h3>
-
-              <p className="text-xs text-[#666666] leading-relaxed">
-                Ask shops about availability, size, price, and alternatives in real-time chat.
-              </p>
-
-            </div>
-
-
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-3 shadow-xs">
-
-              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-
-              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
-                3. BUY LOCAL
-              </h3>
-
-              <p className="text-xs text-[#666666] leading-relaxed">
-                Reserve your product for pickup or home delivery with complete price transparency.
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-
-        {/* =======================================================
-            4. HOW GROWLOCAL WORKS
-        ======================================================= */}
-        <section
-          id="how-it-works-section"
-          className="space-y-8 scroll-mt-24"
-        >
-
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-
-            <h2 className="text-2xl md:text-3xl font-extrabold text-[#111111] font-poppins">
-              How GrowLocal Works
-            </h2>
-
-            <p className="text-xs md:text-sm text-[#666666]">
-              A simple 5-step journey from discovering nearby items to holding them in your hands.
-            </p>
-
-          </div>
-
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-
-            {[
-              {
-                step: 1,
-                title: "1. Search & Discover",
-                desc: "Find verified local shops and products near you.",
-                icon: Search
-              },
-              {
-                step: 2,
-                title: "2. Enquire or Ask",
-                desc: "Ask a shop about availability, size, price or alternatives.",
-                icon: MessageSquare
-              },
-              {
-                step: 3,
-                title: "3. Get Responses",
-                desc: "Receive availability and price responses from nearby shops.",
-                icon: CheckCircle2
-              },
-              {
-                step: 4,
-                title: "4. Reserve & Pick Up",
-                desc: "Reserve your item and visit the shop for pickup.",
-                icon: ShoppingBag
-              },
-              {
-                step: 5,
-                title: "5. Support Local",
-                desc: "Your purchase helps local neighborhood businesses grow.",
-                icon: Heart
-              }
-            ].map((item) => {
-
-              const StepIcon = item.icon;
+            {categories.map((cat) => {
+              const IconComp = iconMap[cat.icon] || ShoppingBag;
+              const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
+              const catCount = products.filter(p => 
+                p.category?.toLowerCase() === cat.name.toLowerCase() ||
+                p.category?.toLowerCase()?.includes(cat.name.toLowerCase())
+              ).length;
 
               return (
-
-                <div
-                  key={item.step}
-                  className="bg-white p-5 rounded-2xl border border-[#E5E7E5] space-y-3 relative shadow-xs flex flex-col justify-between"
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(isSelected ? 'all' : cat.name)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all shrink-0 cursor-pointer shadow-xs ${
+                    isSelected
+                      ? 'bg-[#138A36] text-white shadow-md shadow-[#138A36]/20'
+                      : 'bg-white text-[#111111] border border-[#E5E7E5] hover:border-[#138A36] hover:bg-[#EAF7EE]'
+                  }`}
                 >
-
-                  <div className="space-y-3">
-
-                    <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
-                      <StepIcon className="w-5 h-5" />
-
-                    </div>
-
-                    <h3 className="font-extrabold text-sm text-[#111111] font-poppins">
-                      {item.title}
-                    </h3>
-
-                    <p className="text-xs text-[#666666] leading-relaxed">
-                      {item.desc}
-                    </p>
-
-                  </div>
-
-                  <span className="text-[10px] font-black text-[#138A36] bg-[#EAF7EE] px-2 py-0.5 rounded font-mono self-start">
-                    Step 0{item.step}
-                  </span>
-
-                </div>
-
+                  <IconComp className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-[#138A36]'}`} />
+                  <span>{cat.name}</span>
+                  {catCount > 0 && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                      isSelected ? 'bg-white/20 text-white' : 'bg-[#EAF7EE] text-[#138A36]'
+                    }`}>
+                      {catCount}
+                    </span>
+                  )}
+                </button>
               );
-
             })}
-
           </div>
-
         </section>
 
 
         {/* =======================================================
-            5. TELL SHOPS WHAT YOU NEED
+            3. MAIN PRODUCTS SHOWCASE — The Heart of GrowLocal
+        ======================================================= */}
+        <section className="space-y-6 scroll-mt-24" id="products-section">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-[#E5E7E5] shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🔥</span>
+                <h2 className="text-xl md:text-2xl font-black text-[#111111] font-poppins">
+                  Available Products Near You
+                </h2>
+              </div>
+              <p className="text-xs text-[#666666] mt-1">
+                {products.length > 0
+                  ? `Showing ${filteredProducts.length} real product${filteredProducts.length !== 1 ? 's' : ''} listed by local store merchants`
+                  : 'Live digital product catalog from verified local stores in Nagpur'}
+              </p>
+            </div>
+
+            {/* In-catalog live search */}
+            <div className="flex items-center gap-2 sm:max-w-xs w-full">
+              <div className="relative w-full">
+                <Search className="w-4 h-4 text-[#888888] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Filter products in this list..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="w-full bg-[#F8FAF8] border border-[#E5E7E5] rounded-xl pl-9 pr-3.5 py-2 text-xs font-semibold text-[#111111] outline-none focus:border-[#138A36] focus:bg-white transition-all"
+                />
+                {productSearch && (
+                  <button
+                    onClick={() => setProductSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#888888] hover:text-[#111111]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* PRODUCT CARDS OR UNAVAILABLE EMPTY STATE */}
+          {filteredProducts.length === 0 ? (
+            <div className="bg-gradient-to-br from-white to-[#F8FAF8] rounded-3xl border-2 border-dashed border-[#C6E6D0] p-8 md:p-14 text-center space-y-6 shadow-sm">
+              <div className="w-20 h-20 rounded-3xl bg-[#EAF7EE] flex items-center justify-center text-4xl mx-auto border border-[#DDF3E3] shadow-inner">
+                📦
+              </div>
+
+              <div className="max-w-xl mx-auto space-y-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-black uppercase tracking-wider">
+                  <span>⚠</span> Catalog Status
+                </span>
+                
+                <h3 className="text-2xl md:text-3xl font-black text-[#111111] font-poppins">
+                  Sorry, but it's unavailable.
+                </h3>
+                
+                <p className="text-sm font-semibold text-[#444444]">
+                  {selectedCategory !== 'all'
+                    ? `Currently no products are listed under "${selectedCategory}" in your area.`
+                    : 'Currently no products have been listed by merchants in this area yet.'}
+                </p>
+
+                <p className="text-xs text-[#777777] leading-relaxed max-w-lg mx-auto">
+                  Local shop owners are currently onboarding and publishing their store inventories. If you're looking for something specific, tell nearby shops what you need and local businesses will reply directly with prices & availability!
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={onOpenDemandRequest}
+                  className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-black text-xs md:text-sm px-6 py-3.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#138A36]/20 transition-all hover:-translate-y-0.5 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-emerald-300" />
+                  <span>Tell Shops What You Need (Free)</span>
+                </button>
+
+                {selectedCategory !== 'all' && (
+                  <button
+                    onClick={() => { setSelectedCategory('all'); setProductSearch(''); }}
+                    className="bg-white border-2 border-[#E5E7E5] hover:border-[#138A36] text-[#111111] font-bold text-xs md:text-sm px-5 py-3.5 rounded-2xl transition-all cursor-pointer"
+                  >
+                    <span>View All Categories</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => onOpenAuthModal ? onOpenAuthModal('merchant') : null}
+                  className="bg-[#111111] hover:bg-black text-white font-bold text-xs md:text-sm px-5 py-3.5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Store className="w-4 h-4 text-green-400" />
+                  <span>I am a Merchant: List My Products</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {filteredProducts.map((prod, idx) => {
+                const discountPct = prod.originalPrice > prod.price
+                  ? Math.round(((prod.originalPrice - prod.price) / prod.originalPrice) * 100)
+                  : 0;
+
+                return (
+                  <div
+                    key={prod.id}
+                    onClick={() => onSelectProduct(prod.id)}
+                    className="group cursor-pointer bg-white rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs hover:shadow-2xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Product Image Container */}
+                      <div className="relative h-44 sm:h-52 bg-[#F8FAF8] overflow-hidden">
+                        <img
+                          src={prod.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'}
+                          alt={prod.name}
+                          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80';
+                          }}
+                        />
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+
+                        {/* Top Badges */}
+                        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">
+                          {idx === 0 && (
+                            <span className="bg-gradient-to-r from-[#138A36] to-emerald-400 text-white text-[9px] font-black px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping inline-block" />
+                              JUST LISTED
+                            </span>
+                          )}
+                          {discountPct >= 5 && (
+                            <span className="bg-red-500 text-white text-[9px] font-black px-2.5 py-1 rounded-full shadow-md">
+                              -{discountPct}% OFF
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Stock status pill */}
+                        <div className="absolute bottom-2.5 right-2.5 z-10">
+                          <span className={`text-[9px] font-extrabold px-2.5 py-1 rounded-full shadow-md backdrop-blur-md ${
+                            prod.availability === 'In Stock' || (prod.stockCount && prod.stockCount > 0)
+                              ? 'bg-[#EAF7EE]/95 text-[#138A36] border border-[#BDE7C9]'
+                              : 'bg-amber-100/95 text-amber-800 border border-amber-300'
+                          }`}>
+                            {prod.availability === 'In Stock' || (prod.stockCount && prod.stockCount > 0)
+                              ? `✓ In Stock (${prod.stockCount || 10})`
+                              : '⚠ Limited Stock'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card Content Body */}
+                      <div className="p-4 space-y-2">
+                        {/* Category */}
+                        <span className="text-[10px] font-bold text-[#888888] uppercase tracking-wider block">
+                          {prod.category || 'Local Retail'}
+                        </span>
+
+                        {/* Title */}
+                        <h3 className="font-extrabold text-sm md:text-base text-[#111111] line-clamp-2 leading-snug group-hover:text-[#138A36] transition-colors">
+                          {prod.name}
+                        </h3>
+
+                        {/* Clickable Store Link */}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (prod.shopId) onSelectShop(prod.shopId);
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#138A36] hover:underline bg-[#EAF7EE] px-2.5 py-1 rounded-lg transition-colors"
+                          title="Click to view shop inventory"
+                        >
+                          <Store className="w-3 h-3 shrink-0" />
+                          <span className="truncate max-w-[150px]">{prod.shopName || 'Local Shop'}</span>
+                          <span>•</span>
+                          <span className="text-[10px] text-[#666666]">{prod.shopDistance || '0.5 km'}</span>
+                        </div>
+
+                        {/* Sizes if applicable */}
+                        {prod.sizes && prod.sizes.length > 0 && prod.sizes[0] !== 'Standard' && (
+                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                            {prod.sizes.slice(0, 4).map((sz, sIdx) => (
+                              <span key={sIdx} className="text-[9px] font-bold bg-gray-100 text-[#555555] px-1.5 py-0.5 rounded-md">
+                                {sz}
+                              </span>
+                            ))}
+                            {prod.sizes.length > 4 && (
+                              <span className="text-[9px] text-[#888888]">+{prod.sizes.length - 4}</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Price Row */}
+                        <div className="flex items-baseline gap-2 pt-1">
+                          <span className="text-base md:text-lg font-black text-[#111111]">
+                            ₹{prod.price?.toLocaleString()}
+                          </span>
+                          {prod.originalPrice > prod.price && (
+                            <span className="text-xs text-[#aaaaaa] line-through font-semibold">
+                              ₹{prod.originalPrice?.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="p-4 pt-0 space-y-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectProduct(prod.id);
+                        }}
+                        className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white text-xs font-extrabold py-2.5 rounded-xl transition-all shadow-md shadow-[#138A36]/15 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Ask Availability & Chat</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectProduct(prod.id);
+                        }}
+                        className="w-full bg-[#F8FAF8] hover:bg-[#EAF7EE] text-[#444444] hover:text-[#138A36] text-[11px] font-bold py-1.5 rounded-xl transition-colors text-center cursor-pointer"
+                      >
+                        <span>View Product Details →</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+
+        {/* =======================================================
+            4. VERIFIED SHOPS & INVENTORY SHOWCASE
+        ======================================================= */}
+        <section className="space-y-6 pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🏪</span>
+                <h2 className="text-xl md:text-2xl font-black text-[#111111] font-poppins">
+                  Verified Local Shops & Inventories
+                </h2>
+              </div>
+              <p className="text-xs text-[#666666] mt-0.5">
+                {shops.length > 0
+                  ? `Click any shop to view their full catalog and in-store product inventory`
+                  : 'Verified neighborhood store profiles in Nagpur'}
+              </p>
+            </div>
+            {shops.length > 0 && (
+              <button
+                onClick={() => onSearch("")}
+                className="text-xs font-bold text-[#138A36] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>View All ({shops.length})</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {shops.length === 0 ? (
+            <div className="bg-white rounded-3xl border-2 border-dashed border-[#E5E7E5] p-10 text-center space-y-4 shadow-xs">
+              <div className="w-16 h-16 rounded-2xl bg-[#F8FAF8] flex items-center justify-center text-3xl mx-auto border border-[#E5E7E5]">
+                🏪
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-extrabold text-base text-[#111111]">
+                  Sorry, no local shops registered yet in this area.
+                </h3>
+                <p className="text-xs text-[#666666] leading-relaxed">
+                  Are you a shop owner in Nagpur? Join GrowLocal free to list your shop, publish products, and get discovered by thousands of nearby customers!
+                </p>
+              </div>
+              <button
+                onClick={() => onOpenAuthModal ? onOpenAuthModal('merchant') : null}
+                className="inline-flex items-center gap-2 bg-[#138A36] hover:bg-[#0B6B2B] text-white text-xs font-bold px-6 py-3 rounded-xl transition-all shadow-md cursor-pointer"
+              >
+                <Store className="w-4 h-4" />
+                <span>List My Shop Free →</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {shops.map((shop) => {
+                const shopProductsCount = products.filter(p => 
+                  p.shopId === shop.id || 
+                  (p.shopName && shop.name && p.shopName.trim().toLowerCase() === shop.name.trim().toLowerCase())
+                ).length;
+
+                return (
+                  <div
+                    key={shop.id}
+                    onClick={() => onSelectShop(shop.id)}
+                    className="group cursor-pointer bg-white rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Cover Photo */}
+                      <div className="relative h-40 overflow-hidden bg-gray-100">
+                        <img
+                          src={shop.coverImage || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80'}
+                          alt={shop.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                        {/* Badges */}
+                        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                          <span className="bg-white/95 backdrop-blur-md text-[#138A36] text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                            {shop.status || 'Open'}
+                          </span>
+                          {shop.verified && (
+                            <span className="bg-[#138A36] text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              Verified
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Shop Logo Avatar */}
+                        <div className="absolute -bottom-5 left-5 z-10">
+                          <img
+                            src={shop.logoImage || shop.coverImage}
+                            alt={shop.name}
+                            className="w-12 h-12 rounded-2xl border-2 border-white shadow-lg object-cover bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Card Details */}
+                      <div className="pt-8 px-5 pb-4 space-y-2.5">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="font-extrabold text-base text-[#111111] truncate group-hover:text-[#138A36] transition-colors">
+                              {shop.name}
+                            </h3>
+                            <span className="text-xs font-black text-[#138A36] bg-[#EAF7EE] px-2 py-0.5 rounded-md shrink-0">
+                              ★ {shop.rating || '4.8'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#777777] font-medium mt-0.5">
+                            {shop.category} • {shop.distance || '0.5 km away'}
+                          </p>
+                          <p className="text-[11px] text-[#999999] truncate mt-1">
+                            {shop.address}
+                          </p>
+                        </div>
+
+                        {/* Inventory Count Indicator */}
+                        <div className="flex items-center justify-between text-xs py-2 px-3 bg-[#F8FAF8] rounded-xl border border-[#E5E7E5]">
+                          <span className="font-bold text-[#555555] flex items-center gap-1.5">
+                            <span>📦</span>
+                            <span>In-Store Inventory:</span>
+                          </span>
+                          <span className={`font-black ${shopProductsCount > 0 ? 'text-[#138A36]' : 'text-[#888888]'}`}>
+                            {shopProductsCount > 0 ? `${shopProductsCount} Products` : 'Catalog Pending'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action */}
+                    <div className="px-5 pb-5 pt-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectShop(shop.id);
+                        }}
+                        className="w-full bg-[#EAF7EE] group-hover:bg-[#138A36] text-[#138A36] group-hover:text-white font-extrabold text-xs py-3 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                      >
+                        <span>Browse Shop Inventory</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+
+        {/* =======================================================
+            5. CAN'T FIND WHAT YOU NEED? DEMAND REQUEST
         ======================================================= */}
         <section className="bg-gradient-to-br from-[#111111] to-slate-900 text-white rounded-3xl p-6 md:p-10 shadow-xl space-y-6">
-
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-
             <div className="space-y-3 max-w-xl">
-
               <span className="bg-green-500 text-slate-950 font-black text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
                 Core Differentiating Feature
               </span>
 
-              <h2 className="text-2xl md:text-4xl font-extrabold font-poppins">
-                Can't find what you need?
+              <h2 className="text-2xl md:text-4xl font-black font-poppins">
+                Can't find the product you need?
               </h2>
 
               <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-medium">
-                Instead of searching endlessly, tell nearby shops what you're looking for and let local businesses respond directly with availability & prices.
+                Instead of searching endlessly or calling shops, tell nearby verified stores what you're looking for. Local merchants will reply directly with availability & prices.
               </p>
 
-
               <div className="pt-2">
-
                 <button
                   onClick={onOpenDemandRequest}
-                  className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-xs md:text-sm px-6 py-3.5 rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+                  className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-black text-xs md:text-sm px-6 py-3.5 rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer"
                 >
-
-                  <Sparkles className="w-4 h-4" />
-
-                  <span>
-                    Tell Shops What You Need →
-                  </span>
-
+                  <Sparkles className="w-4 h-4 text-emerald-300" />
+                  <span>Tell Shops What You Need →</span>
                 </button>
-
               </div>
-
             </div>
 
-
             <div className="bg-white/10 border border-white/15 rounded-2xl p-5 w-full md:w-80 space-y-3 backdrop-blur-md shrink-0">
-
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
-
                 <span className="text-[10px] font-mono text-green-400 uppercase font-bold">
                   Live Demand Request
                 </span>
-
                 <span className="text-[10px] bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full font-bold">
                   Within 3 km
                 </span>
-
               </div>
-
 
               <div>
-
                 <p className="font-extrabold text-sm text-white">
-                  Black Formal Shirt
+                  Black Formal Cotton Shirt
                 </p>
-
                 <p className="text-xs text-slate-300 font-mono">
-                  Size: M • Budget: ₹1,500
+                  Size: L • Budget: ₹1,500
                 </p>
-
               </div>
-
 
               <div className="p-2.5 bg-white/10 rounded-xl text-[11px] text-emerald-300 font-bold flex items-center gap-2">
-
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-
-                <span>
-                  3 Nearby Shops Responded
-                </span>
-
+                <span>3 Nearby Stores Responded</span>
               </div>
-
             </div>
-
           </div>
-
         </section>
 
 
         {/* =======================================================
-            6. POPULAR CATEGORIES
+            6. HOW GROWLOCAL WORKS (Compact 3-Step)
         ======================================================= */}
-        <section className="space-y-4">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-
-              <h2 className="text-lg md:text-xl font-extrabold text-[#111111] font-poppins">
-                Popular Categories
-              </h2>
-
-              <p className="text-xs text-[#666666]">
-                Browse products across top local retail sectors
-              </p>
-
-            </div>
-
-
-            <button
-              onClick={() => onSearch("")}
-              className="text-xs font-bold text-[#138A36] hover:underline flex items-center gap-1"
-            >
-
-              <span>
-                View All
-              </span>
-
-              <ChevronRight className="w-4 h-4" />
-
-            </button>
-
-          </div>
-
-
-          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
-
-            {categories.map((cat) => {
-
-              const IconComponent = iconMap[cat.icon] || ShoppingBag;
-
-              return (
-
-                <button
-                  key={cat.id}
-                  onClick={() => onSearch(cat.name)}
-                  className="flex flex-col items-center gap-2 min-w-[95px] p-3.5 bg-white rounded-2xl border border-[#E5E7E5] hover:border-[#138A36] hover:bg-[#EAF7EE] transition-all card-shadow-hover group shrink-0 cursor-pointer"
-                >
-
-                  <div className="w-12 h-12 bg-[#F7F8F7] group-hover:bg-[#138A36] text-[#138A36] group-hover:text-white rounded-xl flex items-center justify-center transition-colors">
-
-                    <IconComponent className="w-6 h-6" />
-
-                  </div>
-
-                  <span className="text-xs font-semibold text-[#111111] group-hover:text-[#138A36] transition-colors">
-                    {cat.name}
-                  </span>
-
-                </button>
-
-              );
-
-            })}
-
-          </div>
-
-        </section>
-
-
-        {/* =======================================================
-            7. NEARBY VERIFIED SHOPS
-        ======================================================= */}
-        <section className="space-y-4">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-
-              <h2 className="text-lg md:text-xl font-extrabold text-[#111111] font-poppins">
-                Top Verified Shops Near You
-              </h2>
-
-              <p className="text-xs text-[#666666]">
-                Discover trusted local businesses within your area.
-              </p>
-
-            </div>
-
-
-            <button
-              onClick={() => onSearch("")}
-              className="text-xs font-bold text-[#138A36] hover:underline flex items-center gap-1"
-            >
-
-              <span>
-                Explore All ({shops.length})
-              </span>
-
-              <ChevronRight className="w-4 h-4" />
-
-            </button>
-
-          </div>
-
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-
-            {shops.map((shop) => (
-
-              <ShopCard
-                key={shop.id}
-                shop={shop}
-                onClick={onSelectShop}
-              />
-
-            ))}
-
-          </div>
-
-        </section>
-
-
-        {/* =======================================================
-            8. TRENDING PRODUCTS
-        ======================================================= */}
-        <section className="space-y-4">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-
-              <h2 className="text-lg md:text-xl font-extrabold text-[#111111] font-poppins">
-                Trending Products Available Today
-              </h2>
-
-              <p className="text-xs text-[#666666]">
-                Inspected and available in nearby store inventory
-              </p>
-
-            </div>
-
-
-            <button
-              onClick={() => onSearch("")}
-              className="text-xs font-bold text-[#138A36] hover:underline"
-            >
-              See All
-            </button>
-
-          </div>
-
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-
-            {products.map((prod) => (
-
-              <ProductCard
-                key={prod.id}
-                product={prod}
-                onClick={onSelectProduct}
-                onAskAvailability={(p) => onSelectProduct(p.id)}
-              />
-
-            ))}
-
-          </div>
-
-        </section>
-
-
-        {/* =======================================================
-            9. WHY SHOP WITH GROWLOCAL
-        ======================================================= */}
-        <section className="space-y-6">
-
+        <section className="bg-white border border-[#E5E7E5] rounded-3xl p-6 md:p-8 space-y-6 shadow-xs">
           <div className="text-center max-w-xl mx-auto space-y-1">
-
-            <h2 className="text-2xl font-extrabold text-[#111111] font-poppins">
-              Why Shop With GrowLocal?
+            <h2 className="text-xl md:text-2xl font-black text-[#111111] font-poppins">
+              How GrowLocal Works
             </h2>
-
             <p className="text-xs text-[#666666]">
-              Built for transparency, speed, and neighborhood community trust.
+              3 simple steps to discover, verify, and buy local retail
             </p>
-
           </div>
 
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-            {/* Verified */}
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-2 card-shadow">
-
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-[#F8FAF8] p-5 rounded-2xl border border-[#E5E7E5] space-y-2.5">
               <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
-                <ShieldCheck className="w-5 h-5" />
-
+                <Search className="w-5 h-5" />
               </div>
-
-              <h3 className="font-bold text-sm text-[#111111]">
-                Verified Local Shops
-              </h3>
-
-              <p className="text-xs text-[#666666]">
-                Discover trusted and background-verified businesses.
+              <h3 className="font-black text-sm text-[#111111]">1. Search & Discover</h3>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Find products and browse real store catalogs in your neighborhood without travelling store-to-store.
               </p>
-
             </div>
 
-
-            {/* Communication */}
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-2 card-shadow">
-
+            <div className="bg-[#F8FAF8] p-5 rounded-2xl border border-[#E5E7E5] space-y-2.5">
               <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
                 <MessageSquare className="w-5 h-5" />
-
               </div>
-
-              <h3 className="font-bold text-sm text-[#111111]">
-                Real-Time Communication
-              </h3>
-
-              <p className="text-xs text-[#666666]">
-                Chat directly with shops about availability and pricing.
+              <h3 className="font-black text-sm text-[#111111]">2. Check Availability</h3>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Chat directly with shop owners to confirm live stock, size, custom requests and best prices.
               </p>
-
             </div>
 
-
-            {/* Nearby */}
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-2 card-shadow">
-
+            <div className="bg-[#F8FAF8] p-5 rounded-2xl border border-[#E5E7E5] space-y-2.5">
               <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
-                <MapPin className="w-5 h-5" />
-
-              </div>
-
-              <h3 className="font-bold text-sm text-[#111111]">
-                Nearby & Easy
-              </h3>
-
-              <p className="text-xs text-[#666666]">
-                Find what you need within your preferred distance.
-              </p>
-
-            </div>
-
-
-            {/* Reserve */}
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-2 card-shadow">
-
-              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
                 <ShoppingBag className="w-5 h-5" />
-
               </div>
-
-              <h3 className="font-bold text-sm text-[#111111]">
-                Reserve & Pick Up
-              </h3>
-
-              <p className="text-xs text-[#666666]">
-                Know it's available before you travel to the store.
+              <h3 className="font-black text-sm text-[#111111]">3. Reserve & Pick Up</h3>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Reserve your item online with zero prepayment and pick it up at the shop whenever you're ready.
               </p>
-
             </div>
-
-
-            {/* Security */}
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-2 card-shadow">
-
-              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
-                <Lock className="w-5 h-5" />
-
-              </div>
-
-              <h3 className="font-bold text-sm text-[#111111]">
-                Safe & Secure
-              </h3>
-
-              <p className="text-xs text-[#666666]">
-                Your communication and account data are protected.
-              </p>
-
-            </div>
-
-
-            {/* Local */}
-            <div className="bg-white p-6 rounded-2xl border border-[#E5E7E5] space-y-2 card-shadow">
-
-              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-
-                <Heart className="w-5 h-5" />
-
-              </div>
-
-              <h3 className="font-bold text-sm text-[#111111]">
-                Support Local
-              </h3>
-
-              <p className="text-xs text-[#666666]">
-                Every local purchase helps local businesses grow.
-              </p>
-
-            </div>
-
           </div>
-
         </section>
 
 
         {/* =======================================================
-            10. MERCHANT VALUE PROPOSITION
+            7. CUSTOMER & MERCHANT SPLIT CARDS
         ======================================================= */}
-        <section className="bg-[#EAF7EE] border border-[#DDF3E3] rounded-3xl p-6 md:p-10 space-y-6">
-
-          <div className="max-w-2xl space-y-2">
-
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#138A36] bg-white px-3 py-1 rounded-full border border-[#DDF3E3]">
-              Merchant Acquisition Funnel
-            </span>
-
-            <h2 className="text-2xl md:text-3xl font-black text-[#111111] font-poppins">
-              Turn Local Demand Into Customers.
-            </h2>
-
-            <p className="text-xs md:text-sm text-[#555555] leading-relaxed">
-              GrowLocal helps local businesses discover what nearby customers want, respond to demand and convert enquiries into real visits.
-            </p>
-
-          </div>
-
-
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-xs font-bold text-[#111111] py-2">
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0">
-              Customer Demand
-            </span>
-
-            <span className="text-[#138A36]">→</span>
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0">
-              Enquiry
-            </span>
-
-            <span className="text-[#138A36]">→</span>
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0">
-              Business Response
-            </span>
-
-            <span className="text-[#138A36]">→</span>
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0">
-              Reservation
-            </span>
-
-            <span className="text-[#138A36]">→</span>
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0">
-              Store Visit
-            </span>
-
-            <span className="text-[#138A36]">→</span>
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0">
-              Customer
-            </span>
-
-            <span className="text-[#138A36]">→</span>
-
-            <span className="bg-white px-3 py-2 rounded-xl border border-[#DDF3E3] shrink-0 text-[#138A36] font-black">
-              Business Growth
-            </span>
-
-          </div>
-
-
-          <div>
-
-            <button
-              onClick={() => onOpenAuthModal ? onOpenAuthModal("merchant") : null}
-              className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-xs md:text-sm px-6 py-3 rounded-2xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
-            >
-
-              <Store className="w-4 h-4" />
-
-              <span>
-                Become a GrowLocal Merchant →
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border-2 border-[#E5E7E5] hover:border-[#138A36] rounded-3xl p-6 md:p-8 space-y-5 transition-all shadow-xs flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="w-12 h-12 bg-[#EAF7EE] text-[#138A36] rounded-2xl flex items-center justify-center">
+                <User className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-[#138A36] font-mono">
+                For Local Shoppers
               </span>
+              <h3 className="text-2xl font-black text-[#111111] font-poppins">
+                Shop Local in Nagpur
+              </h3>
+              <p className="text-xs md:text-sm text-[#666666] leading-relaxed font-medium">
+                Support local neighborhood stores, get immediate answers from shop owners, and enjoy hassle-free local shopping.
+              </p>
+            </div>
 
-            </button>
-
+            <div className="pt-2">
+              <button
+                onClick={() => onOpenAuthModal ? onOpenAuthModal("customer") : null}
+                className="w-full bg-white hover:bg-gray-50 text-[#111111] hover:text-[#138A36] border-2 border-[#E5E7E5] hover:border-[#138A36] font-extrabold text-sm py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                <span>Customer Login</span>
+                <ArrowRight className="w-4 h-4 text-[#138A36]" />
+              </button>
+            </div>
           </div>
 
+          <div className="bg-[#111111] text-white rounded-3xl p-6 md:p-8 space-y-5 transition-all shadow-md flex flex-col justify-between relative overflow-hidden group">
+            <div className="space-y-3 z-10">
+              <div className="w-12 h-12 bg-white/10 text-green-400 rounded-2xl flex items-center justify-center border border-white/10">
+                <Store className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-green-400 font-mono">
+                For Retail Businesses
+              </span>
+              <h3 className="text-2xl font-black text-white font-poppins">
+                Grow Your Shop Sales
+              </h3>
+              <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-medium">
+                List your store, showcase your products, and turn customer search queries into actual store walk-ins.
+              </p>
+            </div>
+
+            <div className="pt-2 z-10">
+              <button
+                onClick={() => onOpenAuthModal ? onOpenAuthModal("merchant") : null}
+                className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-sm py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              >
+                <span>Merchant Login / Join</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </section>
 
 
         {/* =======================================================
-            11. CREATOR / BUSINESS GROWTH
+            8. MERCHANT PROMO BANNER
         ======================================================= */}
         <section
-          id="community-section"
-          className="bg-white border border-[#E5E7E5] rounded-3xl p-6 md:p-8 space-y-4 shadow-xs scroll-mt-24"
+          className="relative rounded-3xl overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #0B3D1A 0%, #138A36 55%, #1aad44 100%)' }}
         >
-
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-
-            <div className="space-y-1">
-
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#138A36] bg-[#EAF7EE] px-2.5 py-1 rounded-md">
-                Growth Ecosystem
-              </span>
-
-              <h2 className="text-xl md:text-2xl font-black text-[#111111] font-poppins">
-                More Than Discovery.
+          <div className="relative p-6 md:p-10 flex flex-col md:flex-row items-center gap-8">
+            <div className="flex-1 space-y-4">
+              <div className="inline-flex items-center gap-2 bg-white/15 text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/20">
+                <Store className="w-3.5 h-3.5" />
+                For Local Businesses
+              </div>
+              <h2 className="text-2xl md:text-4xl font-black text-white leading-tight font-poppins">
+                Own a shop in Nagpur?<br />
+                <span className="text-yellow-300">Grow it with GrowLocal.</span>
               </h2>
-
-              <p className="text-xs text-[#666666]">
-                GrowLocal helps businesses grow through local creators, offers, referrals and measurable customer acquisition.
+              <p className="text-green-100 text-xs md:text-sm leading-relaxed max-w-md">
+                Get discovered by thousands of nearby customers, showcase your in-store catalog, and receive instant enquiries for free.
               </p>
-
+              <div className="flex flex-wrap gap-3 pt-1">
+                <button
+                  onClick={() => onOpenMerchantMarketing ? onOpenMerchantMarketing() : (onOpenAuthModal && onOpenAuthModal('merchant'))}
+                  className="flex items-center gap-2 bg-white text-[#138A36] hover:bg-yellow-300 hover:text-[#0B6B2B] font-black text-xs md:text-sm px-6 py-3 rounded-xl transition-all shadow-lg cursor-pointer"
+                >
+                  <Store className="w-4 h-4" />
+                  <span>Explore Merchant Portal</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onOpenAuthModal ? onOpenAuthModal('merchant') : null}
+                  className="flex items-center gap-2 text-white border-2 border-white/40 hover:border-white hover:bg-white/10 font-bold text-xs md:text-sm px-5 py-3 rounded-xl transition-all cursor-pointer"
+                >
+                  <span>List My Shop Free →</span>
+                </button>
+              </div>
             </div>
 
-
-            <div className="bg-[#111111] text-white text-xs font-mono font-bold px-4 py-2 rounded-xl border border-[#138A36]/40 shrink-0">
-              "Don't just measure views. Measure customers."
+            <div className="grid grid-cols-2 gap-3 shrink-0 w-full md:w-auto">
+              {[
+                { icon: TrendingUp, label: "Live Searches", value: '1,240+', color: 'text-yellow-300' },
+                { icon: Users, label: 'Local Shoppers', value: '4,800+', color: 'text-blue-300' },
+                { icon: MessageSquare, label: 'Product Enquiries', value: '320+', color: 'text-purple-300' },
+                { icon: ShieldCheck, label: 'Verified Stores', value: '380+', color: 'text-green-300' },
+              ].map(({ icon: Icon, label, value, color }) => (
+                <div key={label} className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-3.5 text-center">
+                  <Icon className={`w-5 h-5 ${color} mx-auto mb-1`} />
+                  <p className="text-white font-black text-lg">{value}</p>
+                  <p className="text-green-200 text-[10px] font-semibold mt-0.5">{label}</p>
+                </div>
+              ))}
             </div>
-
           </div>
-
-
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center text-xs font-bold pt-2">
-
-            <div className="bg-[#F7F8F7] p-2.5 rounded-xl border border-[#E5E7E5]">
-              Reach
-            </div>
-
-            <div className="bg-[#F7F8F7] p-2.5 rounded-xl border border-[#E5E7E5]">
-              Click
-            </div>
-
-            <div className="bg-[#F7F8F7] p-2.5 rounded-xl border border-[#E5E7E5]">
-              Enquiry
-            </div>
-
-            <div className="bg-[#F7F8F7] p-2.5 rounded-xl border border-[#E5E7E5]">
-              Reservation
-            </div>
-
-            <div className="bg-[#F7F8F7] p-2.5 rounded-xl border border-[#E5E7E5]">
-              Visit
-            </div>
-
-            <div className="bg-[#EAF7EE] text-[#138A36] p-2.5 rounded-xl border border-[#DDF3E3] font-[#138A36] font-black">
-              Purchase
-            </div>
-
-          </div>
-
         </section>
 
 
         {/* =======================================================
-            12. FINAL CTA
+            9. FINAL BOTTOM CTA
         ======================================================= */}
         <section className="bg-gradient-to-br from-[#138A36] to-[#0B6B2B] text-white rounded-3xl p-8 md:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
-
           <div className="max-w-2xl mx-auto space-y-3">
-
-            <h2 className="text-3xl md:text-4xl font-black font-poppins tracking-tight">
-              Ready to shop local?
+            <h2 className="text-2xl md:text-4xl font-black font-poppins tracking-tight">
+              Ready to shop from local stores?
             </h2>
-
             <p className="text-xs md:text-sm text-[#DDF3E3] font-medium leading-relaxed">
-              Find nearby businesses, discover products and connect directly with verified local shops.
+              Find nearby businesses, discover in-stock items, and reserve with complete confidence.
             </p>
-
           </div>
 
-
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-
             <button
               onClick={scrollToTop}
               className="w-full sm:w-auto bg-white hover:bg-gray-100 text-[#111111] font-extrabold text-xs md:text-sm px-7 py-3.5 rounded-2xl transition-all shadow-md cursor-pointer"
             >
-              Start Exploring
+              Start Exploring Products ↑
             </button>
-
 
             <button
               onClick={onOpenDemandRequest}
               className="w-full sm:w-auto bg-slate-900 hover:bg-black text-white font-extrabold text-xs md:text-sm px-7 py-3.5 rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
             >
-
               <Sparkles className="w-4 h-4 text-emerald-400" />
-
-              <span>
-                Tell Shops What You Need
-              </span>
-
+              <span>Tell Shops What You Need</span>
             </button>
-
           </div>
-
-
-          <div className="pt-4 border-t border-white/20 text-xs text-[#DDF3E3] space-y-1">
-
-            <p className="font-semibold">
-              Are you a business owner?
-            </p>
-
-            <button
-              onClick={() => onOpenAuthModal ? onOpenAuthModal("merchant") : null}
-              className="text-white underline font-extrabold hover:text-amber-300 cursor-pointer"
-            >
-              List Your Shop →
-            </button>
-
-          </div>
-
         </section>
-
       </div>
-
     </div>
   );
 }

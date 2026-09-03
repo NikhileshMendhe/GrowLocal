@@ -7,7 +7,8 @@ export default function BottomNavigation({
   activePlatform,
   setActivePlatform,
   savedCount = 0,
-  enquiriesCount = 0
+  enquiriesCount = 0,
+  onOpenMerchantMarketing
 }) {
   if (activePlatform === "merchant") {
     return (
@@ -110,6 +111,16 @@ export default function BottomNavigation({
       >
         <User className="w-5 h-5" />
         <span>Profile</span>
+      </button>
+
+      <button
+        onClick={() => onOpenMerchantMarketing ? onOpenMerchantMarketing() : null}
+        className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+          activePlatform === 'merchantMarketing' ? "text-[#138A36]" : "text-[#666666]"
+        }`}
+      >
+        <Store className="w-5 h-5" />
+        <span>For Biz</span>
       </button>
     </div>
   );
