@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
 const CUSTOMERS_STORAGE_KEY = 'growlocal_registered_customers';
 

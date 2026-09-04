@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
 const MERCHANTS_STORAGE_KEY = 'growlocal_registered_merchants';
 const VERIFICATIONS_STORAGE_KEY = 'growlocal_pending_verifications';
@@ -47,7 +47,6 @@ export const merchantService = {
   async registerMerchantInSupabase(userObj) {
     if (!userObj || !userObj.email) return null;
     const cleanEmail = userObj.email.toLowerCase().trim();
-    const isUuid = (val) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
 
     this.registerMerchantLocally(userObj);
 
@@ -62,6 +61,17 @@ export const merchantService = {
 
       if (existing) return existing;
 
+      // Look up profile id from public.profiles for user_id foreign key
+      let profileId = null;
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
+        if (profile) profileId = profile.id;
+      } catch (_) {}
+
       const { data, error } = await supabase
         .from('merchants')
         .insert([{
@@ -71,7 +81,7 @@ export const merchantService = {
           phone: userObj.phone || "+91 98765 43210",
           status: 'active',
           verification_status: 'pending',
-          ...(isUuid(userObj.id) ? { user_id: userObj.id } : {})
+          ...(profileId ? { user_id: profileId } : {})
         }])
         .select()
         .single();

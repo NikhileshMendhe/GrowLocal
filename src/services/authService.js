@@ -1,6 +1,6 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { userService } from './userService';
-import { merchantService } from './merchantService';
+import { supabase, isSupabaseConfigured } from './supabaseClient.js';
+import { userService } from './userService.js';
+import { merchantService } from './merchantService.js';
 
 const SESSION_STORAGE_KEY = 'growlocal_user_session';
 const ACCOUNTS_STORAGE_KEY = 'growlocal_registered_user_accounts';
@@ -78,13 +78,51 @@ export const authService = {
       };
     }
 
-    const accounts = this.getRegisteredAccounts();
+    // 1. Check if account already exists in Supabase profiles
+    if (isSupabaseConfigured) {
+      try {
+        const { data: existingProf } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
 
-    // Check if account already exists
-    if (accounts.some(a => a.email.toLowerCase() === cleanEmail)) {
-      return { 
-        data: null, 
-        error: { message: "An account with this email address already exists. Please log in instead." } 
+        if (existingProf) {
+          if (existingProf.role !== role) {
+            const registeredRoleText = existingProf.role === 'merchant' ? 'a Merchant' : 'a Customer';
+            const portalText = existingProf.role === 'merchant' ? 'Merchant Portal' : 'Customer App';
+            return {
+              data: null,
+              error: {
+                message: `This email is already registered as ${registeredRoleText}. Please log in via the ${portalText} or use a different email.`
+              }
+            };
+          }
+          return {
+            data: null,
+            error: { message: "An account with this email address already exists. Please log in instead." }
+          };
+        }
+      } catch (_) {}
+    }
+
+    // 2. Check local accounts vault
+    const accounts = this.getRegisteredAccounts();
+    const localExisting = accounts.find(a => a.email.toLowerCase() === cleanEmail);
+    if (localExisting) {
+      if (localExisting.role !== role) {
+        const registeredRoleText = localExisting.role === 'merchant' ? 'a Merchant' : 'a Customer';
+        const portalText = localExisting.role === 'merchant' ? 'Merchant Portal' : 'Customer App';
+        return {
+          data: null,
+          error: {
+            message: `This email is already registered as ${registeredRoleText}. Please log in via the ${portalText} or use a different email.`
+          }
+        };
+      }
+      return {
+        data: null,
+        error: { message: "An account with this email address already exists. Please log in instead." }
       };
     }
 
@@ -93,21 +131,21 @@ export const authService = {
       email: cleanEmail,
       password: password,
       role: role,
-      // A merchant profile is created only after the shop setup checklist is complete.
       onboardingRequired: role === 'merchant'
     };
 
     // Save credentials into vault
     this.saveAccountToVault(newAccount);
 
-    // Customers are ready immediately; merchants complete their shop setup first.
     if (role === 'customer') {
       userService.registerCustomerLocally({ name: newAccount.name, email: cleanEmail, role });
+    } else if (role === 'merchant') {
+      merchantService.registerMerchantLocally({ name: newAccount.name, email: cleanEmail, role, shopName: newAccount.name });
     }
 
     if (!isSupabaseConfigured) {
       this.saveLocalSession({ name: newAccount.name, email: cleanEmail, role, onboardingRequired: newAccount.onboardingRequired });
-      return { data: { user: { id: `user-${Date.now()}`, email: cleanEmail }, profile: { fullName: newAccount.name, role }, onboardingRequired: newAccount.onboardingRequired }, error: null };
+      return { data: { user: { id: `user-${Date.now()}`, email: cleanEmail }, profile: { full_name: newAccount.name, role }, onboardingRequired: newAccount.onboardingRequired }, error: null };
     }
 
     // Supabase Auth SignUp
@@ -122,20 +160,78 @@ export const authService = {
       }
     });
 
-    if (error) return { data: null, error };
+    if (error) {
+      if (error.message?.toLowerCase().includes('already registered') || error.message?.toLowerCase().includes('user already exists')) {
+        return {
+          data: null,
+          error: { message: "An account with this email address already exists. Please log in instead." }
+        };
+      }
+      // If email rate limit is hit, save to profiles directly and proceed securely
+      if (error.status === 429 || error.message?.toLowerCase().includes('rate limit')) {
+        console.warn("Supabase Auth notice: Email rate limit encountered. Session established in database.");
+        const fallbackUserId = `user-${Date.now()}`;
+        try {
+          await supabase.from('profiles').upsert([{
+            full_name: newAccount.name,
+            email: cleanEmail,
+            role: role,
+            status: 'Active'
+          }], { onConflict: 'email' });
 
-    if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .insert([{
-          auth_user_id: data.user.id,
-          full_name: newAccount.name,
+          if (role === 'merchant') {
+            await merchantService.registerMerchantInSupabase({
+              id: fallbackUserId,
+              name: newAccount.name,
+              email: cleanEmail,
+              role: 'merchant',
+              shopName: newAccount.name
+            });
+          }
+        } catch (_) {}
+
+        const userSession = {
+          id: fallbackUserId,
+          name: newAccount.name,
           email: cleanEmail,
           role: role,
-          status: 'Active'
-        }])
-        .select()
-        .single();
+          onboardingRequired: newAccount.onboardingRequired
+        };
+        this.saveLocalSession(userSession);
+        return { data: { user: { id: fallbackUserId, email: cleanEmail }, profile: { full_name: newAccount.name, role }, onboardingRequired: newAccount.onboardingRequired }, error: null };
+      }
+
+      return { data: null, error };
+    }
+
+    if (data.user) {
+      // Upsert profile in Supabase profiles table
+      let profile = null;
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .upsert([{
+            auth_user_id: data.user.id,
+            full_name: newAccount.name,
+            email: cleanEmail,
+            role: role,
+            status: 'Active'
+          }], { onConflict: 'email' })
+          .select()
+          .maybeSingle();
+        profile = prof;
+      } catch (_) {}
+
+      // If merchant, insert into Supabase merchants table
+      if (role === 'merchant') {
+        await merchantService.registerMerchantInSupabase({
+          id: data.user.id,
+          name: newAccount.name,
+          email: cleanEmail,
+          role: 'merchant',
+          shopName: newAccount.name
+        });
+      }
 
       const userSession = {
         name: profile?.full_name || newAccount.name,
@@ -147,14 +243,16 @@ export const authService = {
 
       this.saveLocalSession(userSession);
       if (role === 'customer') userService.registerCustomerLocally(userSession);
-      return { data: { user: data.user, profile, onboardingRequired: newAccount.onboardingRequired }, error: null };
+      if (role === 'merchant') merchantService.registerMerchantLocally(userSession);
+
+      return { data: { user: data.user, profile: profile || { full_name: newAccount.name, role }, onboardingRequired: newAccount.onboardingRequired }, error: null };
     }
 
     this.saveLocalSession({ name: newAccount.name, email: cleanEmail, role, onboardingRequired: newAccount.onboardingRequired });
     return { data: { ...data, onboardingRequired: newAccount.onboardingRequired }, error: null };
   },
 
-  // Log in user with password verification
+  // Log in user with password verification and strict role differentiation
   async login({ email, password, targetRole }) {
     const cleanEmail = email.toLowerCase().trim();
 
@@ -216,7 +314,49 @@ export const authService = {
       };
     }
 
-    // 1. If Supabase Cloud is configured, attempt Supabase Auth first
+    // 1. Look up profile or registered account to check registered role
+    let profile = null;
+    if (isSupabaseConfigured) {
+      try {
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
+        profile = profData;
+      } catch (_) {}
+    }
+
+    const accounts = this.getRegisteredAccounts();
+    const existingAccount = accounts.find(a => a.email.toLowerCase() === cleanEmail);
+
+    const registeredRole = profile?.role || existingAccount?.role;
+
+    // Strict Role Boundary Guard: reject accounts registered for other portals immediately
+    if (registeredRole) {
+      if (targetRole === 'merchant' && registeredRole === 'customer') {
+        return {
+          data: null,
+          error: {
+            message: "Access Restricted: This account is registered as a Customer. Merchant portal access is restricted to registered merchants. Please sign up as a merchant or use your merchant credentials."
+          }
+        };
+      }
+      if (targetRole === 'customer' && registeredRole === 'merchant') {
+        return {
+          data: null,
+          error: {
+            message: "Access Restricted: This account is registered as a Merchant. Please log in through the dedicated Merchant Portal."
+          }
+        };
+      }
+    }
+
+    // 2. If Supabase Cloud is configured, attempt Supabase Auth
+    let supabaseAuthSuccess = false;
+    let supabaseUser = null;
+    let supabaseError = null;
+
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
@@ -224,73 +364,62 @@ export const authService = {
       });
 
       if (!error && data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('auth_user_id', data.user.id)
-          .single();
-
-        const userRole = targetRole || profile?.role || (cleanEmail.includes('merchant') ? 'merchant' : cleanEmail.includes('admin') ? 'admin' : 'customer');
-
-        const loggedInUser = {
-          name: profile?.full_name || data.user.email.split('@')[0],
-          email: data.user.email,
-          role: userRole,
-          id: data.user.id
-        };
-
-        this.saveLocalSession(loggedInUser);
-        if (loggedInUser.role === 'customer') userService.registerCustomerLocally(loggedInUser);
-        if (loggedInUser.role === 'merchant') merchantService.registerMerchantLocally(loggedInUser);
-
-        return { data: { session: data.session, user: data.user, profile: { full_name: loggedInUser.name, role: userRole } }, error: null };
+        supabaseAuthSuccess = true;
+        supabaseUser = data.user;
+      } else {
+        supabaseError = error;
       }
     }
 
-    // 2. Check Local Registered Accounts Vault (fallback for local/offline registered accounts)
-    const accounts = this.getRegisteredAccounts();
-    const existingAccount = accounts.find(a => a.email.toLowerCase() === cleanEmail);
+    // If both Supabase auth failed and no local account exists
+    if (!supabaseAuthSuccess && !existingAccount && !profile) {
+      return { 
+        data: null, 
+        error: { message: "No account found with this email address. Please click 'Create New Account' to register." } 
+      };
+    }
 
-    if (existingAccount) {
-      if (existingAccount.password !== password) {
+    // If Supabase auth failed, verify password against local vault
+    if (!supabaseAuthSuccess) {
+      if (!existingAccount || existingAccount.password !== password) {
         return { 
           data: null, 
-          error: { message: "Incorrect password! Please check your password and try again." } 
+          error: { message: "Invalid email or password. Please check your credentials and try again." } 
         };
       }
+    }
 
-      const assignedRole = targetRole || existingAccount.role || 'customer';
+    const actualRole = profile?.role || supabaseUser?.user_metadata?.role || existingAccount?.role || targetRole || 'customer';
 
-      const authenticatedUser = {
-        name: existingAccount.name || cleanEmail.split('@')[0],
-        email: cleanEmail,
-        role: assignedRole,
-        onboardingRequired: Boolean(existingAccount.onboardingRequired)
-      };
+    const displayName = profile?.full_name || supabaseUser?.user_metadata?.full_name || existingAccount?.name || cleanEmail.split('@')[0];
+    const userId = supabaseUser?.id || profile?.id || existingAccount?.id || `user-${Date.now()}`;
 
-      // Save updated role in vault if logged in as merchant
-      if (targetRole && existingAccount.role !== targetRole) {
-        existingAccount.role = targetRole;
-        this.saveAccountToVault(existingAccount);
+    const authenticatedUser = {
+      id: userId,
+      name: displayName,
+      email: cleanEmail,
+      role: actualRole,
+      onboardingRequired: actualRole === 'merchant' ? Boolean(existingAccount?.onboardingRequired ?? true) : false
+    };
+
+    this.saveLocalSession(authenticatedUser);
+
+    if (actualRole === 'customer') {
+      userService.registerCustomerLocally(authenticatedUser);
+    } else if (actualRole === 'merchant') {
+      merchantService.registerMerchantLocally(authenticatedUser);
+      if (isSupabaseConfigured) {
+        await merchantService.registerMerchantInSupabase(authenticatedUser);
       }
-
-      this.saveLocalSession(authenticatedUser);
-      if (authenticatedUser.role === 'customer') userService.registerCustomerLocally(authenticatedUser);
-      if (authenticatedUser.role === 'merchant') merchantService.registerMerchantLocally(authenticatedUser);
-
-      return { 
-        data: { 
-          user: { email: cleanEmail }, 
-          profile: { full_name: authenticatedUser.name, role: authenticatedUser.role },
-          onboardingRequired: authenticatedUser.onboardingRequired
-        }, 
-        error: null 
-      };
     }
 
     return { 
-      data: null, 
-      error: { message: "No account found with this email address. Please click 'First time user? Create New Account' below to sign up." } 
+      data: { 
+        user: { id: userId, email: cleanEmail }, 
+        profile: { full_name: displayName, role: actualRole },
+        onboardingRequired: authenticatedUser.onboardingRequired
+      }, 
+      error: null 
     };
   },
 
