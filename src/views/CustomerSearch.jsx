@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Search, Camera, MapPin, Clock, Flame, ChevronRight, Sparkles } from 'lucide-react';
+import { Search, Camera, MapPin, Clock, Flame, ChevronRight, Sparkles, TrendingUp } from 'lucide-react';
+import AdvanceSearchBar from '../components/AdvanceSearchBar';
 
 export default function CustomerSearch({ 
   onSearch, 
   onOpenPhotoSearch, 
   onOpenLocationModal, 
-  currentLocation 
+  currentLocation,
+  products = [],
+  categories = [],
+  onSelectProduct,
+  onBuyNow
 }) {
-  const [query, setQuery] = useState("");
-
   const RECENT_SEARCHES = [
     "Black oversized T-shirt",
     "Casual sneakers UK 9",
@@ -26,7 +29,7 @@ export default function CustomerSearch({
   ];
 
   const handleExecuteSearch = (searchTerm) => {
-    if (searchTerm) {
+    if (searchTerm && onSearch) {
       onSearch(searchTerm);
     }
   };
@@ -41,43 +44,31 @@ export default function CustomerSearch({
         </div>
         <button
           onClick={onOpenLocationModal}
-          className="bg-[#EAF7EE] text-[#138A36] text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+          className="bg-[#EAF7EE] text-[#138A36] text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer"
         >
           <MapPin className="w-3.5 h-3.5" />
           <span>{currentLocation.area} ({currentLocation.radius})</span>
         </button>
       </div>
 
-      {/* Main Search Bar */}
+      {/* Main Advance Search Bar */}
       <div className="space-y-3">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleExecuteSearch(query);
-          }}
-          className="relative flex items-center bg-white border-2 border-[#138A36] rounded-2xl p-2 shadow-md"
-        >
-          <Search className="w-5 h-5 text-[#138A36] ml-3 shrink-0" />
-          <input
-            type="text"
-            autoFocus
-            placeholder="What are you looking for? (e.g. Black oversized T-shirt)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full px-3 py-2 text-sm text-[#111111] focus:outline-none placeholder-[#666666]"
-          />
-          <button
-            type="submit"
-            className="bg-[#138A36] text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-[#0F752C] transition-colors"
-          >
-            Search
-          </button>
-        </form>
+        <AdvanceSearchBar
+          onSearch={handleExecuteSearch}
+          onOpenPhotoSearch={onOpenPhotoSearch}
+          onSelectProduct={onSelectProduct}
+          onBuyNow={onBuyNow}
+          products={products}
+          categories={categories}
+          placeholder="What are you looking for? (e.g. shirt, sneakers, headphones...)"
+          autoFocus={true}
+          size="large"
+        />
 
         {/* Photo Search Banner Option */}
         <button
           onClick={onOpenPhotoSearch}
-          className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] border border-[#DDF3E3] p-3.5 rounded-2xl flex items-center justify-between text-left transition-colors"
+          className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] border border-[#DDF3E3] p-3.5 rounded-2xl flex items-center justify-between text-left transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#138A36] text-white rounded-xl flex items-center justify-center">
@@ -103,7 +94,7 @@ export default function CustomerSearch({
             <button
               key={term}
               onClick={() => handleExecuteSearch(term)}
-              className="bg-white hover:bg-[#EAF7EE] text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] text-xs font-medium px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5"
+              className="bg-white hover:bg-[#EAF7EE] text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] text-xs font-medium px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <span>{term}</span>
             </button>
@@ -122,7 +113,7 @@ export default function CustomerSearch({
             <button
               key={term}
               onClick={() => handleExecuteSearch(term)}
-              className="bg-white hover:bg-[#EAF7EE] text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] text-xs font-medium px-3.5 py-2 rounded-xl transition-colors flex items-center gap-1.5"
+              className="bg-white hover:bg-[#EAF7EE] text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] text-xs font-medium px-3.5 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-3 h-3 text-[#138A36]" />
               <span>{term}</span>

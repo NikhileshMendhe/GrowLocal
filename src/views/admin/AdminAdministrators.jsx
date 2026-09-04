@@ -1,161 +1,116 @@
-import React, { useState } from 'react';
-import { UserCheck, Lock, ShieldCheck, Plus, Edit3, Trash2, X } from 'lucide-react';
+import React from 'react';
+import { UserCheck, Lock, ShieldCheck, Key, ShieldAlert } from 'lucide-react';
 
 export default function AdminAdministrators({
-  adminUsers,
-  onAddAdminUser,
-  onShowToast
+  adminUsers = []
 }) {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Operations Admin");
-
-  const handleAddAdmin = () => {
-    if (!name || !email) {
-      alert("Please enter admin name and email");
-      return;
-    }
-    const newAdmin = {
-      id: `admin-${Date.now()}`,
-      name,
-      email,
-      role,
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-      phone: "+91 98230 00000",
-      status: "Active",
-      lastLogin: "Just Now",
-      permissions: [role.toLowerCase().split(' ')[0]]
-    };
-    onAddAdminUser(newAdmin);
-    onShowToast(`New admin user '${name}' created with role: ${role}`);
-    setShowAddModal(false);
-    setName("");
-    setEmail("");
+  const superAdmin = adminUsers[0] || {
+    id: "superadmin-master-07",
+    name: "Nikhilesh Mendhe",
+    email: "nikhileshmendhe07@gmail.com",
+    role: "Super Admin",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+    phone: "+91 98230 11223",
+    status: "Active",
+    lastLogin: "Active Session",
+    permissions: ["all"]
   };
 
   return (
     <div className="space-y-6">
-      
-      {/* HERO BANNER */}
-      <div className="bg-white border border-[#E5E7E5] rounded-3xl p-5 shadow-xs flex items-center justify-between">
+      {/* HERO BANNER & SECURITY NOTICE */}
+      <div className="bg-white border border-[#E5E7E5] rounded-3xl p-5 md:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-extrabold text-[#111111] font-poppins flex items-center gap-2">
-            <UserCheck className="w-5 h-5 text-[#138A36]" /> Administrators & Role-Based Access Control (RBAC)
-          </h2>
-          <p className="text-xs text-gray-500">Super Admin, Operations Admin, Content Admin, Finance Admin, Moderation Admin, Analytics Admin</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-extrabold text-[#111111] font-poppins flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-[#138A36]" /> Super Administrator Identity & Access Control
+            </h2>
+            <span className="bg-purple-100 text-purple-800 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              Single SuperAdmin Locked
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Master authority over entire platform, database, verified merchant shops, revenue, and system security.
+          </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-[#138A36] hover:bg-[#0B6B2B] text-white text-xs font-bold px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Admin User</span>
-        </button>
-      </div>
-
-      {/* ADMIN USERS TABLE */}
-      <div className="bg-white border border-[#E5E7E5] rounded-3xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-[#F7F8F7] text-gray-500 uppercase tracking-wider text-[10px] font-bold border-b border-[#E5E7E5]">
-                <th className="py-3.5 px-4">Admin Name</th>
-                <th className="py-3.5 px-4">Email</th>
-                <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Last Active</th>
-                <th className="py-3.5 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E5E7E5]">
-              {adminUsers.map((adm) => (
-                <tr key={adm.id} className="hover:bg-[#F7F8F7]">
-                  <td className="py-3.5 px-4 font-bold text-[#111111]">
-                    <div className="flex items-center gap-3">
-                      <img src={adm.avatar} alt={adm.name} className="w-8 h-8 rounded-full object-cover ring-1 ring-[#138A36]" />
-                      <div>
-                        <p className="font-bold text-sm text-[#111111]">{adm.name}</p>
-                        <p className="text-[10px] text-gray-400 font-mono">{adm.id}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-gray-600 font-medium">{adm.email}</td>
-                  <td className="py-3.5 px-4">
-                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
-                      adm.role === "Super Admin" ? "bg-purple-100 text-purple-800" : "bg-[#EAF7EE] text-[#138A36]"
-                    }`}>
-                      {adm.role}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-gray-500">{adm.lastLogin}</td>
-                  <td className="py-3.5 px-4 font-bold text-green-700">{adm.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-[#EAF7EE] border border-[#DDF3E3] px-3.5 py-2 rounded-2xl flex items-center gap-2 text-xs text-[#138A36] font-bold">
+          <ShieldCheck className="w-4 h-4 text-[#138A36] shrink-0" />
+          <span>New Admin Account Creation Disabled</span>
         </div>
       </div>
 
-      {/* ADD ADMIN MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-extrabold text-base text-[#111111]">Add New Platform Administrator</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* SECURITY LOCKDOWN CARD */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-3xl p-5 shadow-xs flex items-start gap-3.5">
+        <ShieldAlert className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <h4 className="text-sm font-bold text-amber-900">
+            Designated Super Admin Policy
+          </h4>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            By system policy, <strong className="text-amber-950 font-black">nikhileshmendhe07@gmail.com</strong> is the sole designated Super Administrator. Registration and creation of additional administrative accounts have been permanently restricted to prevent unauthorized platform control.
+          </p>
+        </div>
+      </div>
 
-            <div>
-              <label className="text-xs font-bold text-gray-500 block mb-1">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Vikram Deshmukh"
-                className="w-full p-3 border border-[#E5E7E5] rounded-2xl text-xs text-[#111111] focus:outline-none focus:border-[#138A36] font-medium"
+      {/* SUPER ADMIN DETAILS CARD */}
+      <div className="bg-white border border-[#E5E7E5] rounded-3xl p-6 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <img 
+                src={superAdmin.avatar} 
+                alt={superAdmin.name} 
+                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-[#138A36] shadow-sm" 
               />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></span>
             </div>
-
             <div>
-              <label className="text-xs font-bold text-gray-500 block mb-1">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="vikram@growlocal.in"
-                className="w-full p-3 border border-[#E5E7E5] rounded-2xl text-xs text-[#111111] focus:outline-none focus:border-[#138A36] font-medium"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-gray-500 block mb-1">Admin Role Assignment</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full p-3 bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl text-xs font-bold text-[#111111]"
-              >
-                <option value="Super Admin">Super Admin (Full Access)</option>
-                <option value="Operations Admin">Operations Admin (Users, Merchants, Enquiries)</option>
-                <option value="Content Admin">Content Admin (Homepage, Banners, CMS)</option>
-                <option value="Finance Admin">Finance Admin (Subscriptions, Payments, Revenue)</option>
-                <option value="Moderation Admin">Moderation Admin (Reviews, Reports, Chats)</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
-              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs">
-                Cancel
-              </button>
-              <button onClick={handleAddAdmin} className="flex-1 py-2.5 bg-[#138A36] text-white font-bold rounded-xl text-xs shadow-xs">
-                Create Admin
-              </button>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-black text-[#111111] font-poppins">{superAdmin.name}</h3>
+                <span className="bg-purple-100 text-purple-800 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                  Super Administrator
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-gray-500">{superAdmin.email}</p>
+              <p className="text-[11px] text-[#138A36] font-bold mt-0.5">Master Owner Authority (All Permissions Enabled)</p>
             </div>
           </div>
+
+          <div className="bg-[#F8FAF8] border border-[#E5E7E5] px-4 py-2.5 rounded-2xl text-xs font-bold text-gray-700">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-mono">Status</p>
+            <p className="text-green-700 font-extrabold flex items-center gap-1 mt-0.5">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+              {superAdmin.status} ({superAdmin.lastLogin})
+            </p>
+          </div>
         </div>
-      )}
+
+        {/* PERMISSIONS MATRIX */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider font-mono">
+            Active Super Admin Privileges
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            {[
+              "Database & Cloud Storage Direct Access",
+              "Merchant Store Verification & KYC Approval",
+              "Catalog & Product Approval Control",
+              "Financial Transactions & Payouts Log",
+              "Realtime Customer & Merchant Inquiries",
+              "Platform Audit Logs & Security Tracing",
+              "System Health & Realtime Performance",
+              "Customer Review & Chat Moderation",
+              "Platform-Wide Notifications & Campaigns"
+            ].map((perm, idx) => (
+              <div key={idx} className="flex items-center gap-2 p-2.5 bg-[#F8FAF8] rounded-xl border border-gray-100 text-xs font-bold text-gray-800">
+                <ShieldCheck className="w-4 h-4 text-[#138A36] shrink-0" />
+                <span className="truncate">{perm}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

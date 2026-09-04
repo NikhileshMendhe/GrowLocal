@@ -3,8 +3,10 @@ import {
   Search, Camera, Mic, ArrowRight, ShieldCheck, MessageSquare,
   MapPin, Heart, Sparkles, ChevronRight, Shirt, Footprints, Glasses,
   Watch, Smartphone, ShoppingBag, Home as HomeIcon, Dumbbell, Gem, Store,
-  User, CheckCircle2, Lock, Clock, TrendingUp, Users, Compass, Eye, CornerDownRight
+  User, CheckCircle2, Lock, Clock, TrendingUp, Users, Compass, Eye, CornerDownRight, Zap
 } from 'lucide-react';
+import AdvanceSearchBar from '../components/AdvanceSearchBar';
+import { advancedProductSearch } from '../utils/searchHelper';
 
 export default function CustomerHome({
   shops = [],
@@ -12,6 +14,7 @@ export default function CustomerHome({
   categories = [],
   onSelectShop,
   onSelectProduct,
+  onBuyNow,
   onSearch,
   onOpenPhotoSearch,
   onOpenDemandRequest,
@@ -44,16 +47,8 @@ export default function CustomerHome({
     }
   };
 
-  const filteredProducts = (products || []).filter(p => {
-    const matchesCat = selectedCategory === 'all' || 
-      p.category?.toLowerCase() === selectedCategory.toLowerCase() ||
-      (selectedCategory === 'Clothes' && p.category?.toLowerCase()?.includes('cloth')) ||
-      (selectedCategory === 'Footwear' && p.category?.toLowerCase()?.includes('foot'));
-    const matchesSearch = !productSearch || 
-      p.name?.toLowerCase().includes(productSearch.toLowerCase()) ||
-      p.category?.toLowerCase().includes(productSearch.toLowerCase()) ||
-      p.shopName?.toLowerCase().includes(productSearch.toLowerCase());
-    return matchesCat && matchesSearch;
+  const filteredProducts = advancedProductSearch(products || [], productSearch, {
+    selectedCategory: selectedCategory
   });
 
   return (
@@ -140,73 +135,19 @@ export default function CustomerHome({
 
 
               {/* =================================================
-                  SEARCH BAR
+                  ADVANCE SEARCH BAR WITH AUTO-SUGGEST & VOICE
               ================================================= */}
               <div className="mt-7">
-
-                <div className="group flex items-center rounded-[1.35rem] border-2 border-[#E5E7E5] bg-[#F8FAF8] p-1.5 shadow-[0_10px_35px_rgba(17,17,17,0.06)] transition-all duration-300 focus-within:border-[#138A36] focus-within:bg-white focus-within:shadow-[0_14px_40px_rgba(19,138,54,0.12)]">
-
-                  {/* Search icon */}
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#777777] group-focus-within:text-[#138A36]">
-
-                    <Search className="h-5 w-5" />
-
-                  </div>
-
-
-                  {/* Input */}
-                  <input
-                    type="text"
-                    placeholder="Search products, brands or local shops..."
-                    onKeyDown={(e) => {
-
-                      if (e.key === 'Enter' && e.target.value) {
-                        onSearch(e.target.value);
-                      }
-
-                    }}
-                    className="min-w-0 w-full bg-transparent px-1 py-3 text-sm md:text-base font-medium text-[#111111] outline-none placeholder:text-[#999999]"
-                  />
-
-
-                  {/* Search actions */}
-                  <div className="flex shrink-0 items-center gap-1.5 pr-0.5">
-
-                    <button
-                      onClick={onOpenPhotoSearch}
-                      className="hidden sm:flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold text-[#138A36] hover:bg-[#EAF7EE] transition-colors cursor-pointer"
-                      title="Search by Photo"
-                    >
-
-                      <Camera className="w-4 h-4" />
-
-                      <span className="hidden md:inline">
-                        Photo
-                      </span>
-
-                    </button>
-
-
-                    <button
-                      onClick={() => onSearch("")}
-                      className="flex items-center gap-1.5 rounded-xl bg-[#138A36] px-4 sm:px-5 py-3 text-xs md:text-sm font-extrabold text-white shadow-md hover:bg-[#0B6B2B] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer"
-                    >
-
-                      <span className="hidden xs:inline">
-                        Find Nearby
-                      </span>
-
-                      <span className="xs:hidden">
-                        Find
-                      </span>
-
-                      <ArrowRight className="w-4 h-4" />
-
-                    </button>
-
-                  </div>
-
-                </div>
+                <AdvanceSearchBar
+                  onSearch={onSearch}
+                  onOpenPhotoSearch={onOpenPhotoSearch}
+                  onSelectProduct={onSelectProduct}
+                  onBuyNow={onBuyNow}
+                  products={products}
+                  categories={categories}
+                  placeholder="Search shirts, sneakers, headphones, or local shops..."
+                  size="large"
+                />
 
 
                 {/* Search benefits */}
@@ -762,26 +703,42 @@ export default function CustomerHome({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="p-4 pt-0 space-y-1.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectProduct(prod.id);
-                        }}
-                        className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white text-xs font-extrabold py-2.5 rounded-xl transition-all shadow-md shadow-[#138A36]/15 flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Ask Availability & Chat</span>
-                      </button>
+                    <div className="p-3.5 pt-0 space-y-1.5">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onBuyNow) onBuyNow(prod);
+                            else onSelectProduct(prod.id);
+                          }}
+                          className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md shadow-[#138A36]/20 flex items-center justify-center gap-1 cursor-pointer hover:scale-[1.02]"
+                          title="Instant Buy Now"
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300 shrink-0" />
+                          <span>Buy Now</span>
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectProduct(prod.id);
+                          }}
+                          className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] text-[11px] font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer truncate"
+                          title="Chat with shop"
+                        >
+                          <MessageSquare className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Chat</span>
+                        </button>
+                      </div>
 
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectProduct(prod.id);
                         }}
-                        className="w-full bg-[#F8FAF8] hover:bg-[#EAF7EE] text-[#444444] hover:text-[#138A36] text-[11px] font-bold py-1.5 rounded-xl transition-colors text-center cursor-pointer"
+                        className="w-full bg-[#F8FAF8] hover:bg-gray-100 text-[#555555] hover:text-[#111111] text-[10px] font-extrabold py-1.5 rounded-xl transition-colors text-center cursor-pointer"
                       >
-                        <span>View Product Details →</span>
+                        <span>View Details →</span>
                       </button>
                     </div>
                   </div>

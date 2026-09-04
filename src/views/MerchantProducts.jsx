@@ -28,21 +28,29 @@ const STEP_INFO = [
   { num: 3, icon: '📸', title: 'Photo & Go',  sub: 'Image & final preview' },
 ];
 
-// ─── Wizard Modal ─────────────────────────────────────────────────────────────
-function ProductWizard({ onClose, onAddProduct, onShowToast, currentMerchantShop, shops }) {
+// ─── Wizard Modal (Add / Edit) ────────────────────────────────────────────────
+function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct, onShowToast, currentMerchantShop, shops }) {
+  const isEditing = Boolean(editingProduct);
   const [step, setStep] = useState(1);
   // Step 1
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [price, setPrice] = useState('');
-  const [mrp, setMrp] = useState('');
+  const [name, setName] = useState(editingProduct?.name || '');
+  const [category, setCategory] = useState(() => {
+    if (!editingProduct?.category) return '';
+    const match = PRODUCT_CATEGORIES.find(c => 
+      c.label.toLowerCase() === editingProduct.category.toLowerCase() ||
+      c.id.toLowerCase() === editingProduct.category.toLowerCase()
+    );
+    return match ? match.id : editingProduct.category;
+  });
+  const [price, setPrice] = useState(editingProduct?.price !== undefined ? String(editingProduct.price) : '');
+  const [mrp, setMrp] = useState(editingProduct?.originalPrice !== undefined ? String(editingProduct.originalPrice) : '');
   // Step 2
-  const [stock, setStock] = useState(20);
-  const [selectedSizes, setSelectedSizes] = useState([]);
-  const [description, setDescription] = useState('');
-  const [availability, setAvailability] = useState('In Stock');
+  const [stock, setStock] = useState(editingProduct?.stockCount !== undefined ? editingProduct.stockCount : 20);
+  const [selectedSizes, setSelectedSizes] = useState(editingProduct?.sizes || []);
+  const [description, setDescription] = useState(editingProduct?.description || '');
+  const [availability, setAvailability] = useState(editingProduct?.availability || 'In Stock');
   // Step 3
-  const [image, setImage] = useState('');
+  const [image, setImage] = useState(editingProduct?.images?.[0] || '');
   const [imgError, setImgError] = useState(false);
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef(null);
@@ -80,31 +88,54 @@ function ProductWizard({ onClose, onAddProduct, onShowToast, currentMerchantShop
 
   const handleFinish = () => {
     const finalImage = image || DEFAULT_IMAGE;
-    const product = {
-      id: `prod-${Date.now()}`,
-      shopId: targetShop?.id || 'shop-1',
-      shopName: targetShop?.name || 'Local Store',
-      shopVerified: Boolean(targetShop?.verified),
-      shopDistance: targetShop?.distance || '0.5 km away',
-      name,
-      category: selectedCat?.label || category,
-      price: parseFloat(price) || 0,
-      originalPrice: parseFloat(mrp) || Math.round(parseFloat(price) * 1.25) || 0,
-      sizes: selectedSizes.length > 0 ? selectedSizes : ['Standard'],
-      availability,
-      stockCount: stock,
-      enquiriesCount: 0,
-      description: description || `Fresh ${selectedCat?.label || 'product'} from a verified local merchant.`,
-      images: [finalImage],
-      is_featured: false,
-      approval_status: 'approved'
-    };
-    onAddProduct(product);
-    setSaved(true);
-    setTimeout(() => {
-      onClose();
-      onShowToast(`🎉 "${name}" is now live on GrowLocal!`);
-    }, 1800);
+    if (isEditing) {
+      const updatedProduct = {
+        ...editingProduct,
+        name,
+        category: selectedCat?.label || category,
+        price: parseFloat(price) || 0,
+        originalPrice: parseFloat(mrp) || Math.round(parseFloat(price) * 1.25) || 0,
+        sizes: selectedSizes.length > 0 ? selectedSizes : ['Standard'],
+        availability,
+        stockCount: stock,
+        description: description || `Fresh ${selectedCat?.label || 'product'} from a verified local merchant.`,
+        images: [finalImage]
+      };
+      if (onUpdateProduct) {
+        onUpdateProduct(updatedProduct);
+      }
+      setSaved(true);
+      setTimeout(() => {
+        onClose();
+        onShowToast(`✓ "${name}" updated successfully!`);
+      }, 1000);
+    } else {
+      const product = {
+        id: `prod-${Date.now()}`,
+        shopId: targetShop?.id || 'shop-1',
+        shopName: targetShop?.name || 'Local Store',
+        shopVerified: Boolean(targetShop?.verified),
+        shopDistance: targetShop?.distance || '0.5 km away',
+        name,
+        category: selectedCat?.label || category,
+        price: parseFloat(price) || 0,
+        originalPrice: parseFloat(mrp) || Math.round(parseFloat(price) * 1.25) || 0,
+        sizes: selectedSizes.length > 0 ? selectedSizes : ['Standard'],
+        availability,
+        stockCount: stock,
+        enquiriesCount: 0,
+        description: description || `Fresh ${selectedCat?.label || 'product'} from a verified local merchant.`,
+        images: [finalImage],
+        is_featured: false,
+        approval_status: 'approved'
+      };
+      onAddProduct(product);
+      setSaved(true);
+      setTimeout(() => {
+        onClose();
+        onShowToast(`🎉 "${name}" is now live on GrowLocal!`);
+      }, 1800);
+    }
   };
 
   return (
@@ -134,10 +165,14 @@ function ProductWizard({ onClose, onAddProduct, onShowToast, currentMerchantShop
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '15px', fontWeight: 900, color: '#111' }}>
-                {saved ? 'Product Added!' : `Step ${step}: ${STEP_INFO[step - 1].title}`}
+                {saved 
+                  ? (isEditing ? 'Product Updated!' : 'Product Added!') 
+                  : (isEditing ? `Edit: ${name || 'Product'} (Step ${step})` : `Step ${step}: ${STEP_INFO[step - 1].title}`)}
               </p>
               <p style={{ margin: 0, fontSize: '10px', color: '#888' }}>
-                {saved ? 'Now live on GrowLocal' : STEP_INFO[step - 1].sub}
+                {saved 
+                  ? 'Changes saved to GrowLocal' 
+                  : (isEditing ? 'Modify your product details, price and stock' : STEP_INFO[step - 1].sub)}
               </p>
             </div>
           </div>
@@ -599,7 +634,7 @@ function ProductWizard({ onClose, onAddProduct, onShowToast, currentMerchantShop
                 boxShadow: '0 4px 16px rgba(19,138,54,0.3)'
               }}>
                 <Sparkles style={{ width: '15px', height: '15px' }} />
-                <span>Go Live Now!</span>
+                <span>{isEditing ? 'Save Changes' : 'Go Live Now!'}</span>
               </button>
             )}
           </div>
@@ -623,8 +658,9 @@ const inputStyle = {
 };
 
 // ─── Main MerchantProducts View ───────────────────────────────────────────────
-export default function MerchantProducts({ products, onAddProduct, onShowToast, currentUser, shops }) {
+export default function MerchantProducts({ products, onAddProduct, onUpdateProduct, onShowToast, currentUser, shops }) {
   const [showWizard, setShowWizard] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Try to find the current merchant's shop
@@ -647,7 +683,10 @@ export default function MerchantProducts({ products, onAddProduct, onShowToast, 
           </p>
         </div>
         <button
-          onClick={() => setShowWizard(true)}
+          onClick={() => {
+            setEditingProduct(null);
+            setShowWizard(true);
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '12px 20px', background: 'linear-gradient(135deg, #138A36, #1aad44)',
@@ -754,16 +793,25 @@ export default function MerchantProducts({ products, onAddProduct, onShowToast, 
                 </span>
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <button
-                    onClick={() => onShowToast(`Updated "${prod.name}"`)}
-                    style={{ ...iconBtnStyle, color: '#138A36' }}
-                    title="Edit"
+                    onClick={() => {
+                      setEditingProduct(prod);
+                      setShowWizard(true);
+                    }}
+                    style={{ ...iconBtnStyle, color: '#138A36', cursor: 'pointer' }}
+                    title="Edit Product"
                   >
                     <Edit2 style={{ width: '13px', height: '13px' }} />
                   </button>
                   <button
-                    onClick={() => onShowToast(`"${prod.name}" hidden from search`)}
-                    style={iconBtnStyle}
-                    title="Hide"
+                    onClick={() => {
+                      const newStatus = prod.availability === 'In Stock' ? 'Out of Stock' : 'In Stock';
+                      if (onUpdateProduct) {
+                        onUpdateProduct({ ...prod, availability: newStatus });
+                      }
+                      onShowToast(`"${prod.name}" marked as ${newStatus}`);
+                    }}
+                    style={{ ...iconBtnStyle, color: prod.availability === 'In Stock' ? '#888' : '#D97706', cursor: 'pointer' }}
+                    title={prod.availability === 'In Stock' ? "Mark Out of Stock" : "Mark In Stock"}
                   >
                     <EyeOff style={{ width: '13px', height: '13px' }} />
                   </button>
@@ -777,8 +825,13 @@ export default function MerchantProducts({ products, onAddProduct, onShowToast, 
       {/* Wizard */}
       {showWizard && (
         <ProductWizard
-          onClose={() => setShowWizard(false)}
+          onClose={() => {
+            setShowWizard(false);
+            setEditingProduct(null);
+          }}
           onAddProduct={onAddProduct}
+          onUpdateProduct={onUpdateProduct}
+          editingProduct={editingProduct}
           onShowToast={onShowToast}
           currentMerchantShop={currentMerchantShop}
           shops={shops}

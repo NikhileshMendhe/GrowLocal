@@ -2,59 +2,15 @@
 
 export const INITIAL_ADMIN_USERS = [
   {
-    id: "admin-1",
-    name: "Siddhant Shinde",
-    email: "siddhant.shinde@growlocal.in",
+    id: "superadmin-master-07",
+    name: "Nikhilesh Mendhe",
+    email: "nikhileshmendhe07@gmail.com",
     role: "Super Admin",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
     phone: "+91 98230 11223",
     status: "Active",
-    lastLogin: "Today, 2:31 PM",
+    lastLogin: "Active Session",
     permissions: ["all"]
-  },
-  {
-    id: "admin-2",
-    name: "Priya Kulkarni",
-    email: "priya.kulkarni@growlocal.in",
-    role: "Operations Admin",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
-    phone: "+91 98230 44556",
-    status: "Active",
-    lastLogin: "Today, 11:45 AM",
-    permissions: ["customers", "merchants", "shops", "enquiries", "reservations"]
-  },
-  {
-    id: "admin-3",
-    name: "Rajesh Raut",
-    email: "rajesh.raut@growlocal.in",
-    role: "Content Admin",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-    phone: "+91 98230 77889",
-    status: "Active",
-    lastLogin: "Yesterday, 4:20 PM",
-    permissions: ["content", "categories", "offers", "banners"]
-  },
-  {
-    id: "admin-4",
-    name: "Meera Joshi",
-    email: "meera.joshi@growlocal.in",
-    role: "Finance Admin",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80",
-    phone: "+91 98230 99001",
-    status: "Active",
-    lastLogin: "2 days ago",
-    permissions: ["subscriptions", "payments", "revenue"]
-  },
-  {
-    id: "admin-5",
-    name: "Amitabh Sen",
-    email: "amitabh.sen@growlocal.in",
-    role: "Moderation Admin",
-    avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=200&q=80",
-    phone: "+91 98230 33445",
-    status: "Active",
-    lastLogin: "Today, 1:10 PM",
-    permissions: ["reviews", "reports", "chats", "complaints"]
   }
 ];
 

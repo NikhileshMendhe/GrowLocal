@@ -1,8 +1,8 @@
 import React from 'react';
 import VerifiedBadge from './VerifiedBadge';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Zap } from 'lucide-react';
 
-export default function ProductCard({ product = {}, onClick, onAskAvailability }) {
+export default function ProductCard({ product = {}, onClick, onAskAvailability, onBuyNow }) {
   const imageUrl = product.images?.[0] || product.image || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80";
   const sizes = Array.isArray(product.sizes) ? product.sizes : ["Standard"];
   const price = typeof product.price === 'number' ? product.price : (Number(product.price) || 0);
@@ -66,18 +66,33 @@ export default function ProductCard({ product = {}, onClick, onAskAvailability }
         </div>
       </div>
 
-      {/* Button */}
-      <div className="p-3.5 pt-0">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAskAvailability ? onAskAvailability(product) : (onClick && onClick(product.id));
-          }}
-          className="w-full bg-[#EAF7EE] hover:bg-[#138A36] text-[#138A36] hover:text-white font-semibold text-xs py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          <span>Ask About Availability</span>
-        </button>
+      {/* Buttons */}
+      <div className="p-3 pt-0 space-y-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onBuyNow ? onBuyNow(product) : (onClick && onClick(product.id));
+            }}
+            className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white font-black text-xs py-2 px-2.5 rounded-xl flex items-center justify-center gap-1 transition-all shadow-xs cursor-pointer hover:scale-[1.02]"
+            title="Instant Buy Now"
+          >
+            <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300 shrink-0" />
+            <span>Buy Now</span>
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAskAvailability ? onAskAvailability(product) : (onClick && onClick(product.id));
+            }}
+            className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] font-extrabold text-[11px] py-2 px-2 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer truncate"
+            title="Ask Availability"
+          >
+            <MessageSquare className="w-3 h-3 shrink-0" />
+            <span className="truncate">Chat</span>
+          </button>
+        </div>
       </div>
     </div>
   );

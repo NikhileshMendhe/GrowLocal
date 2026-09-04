@@ -17,6 +17,7 @@ export default function CustomerShopProfile({
   onBack, 
   onSelectProduct, 
   onOpenChat,
+  onBuyNow,
   onShowToast 
 }) {
   const [readMore, setReadMore] = useState(false);
@@ -262,6 +263,7 @@ export default function CustomerShopProfile({
                   product={prod}
                   onClick={onSelectProduct}
                   onAskAvailability={(p) => onOpenChat(shop)}
+                  onBuyNow={onBuyNow}
                 />
               ))}
             </div>

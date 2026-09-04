@@ -234,6 +234,44 @@ export const INITIAL_PRODUCTS = [
     images: [
       "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80"
     ]
+  },
+  {
+    id: "prod-6",
+    shopId: "shop-2",
+    shopName: "Shoe Point",
+    shopVerified: true,
+    shopDistance: "1.6 km away",
+    name: "Classic Black Oxford Leather Shoes",
+    category: "Footwear",
+    price: 2299,
+    originalPrice: 2899,
+    sizes: ["UK 7", "UK 8", "UK 9", "UK 10"],
+    availability: "In Stock",
+    stockCount: 15,
+    enquiriesCount: 16,
+    description: "Handcrafted genuine black leather oxford formal shoes with cushioned insole for corporate meetings and weddings.",
+    images: [
+      "https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?auto=format&fit=crop&w=800&q=80"
+    ]
+  },
+  {
+    id: "prod-7",
+    shopId: "shop-2",
+    shopName: "Shoe Point",
+    shopVerified: true,
+    shopDistance: "1.6 km away",
+    name: "All-Black Lightweight Running Shoes",
+    category: "Footwear",
+    price: 1599,
+    originalPrice: 2199,
+    sizes: ["UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    availability: "In Stock",
+    stockCount: 20,
+    enquiriesCount: 24,
+    description: "Shock-absorbing all-black running shoes with breathable mesh and anti-slip traction sole.",
+    images: [
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80"
+    ]
   }
 ];
 

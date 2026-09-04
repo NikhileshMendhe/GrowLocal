@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MessageSquare, Bookmark, MapPin, CheckCircle2, ShieldCheck, ShoppingBag, Share2, Tag } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Bookmark, MapPin, CheckCircle2, ShieldCheck, ShoppingBag, Share2, Tag, Zap } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 
 export default function CustomerProductDetails({ 
@@ -7,6 +7,7 @@ export default function CustomerProductDetails({
   onBack, 
   onOpenChat, 
   onReserveProduct, 
+  onBuyNow,
   onShowToast 
 }) {
   const [selectedSize, setSelectedSize] = useState(product?.sizes[1] || product?.sizes[0] || "L");
@@ -112,18 +113,26 @@ export default function CustomerProductDetails({
           </div>
 
           {/* Action CTAs */}
-          <div className="space-y-2 pt-4 border-t border-[#E5E7E5]">
+          <div className="space-y-2.5 pt-4 border-t border-[#E5E7E5]">
+            <button
+              onClick={() => onBuyNow ? onBuyNow(product, selectedSize) : onReserveProduct(product, selectedSize)}
+              className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-black text-sm py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
+            >
+              <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+              <span>⚡ Buy Now (Instant Checkout)</span>
+            </button>
+
             <button
               onClick={() => onReserveProduct(product, selectedSize)}
-              className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-sm py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+              className="w-full bg-white hover:bg-gray-50 text-[#111111] border-2 border-[#138A36] font-bold text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <ShoppingBag className="w-4 h-4 fill-white" />
+              <ShoppingBag className="w-4 h-4 text-[#138A36]" />
               <span>Reserve & Visit Store</span>
             </button>
 
             <button
               onClick={() => onOpenChat(product)}
-              className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] font-bold text-sm py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] font-bold text-sm py-3 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <MessageSquare className="w-4 h-4" />
               <span>Ask About Availability & Negotiate</span>

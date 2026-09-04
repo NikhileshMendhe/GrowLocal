@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Search, Bookmark, MessageSquare, User, Store, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { MapPin, Search, Bookmark, MessageSquare, User, Store, LayoutDashboard, ShieldCheck, LogOut } from 'lucide-react';
 
 export default function Header({ 
   activeTab, 
@@ -12,7 +12,9 @@ export default function Header({
   savedCount = 0,
   enquiriesCount = 0,
   onNavigatePath,
-  onOpenMerchantMarketing
+  onOpenMerchantMarketing,
+  currentUser,
+  onLogout
 }) {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '/';
 
@@ -210,25 +212,66 @@ export default function Header({
             )}
           </button>
 
-          {/* SEPARATE MERCHANT LOGIN BUTTON (Primary Green) */}
-          <button
-            onClick={() => onOpenAuthModal("merchant")}
-            className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Grow Your Business"
-          >
-            <Store className="w-4 h-4" />
-            <span>Merchant Login</span>
-          </button>
+          {/* USER LOGGED IN: SHOW PROFILE BUTTON & LOGOUT */}
+          {currentUser ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleNav('/profile', 'customer', 'profile')}
+                className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all cursor-pointer shadow-xs ${
+                  activeTab === 'profile'
+                    ? 'bg-[#138A36] text-white border-[#138A36]'
+                    : 'bg-[#F8FAF8] hover:bg-[#EAF7EE] text-[#111111] hover:text-[#138A36] border-[#E5E7E5] hover:border-[#138A36]'
+                }`}
+                title="View Your Profile"
+              >
+                <div className="w-6 h-6 rounded-full bg-[#138A36] text-white flex items-center justify-center font-black text-[11px] shrink-0">
+                  {(currentUser.name || currentUser.email || 'U')[0].toUpperCase()}
+                </div>
+                <div className="text-left max-w-[130px] truncate">
+                  <p className="text-xs font-black truncate leading-tight">
+                    {currentUser.name || currentUser.email?.split('@')[0] || 'Profile'}
+                  </p>
+                  <span className={`text-[10px] font-bold leading-none ${
+                    activeTab === 'profile' ? 'text-white/80' : 'text-[#138A36]'
+                  }`}>
+                    {currentUser.role === 'merchant' ? 'Merchant' : 'Profile'}
+                  </span>
+                </div>
+              </button>
 
-          {/* SEPARATE USER LOGIN BUTTON (Secondary Light Style) */}
-          <button
-            onClick={() => onOpenAuthModal("customer")}
-            className="bg-white hover:bg-gray-50 text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] hover:border-[#138A36] font-extrabold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-            title="Shop Locally"
-          >
-            <User className="w-4 h-4 text-[#138A36]" />
-            <span>User Login</span>
-          </button>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-red-100"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* SEPARATE MERCHANT LOGIN BUTTON (Primary Green) */}
+              <button
+                onClick={() => onOpenAuthModal("merchant")}
+                className="bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Grow Your Business"
+              >
+                <Store className="w-4 h-4" />
+                <span>Merchant Login</span>
+              </button>
+
+              {/* SEPARATE USER LOGIN BUTTON (Secondary Light Style) */}
+              <button
+                onClick={() => onOpenAuthModal("customer")}
+                className="bg-white hover:bg-gray-50 text-[#111111] hover:text-[#138A36] border border-[#E5E7E5] hover:border-[#138A36] font-extrabold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Shop Locally"
+              >
+                <User className="w-4 h-4 text-[#138A36]" />
+                <span>User Login</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

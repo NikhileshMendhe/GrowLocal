@@ -226,6 +226,31 @@ export const productService = {
     return { data, error };
   },
 
+  // Update entire product
+  async updateProduct(productId, productData) {
+    const result = { ...productData, id: productId };
+    if (isSupabaseConfigured && isUuid(productId)) {
+      try {
+        await supabase
+          .from('products')
+          .update({
+            name: productData.name,
+            price: Number(productData.price) || 0,
+            original_price: Number(productData.originalPrice) || 0,
+            description: productData.description,
+            availability_status: productData.availability,
+            stock_quantity: Number(productData.stockCount) || 0,
+            updated_at: new Date()
+          })
+          .eq('id', productId);
+      } catch (err) {
+        console.warn('Supabase updateProduct error:', err);
+      }
+    }
+    this.saveProductLocally(result);
+    return { data: result, error: null };
+  },
+
   // Delete product
   async deleteProduct(productId) {
     if (!isSupabaseConfigured || !isUuid(productId)) return { success: true };

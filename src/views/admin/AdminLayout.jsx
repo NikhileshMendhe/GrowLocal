@@ -22,6 +22,7 @@ export default function AdminLayout({
   reservations,
   creators,
   campaigns,
+  onExitAdminLogout,
   children
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -198,17 +199,23 @@ export default function AdminLayout({
             {/* Platform View Switcher */}
             <div className="hidden md:flex bg-[#F7F8F7] p-1 rounded-xl border border-[#E5E7E5] text-xs font-bold">
               <button
-                onClick={() => onSwitchPlatform("customer")}
-                className="px-2.5 py-1 text-gray-600 hover:text-[#138A36] rounded-lg transition-colors flex items-center gap-1"
-                title="Open Customer Website View"
+                onClick={() => {
+                  if (onExitAdminLogout) onExitAdminLogout();
+                  else onSwitchPlatform("customer");
+                }}
+                className="px-2.5 py-1 text-gray-600 hover:text-[#138A36] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                title="Exit Super Admin & Open Customer Website"
               >
                 <span>Customer</span>
                 <ExternalLink className="w-3 h-3" />
               </button>
               <button
-                onClick={() => onSwitchPlatform("merchant")}
-                className="px-2.5 py-1 text-gray-600 hover:text-[#138A36] rounded-lg transition-colors flex items-center gap-1"
-                title="Open Merchant Portal View"
+                onClick={() => {
+                  if (onExitAdminLogout) onExitAdminLogout();
+                  else onSwitchPlatform("merchant");
+                }}
+                className="px-2.5 py-1 text-gray-600 hover:text-[#138A36] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                title="Exit Super Admin & Open Merchant Portal"
               >
                 <span>Merchant</span>
                 <ExternalLink className="w-3 h-3" />
@@ -287,12 +294,12 @@ export default function AdminLayout({
               >
                 <img
                   src={adminUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"}
-                  alt={adminUser?.name}
+                  alt={adminUser?.name || "Nikhilesh Mendhe"}
                   className="w-7 h-7 rounded-lg object-cover ring-2 ring-[#138A36]/20"
                 />
                 <div className="hidden sm:block text-left">
-                  <p className="text-xs font-bold leading-none text-[#111111]">{adminUser?.name || "Siddhant Shinde"}</p>
-                  <p className="text-[10px] font-semibold text-[#138A36] leading-none mt-0.5">{adminUser?.role || "Super Admin"}</p>
+                  <p className="text-xs font-bold leading-none text-[#111111]">{adminUser?.name || "Nikhilesh Mendhe"}</p>
+                  <p className="text-[10px] font-semibold text-[#138A36] leading-none mt-0.5">Super Admin</p>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-gray-500 hidden sm:block" />
               </button>
@@ -300,40 +307,48 @@ export default function AdminLayout({
               {showProfileDropdown && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#E5E7E5] p-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
                   <div className="p-2 border-b border-[#E5E7E5] mb-1">
-                    <p className="font-bold text-[#111111]">{adminUser?.name}</p>
-                    <p className="text-gray-500">{adminUser?.email}</p>
+                    <p className="font-bold text-[#111111]">{adminUser?.name || "Nikhilesh Mendhe"}</p>
+                    <p className="text-gray-500">{adminUser?.email || "nikhileshmendhe07@gmail.com"}</p>
                     <span className="inline-block mt-1 bg-[#EAF7EE] text-[#138A36] text-[10px] font-extrabold px-2 py-0.5 rounded-md">
-                      Full Access Mode
+                      Master Super Admin
                     </span>
                   </div>
                   <button
                     onClick={() => { setCurrentAdminTab("administrators"); setShowProfileDropdown(false); }}
-                    className="w-full text-left p-2 hover:bg-gray-50 rounded-xl flex items-center gap-2 font-medium text-gray-700"
+                    className="w-full text-left p-2 hover:bg-gray-50 rounded-xl flex items-center gap-2 font-medium text-gray-700 cursor-pointer"
                   >
                     <UserCheck className="w-4 h-4 text-[#138A36]" />
-                    <span>Admin Profile & Team</span>
+                    <span>Super Admin Profile</span>
                   </button>
                   <button
                     onClick={() => { setCurrentAdminTab("settings"); setShowProfileDropdown(false); }}
-                    className="w-full text-left p-2 hover:bg-gray-50 rounded-xl flex items-center gap-2 font-medium text-gray-700"
+                    className="w-full text-left p-2 hover:bg-gray-50 rounded-xl flex items-center gap-2 font-medium text-gray-700 cursor-pointer"
                   >
                     <Settings className="w-4 h-4 text-gray-500" />
                     <span>Platform Settings</span>
                   </button>
                   <button
-                    onClick={() => { onSwitchPlatform("customer"); setShowProfileDropdown(false); }}
-                    className="w-full text-left p-2 hover:bg-gray-50 rounded-xl flex items-center gap-2 font-medium text-gray-700"
+                    onClick={() => { 
+                      setShowProfileDropdown(false);
+                      if (onExitAdminLogout) onExitAdminLogout();
+                      else onSwitchPlatform("customer"); 
+                    }}
+                    className="w-full text-left p-2 hover:bg-gray-50 rounded-xl flex items-center gap-2 font-medium text-gray-700 cursor-pointer"
                   >
                     <ExternalLink className="w-4 h-4 text-blue-600" />
                     <span>Customer Website View</span>
                   </button>
                   <div className="pt-1 mt-1 border-t border-[#E5E7E5]">
                     <button
-                      onClick={() => { alert("Admin session locked safely."); setShowProfileDropdown(false); }}
-                      className="w-full text-left p-2 hover:bg-red-50 text-red-600 rounded-xl flex items-center gap-2 font-bold"
+                      onClick={() => { 
+                        setShowProfileDropdown(false);
+                        if (onExitAdminLogout) onExitAdminLogout();
+                        else onSwitchPlatform("customer");
+                      }}
+                      className="w-full text-left p-2 hover:bg-red-50 text-red-600 rounded-xl flex items-center gap-2 font-bold cursor-pointer"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>Lock Admin Session</span>
+                      <span>Lock & Log Out Session</span>
                     </button>
                   </div>
                 </div>
@@ -405,15 +420,21 @@ export default function AdminLayout({
           </div>
 
           {/* Sidebar Footer */}
-          <div className="p-3 border-t border-[#E5E7E5] bg-[#F7F8F7] space-y-2">
+          <div className="p-3 border-t border-[#E5E7E5] bg-[#F7F8F7] space-y-2.5">
             <div className="flex items-center justify-between text-[11px] text-gray-500">
-              <span className="font-semibold">Platform Version</span>
-              <span className="font-mono font-bold text-[#138A36]">v2.6.4 Live</span>
+              <span className="font-semibold">Platform Security</span>
+              <span className="font-mono font-bold text-[#138A36]">SuperAdmin Online</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-              <span className="w-2 h-2 rounded-full bg-[#138A36] animate-pulse"></span>
-              <span>Nagpur Central Cluster Operational</span>
-            </div>
+            <button
+              onClick={() => {
+                if (onExitAdminLogout) onExitAdminLogout();
+                else onSwitchPlatform("customer");
+              }}
+              className="w-full py-2 px-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Lock & Exit Admin</span>
+            </button>
           </div>
         </aside>
 

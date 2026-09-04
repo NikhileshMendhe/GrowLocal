@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Search, MapPin, Store, X, LayoutDashboard, Home, Bookmark, MessageSquare, User, Sparkles, Tag, Package, ChevronRight, Grid } from 'lucide-react';
+import { Menu, Search, MapPin, Store, X, LayoutDashboard, Home, Bookmark, MessageSquare, User, Sparkles, Tag, Package, ChevronRight, Grid, LogOut } from 'lucide-react';
 
 export default function MobileHeader({ 
   currentLocation, 
@@ -12,7 +12,9 @@ export default function MobileHeader({
   setActiveTab,
   onOpenDemandModal,
   onNavigatePath,
-  onOpenMerchantMarketing
+  onOpenMerchantMarketing,
+  currentUser,
+  onLogout
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -67,13 +69,23 @@ export default function MobileHeader({
               <Search className="w-5 h-5" />
             </button>
 
-            <button
-              onClick={() => onOpenAuthModal("merchant")}
-              className="bg-[#138A36] text-white p-1.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1"
-              title="List Your Shop"
-            >
-              <Store className="w-4 h-4" />
-            </button>
+            {currentUser ? (
+              <button
+                onClick={() => { setActivePlatform("customer"); setActiveTab("profile"); }}
+                className="w-7 h-7 rounded-full bg-[#138A36] text-white flex items-center justify-center font-black text-xs shadow-xs"
+                title="View Profile"
+              >
+                {(currentUser.name || currentUser.email || 'U')[0].toUpperCase()}
+              </button>
+            ) : (
+              <button
+                onClick={() => onOpenAuthModal("merchant")}
+                className="bg-[#138A36] text-white p-1.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1"
+                title="Merchant Login"
+              >
+                <Store className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -218,22 +230,61 @@ export default function MobileHeader({
                     <span>Community</span>
                   </button>
 
-                  <div className="pt-2 border-t border-gray-100 space-y-2">
-                    <button
-                      onClick={() => { onOpenAuthModal("customer"); setDrawerOpen(false); }}
-                      className="w-full bg-white hover:bg-gray-50 text-[#111111] border border-[#E5E7E5] font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs"
-                    >
-                      <User className="w-4 h-4 text-[#138A36]" />
-                      <span>User Login</span>
-                    </button>
-                    <button
-                      onClick={() => { onOpenAuthModal("merchant"); setDrawerOpen(false); }}
-                      className="w-full bg-[#138A36] text-white font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs"
-                    >
-                      <Store className="w-4 h-4" />
-                      <span>Merchant Login</span>
-                    </button>
-                  </div>
+                  {currentUser ? (
+                    <div className="pt-2 border-t border-gray-100 space-y-2">
+                      <div className="p-3 bg-gradient-to-br from-[#EAF7EE] to-[#DDF3E3] rounded-2xl border border-[#CDEED5] flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-[#138A36] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {(currentUser.name || currentUser.email || 'U')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-xs text-[#111111] truncate">{currentUser.name || currentUser.email}</p>
+                            <p className="text-[10px] text-[#138A36] font-semibold">{currentUser.role === 'merchant' ? 'Merchant Account' : 'Customer Account'}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setActivePlatform('customer');
+                            setActiveTab('profile');
+                            setDrawerOpen(false);
+                          }}
+                          className="text-xs font-black text-[#138A36] hover:underline shrink-0 bg-white px-2.5 py-1 rounded-lg border border-[#CDEED5]"
+                        >
+                          Profile
+                        </button>
+                      </div>
+
+                      {onLogout && (
+                        <button
+                          onClick={() => {
+                            setDrawerOpen(false);
+                            onLogout();
+                          }}
+                          className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Sign Out</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-gray-100 space-y-2">
+                      <button
+                        onClick={() => { onOpenAuthModal("customer"); setDrawerOpen(false); }}
+                        className="w-full bg-white hover:bg-gray-50 text-[#111111] border border-[#E5E7E5] font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                      >
+                        <User className="w-4 h-4 text-[#138A36]" />
+                        <span>User Login</span>
+                      </button>
+                      <button
+                        onClick={() => { onOpenAuthModal("merchant"); setDrawerOpen(false); }}
+                        className="w-full bg-[#138A36] text-white font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                      >
+                        <Store className="w-4 h-4" />
+                        <span>Merchant Login</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -8,8 +8,10 @@ import PhotoSearchModal from './components/PhotoSearchModal';
 import DemandRequestModal from './components/DemandRequestModal';
 import AuthModal from './components/AuthModal';
 import MerchantAuthPage from './components/MerchantAuthPage';
+import AdminAuthPage from './components/AdminAuthPage';
 import MerchantShopSetupModal from './components/MerchantShopSetupModal';
 import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
+import BuyNowModal from './components/BuyNowModal';
 import Toast from './components/Toast';
 
 // Mock Datasets
@@ -216,6 +218,10 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showShopSetupModal, setShowShopSetupModal] = useState(false);
   const [showExitMerchantModal, setShowExitMerchantModal] = useState(false);
+  const [showExitAdminModal, setShowExitAdminModal] = useState(false);
+  const [showBuyNowModal, setShowBuyNowModal] = useState(false);
+  const [buyNowProduct, setBuyNowProduct] = useState(null);
+  const [buyNowInitialSize, setBuyNowInitialSize] = useState(null);
   const [authRole, setAuthRole] = useState("customer");
   const [currentUser, setCurrentUser] = useState(null);
   const [pendingRedirect, setPendingRedirect] = useState(null);
@@ -226,17 +232,51 @@ export default function App() {
     setToastMessage(msg);
   };
 
+  // Central User Logout Handler: clears session and restores header auth buttons
+  const handleUserLogout = () => {
+    authService.logout();
+    setCurrentUser(null);
+    triggerToast("👋 You have been logged out successfully.");
+    if (activeTab === 'profile') {
+      setActiveTab('home');
+    }
+  };
+
+  const handleOpenBuyNow = (product, initialSize = null) => {
+    requireUserAuth('buyNow', { product, initialSize }, () => {
+      setBuyNowProduct(product);
+      setBuyNowInitialSize(initialSize || product?.sizes?.[0] || 'Standard');
+      setShowBuyNowModal(true);
+    });
+  };
+
+  const handleCompleteBuyNowOrder = (order) => {
+    reservationService.saveReservationLocally(order);
+    setReservations(reservationService.getStoredReservations());
+    triggerToast(`🎉 Order Placed! Order ID: ${order.id}`);
+  };
+
   // Secure exit from Merchant Portal: logs out session and returns to Customer Home
   const handleConfirmExitMerchantLogout = () => {
     setShowExitMerchantModal(false);
-    setCurrentUser(null);
-    authService.logout();
+    handleUserLogout();
     setActivePlatform('customer');
     setActiveTab('home');
     if (typeof window !== 'undefined') {
       window.history.pushState({}, '', '/');
     }
-    triggerToast("👋 You have been logged out. Welcome to GrowLocal Marketplace!");
+  };
+
+  // Secure exit from Super Admin Panel: logs out session and returns to Customer Home
+  const handleConfirmExitAdminLogout = () => {
+    setShowExitAdminModal(false);
+    handleUserLogout();
+    setActivePlatform('customer');
+    setActiveTab('home');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+    }
+    triggerToast("🔒 Super Admin session terminated safely.");
   };
 
   // Helper to intercept unauthenticated user actions and resume after login
@@ -247,7 +287,11 @@ export default function App() {
       setPendingUserAction({ type: actionType, payload, onProceed });
       setAuthRole("customer");
       setShowAuthModal(true);
-      triggerToast("🔐 Account Required: Please log in or create a free account to continue.");
+      if (actionType === 'buyNow') {
+        triggerToast("🔐 Account Required: Please log in or create an account first to buy this product.");
+      } else {
+        triggerToast("🔐 Account Required: Please log in or create a free account to continue.");
+      }
     }
   };
 
@@ -306,6 +350,32 @@ export default function App() {
     }
   }, [activePlatform]);
 
+  // Browser Back Button & Exit Guard for Super Admin Panel
+  useEffect(() => {
+    if (activePlatform !== 'admin') return;
+    const isSuperAdmin = currentUser && 
+      currentUser.email?.toLowerCase() === 'nikhileshmendhe07@gmail.com' &&
+      (currentUser.role === 'admin' || currentUser.role === 'super_admin');
+    
+    if (!isSuperAdmin) return;
+
+    if (typeof window !== 'undefined') {
+      // Push guard entry so laptop/browser back button hits popstate
+      window.history.pushState({ adminGuard: true }, '', window.location.pathname);
+
+      const handlePopState = () => {
+        // Intercept browser back button on laptop / computer
+        window.history.pushState({ adminGuard: true }, '', window.location.pathname);
+        setShowExitAdminModal(true);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [activePlatform, currentUser]);
+
   // Central URL Navigation Function with Protected Authentication Gate
   const navigateToPath = (path, platform, tab, adminTabName) => {
     // Check if user is attempting to access Merchant Portal
@@ -322,14 +392,12 @@ export default function App() {
 
     // Check if user is attempting to access Super Admin Panel
     if (platform === 'admin' || (path && path.startsWith('/admin'))) {
-      const isAdminAuth = currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
-      if (!isAdminAuth) {
-        setAuthRole("admin");
-        setPendingRedirect({ path: path || '/admin', platform: 'admin', tab: 'dashboard', adminTabName: adminTabName || 'dashboard' });
-        setShowAuthModal(true);
-        triggerToast("🔐 Admin Credentials Required: Please log in with Super Admin access.");
-        return;
+      setActivePlatform('admin');
+      if (adminTabName) setCurrentAdminTab(adminTabName);
+      if (typeof window !== 'undefined' && window.location.pathname !== path) {
+        window.history.pushState({}, '', path || '/admin');
       }
+      return;
     }
 
     if (typeof window !== 'undefined' && window.location.pathname !== path) {
@@ -351,14 +419,9 @@ export default function App() {
           return;
         }
       } else if (route.platform === 'admin') {
-        const isAdminAuth = currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
-        if (!isAdminAuth) {
-          setAuthRole("admin");
-          setShowAuthModal(true);
-          setActivePlatform("customer");
-          setActiveTab("home");
-          return;
-        }
+        setActivePlatform('admin');
+        if (route.adminTab) setCurrentAdminTab(route.adminTab);
+        return;
       }
 
       setActivePlatform(route.platform);
@@ -374,13 +437,17 @@ export default function App() {
   const [currentLocation, setCurrentLocation] = useState(INITIAL_LOCATION);
   const [shops, setShops] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-    } catch (_) { return []; }
+      const stored = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch (_) {}
+    return INITIAL_SHOPS;
   });
   const [products, setProducts] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
-    } catch (_) { return []; }
+      const stored = JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch (_) {}
+    return INITIAL_PRODUCTS;
   });
   const [enquiries, setEnquiries] = useState(() => enquiryService.getStoredEnquiries());
   const [messages, setMessages] = useState(INITIAL_CHAT_MESSAGES);
@@ -441,13 +508,8 @@ export default function App() {
             setActivePlatform('merchantAuth');
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
           } else if (initial.platform === 'admin') {
-            setAuthRole("admin");
-            setPendingRedirect({ path: '/admin', platform: 'admin', tab: 'dashboard', adminTabName: 'dashboard' });
-            setShowAuthModal(true);
-            setActivePlatform("customer");
-            setActiveTab("home");
-            if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
-            triggerToast("🔐 Admin Credentials Required: Please sign in with Super Admin access.");
+            setActivePlatform('admin');
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/admin');
           }
         }
 
@@ -624,6 +686,20 @@ export default function App() {
     }
   };
 
+  const handleUpdateProduct = async (updatedProd) => {
+    try {
+      if (productService.updateProduct) {
+        await productService.updateProduct(updatedProd.id, updatedProd);
+      }
+    } catch (e) {
+      console.warn('handleUpdateProduct error:', e);
+    }
+    productService.saveProductLocally(updatedProd);
+    setProducts(prev => prev.map(p => p.id === updatedProd.id ? { ...p, ...updatedProd } : p));
+    triggerToast(`✓ "${updatedProd.name}" updated successfully!`);
+    return updatedProd;
+  };
+
   const handleSubmitDemand = (demandObj) => {
     requireUserAuth('demand', demandObj, () => {
       const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
@@ -749,6 +825,12 @@ export default function App() {
     totalAlerts: pendingVerifications.length + reports.length
   };
 
+  const isSuperAdminAuthenticated = Boolean(
+    currentUser && 
+    currentUser.email?.toLowerCase() === 'nikhileshmendhe07@gmail.com' &&
+    (currentUser.role === 'admin' || currentUser.role === 'super_admin')
+  );
+
   return (
     <div className="min-h-screen bg-[#F7F8F7] flex flex-col font-sans selection:bg-[#EAF7EE] selection:text-[#138A36] overflow-x-hidden">
       
@@ -850,16 +932,39 @@ export default function App() {
       )}
 
       {/* 1. SUPER ADMIN PLATFORM VIEW */}
-      {activePlatform === 'admin' && (
+      {activePlatform === 'admin' && !isSuperAdminAuthenticated && (
+        <AdminAuthPage
+          onLoginSuccess={(adminSession) => {
+            setCurrentUser(adminSession);
+            triggerToast("✓ Super Admin Session Established");
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/admin');
+            }
+          }}
+          onBackToCustomerView={() => {
+            setActivePlatform('customer');
+            setActiveTab('home');
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+          }}
+          onShowToast={triggerToast}
+        />
+      )}
 
+      {activePlatform === 'admin' && isSuperAdminAuthenticated && (
         <AdminLayout
           currentAdminTab={currentAdminTab}
           setCurrentAdminTab={setCurrentAdminTab}
           onSwitchPlatform={(platform) => {
-            if (platform !== "admin") window.history.pushState({}, '', '/');
-            setActivePlatform(platform);
+            if (platform === 'customer') {
+              setShowExitAdminModal(true);
+            } else {
+              setActivePlatform(platform);
+            }
           }}
-          adminUser={adminUsers[0]}
+          onExitAdminLogout={() => setShowExitAdminModal(true)}
+          adminUser={currentUser || adminUsers[0]}
           badgeCounts={badgeCounts}
           customers={customers}
           merchants={merchants}
@@ -1127,7 +1232,6 @@ export default function App() {
           {currentAdminTab === "administrators" || currentAdminTab === "roles" ? (
             <AdminAdministrators
               adminUsers={adminUsers}
-              onAddAdminUser={(newAdmin) => setAdminUsers([...adminUsers, newAdmin])}
               onShowToast={triggerToast}
             />
           ) : null}
@@ -1218,6 +1322,7 @@ export default function App() {
               shops={shops}
               currentUser={currentUser}
               onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
               onShowToast={triggerToast}
             />
           )}
@@ -1292,6 +1397,8 @@ export default function App() {
               setActivePlatform('merchantMarketing');
               if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
             }}
+            currentUser={currentUser}
+            onLogout={handleUserLogout}
           />
 
           {/* Global Mobile Header */}
@@ -1309,6 +1416,8 @@ export default function App() {
               setActivePlatform('merchantMarketing');
               if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
             }}
+            currentUser={currentUser}
+            onLogout={handleUserLogout}
           />
 
           {/* Main Content View Switcher */}
@@ -1335,6 +1444,7 @@ export default function App() {
                     categories={categories}
                     onSelectShop={handleSelectShop}
                     onSelectProduct={handleSelectProduct}
+                    onBuyNow={handleOpenBuyNow}
                     onSearch={handleExecuteSearch}
                     onOpenPhotoSearch={() => setShowPhotoSearchModal(true)}
                     onOpenDemandRequest={() => setShowDemandModal(true)}
@@ -1355,6 +1465,10 @@ export default function App() {
                     onOpenPhotoSearch={() => setShowPhotoSearchModal(true)}
                     onOpenLocationModal={() => setShowLocationModal(true)}
                     currentLocation={currentLocation}
+                    products={products}
+                    categories={categories}
+                    onSelectProduct={handleSelectProduct}
+                    onBuyNow={handleOpenBuyNow}
                   />
                 )}
 
@@ -1375,9 +1489,13 @@ export default function App() {
                     searchQuery={searchQuery}
                     shops={shops}
                     products={products}
+                    categories={categories}
                     onBack={() => setActiveTab("home")}
                     onSelectShop={handleSelectShop}
                     onSelectProduct={handleSelectProduct}
+                    onBuyNow={handleOpenBuyNow}
+                    onSearch={handleExecuteSearch}
+                    onOpenDemandRequest={() => setShowDemandModal(true)}
                     onOpenChat={(shop) => {
                       setSelectedShopId(shop.id);
                       setActiveTab("chat");
@@ -1393,6 +1511,7 @@ export default function App() {
                     onToggleSave={handleToggleSave}
                     onBack={() => setActiveTab("home")}
                     onSelectProduct={handleSelectProduct}
+                    onBuyNow={handleOpenBuyNow}
                     onOpenChat={() => setActiveTab("chat")}
                     onShowToast={triggerToast}
                   />
@@ -1404,6 +1523,7 @@ export default function App() {
                     onBack={() => setActiveTab("home")}
                     onOpenChat={() => setActiveTab("chat")}
                     onReserveProduct={handleReserveProduct}
+                    onBuyNow={handleOpenBuyNow}
                     onShowToast={triggerToast}
                   />
                 )}
@@ -1455,11 +1575,7 @@ export default function App() {
                     enquiriesCount={enquiries.length}
                     reservationsCount={reservations.length}
                     currentUser={currentUser}
-                    onLogOut={() => {
-                      setCurrentUser(null);
-                      authService.logout();
-                      triggerToast("Logged out successfully");
-                    }}
+                    onLogOut={handleUserLogout}
                   />
                 )}
 
@@ -1609,7 +1725,13 @@ export default function App() {
       {showAuthModal && (
         <AuthModal
           initialMode={authRole}
-          interceptNotice={pendingUserAction ? "Login required to save items, enquire with shops, and reserve products." : null}
+          interceptNotice={
+            pendingUserAction?.type === 'buyNow'
+              ? "Account required: Please log in or create an account first to buy this product."
+              : pendingUserAction
+              ? "Login required to save items, enquire with shops, and reserve products."
+              : null
+          }
           onClose={() => { setShowAuthModal(false); setPendingUserAction(null); }}
           onOpenTerms={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }}
           onLoginSuccess={(userData) => {
@@ -1668,6 +1790,25 @@ export default function App() {
         />
       )}
 
+      {/* ── INSTANT BUY NOW EXPRESS CHECKOUT MODAL ── */}
+      <BuyNowModal
+        product={buyNowProduct}
+        currentUser={currentUser}
+        initialSize={buyNowInitialSize}
+        isOpen={showBuyNowModal}
+        onClose={() => {
+          setShowBuyNowModal(false);
+          setBuyNowProduct(null);
+        }}
+        onCompleteOrder={handleCompleteBuyNowOrder}
+        onRequireAuth={(onProceed) => {
+          setPendingUserAction({ type: 'buyNow', payload: buyNowProduct, onProceed });
+          setAuthRole("customer");
+          setShowAuthModal(true);
+        }}
+        onShowToast={triggerToast}
+      />
+
       {/* ── EXIT MERCHANT PORTAL LOGOUT CONFIRMATION POPUP ── */}
       {showExitMerchantModal && (
         <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
@@ -1723,6 +1864,72 @@ export default function App() {
               >
                 <LogOut className="w-4 h-4" />
                 <span>Log Out & Go Home</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EXIT SUPER ADMIN CONSOLE LOGOUT CONFIRMATION POPUP ── */}
+      {showExitAdminModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[#161D1A] text-white rounded-3xl max-w-md w-full p-6 text-center border border-white/15 shadow-[0_25px_60px_rgba(0,0,0,0.8)] relative space-y-4 font-sans animate-in zoom-in-95 duration-200">
+            {/* Close / Cancel Button */}
+            <button
+              onClick={() => setShowExitAdminModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Cancel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Warning Shield Icon */}
+            <div className="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 flex items-center justify-center mx-auto text-2xl shadow-inner">
+              <LogOut className="w-7 h-7" />
+            </div>
+
+            {/* Header & Notice */}
+            <div>
+              <div className="flex items-center justify-center gap-2">
+                <h3 className="text-lg font-black text-white font-poppins">
+                  Exit Super Admin Console?
+                </h3>
+                <span className="text-[10px] bg-red-500/20 text-red-400 font-black px-2 py-0.5 rounded-full uppercase tracking-wider border border-red-500/30">
+                  Protected Node
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                You are requesting to return to the customer marketplace.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-white/5 rounded-2xl border border-white/10 text-left text-xs text-gray-300 space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-white">
+                <ShieldCheck className="w-4 h-4 text-[#138A36] shrink-0" />
+                <span>Administrative Session Lockdown Required</span>
+              </div>
+              <p className="leading-relaxed text-gray-400">
+                To safeguard platform controls, merchant KYC verifications, payment ledgers, and database security, leaving the Super Admin panel requires terminating your active administrative session.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowExitAdminModal(false)}
+                className="w-full sm:flex-1 py-3 px-4 bg-white/10 hover:bg-white/15 text-gray-200 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Stay in Admin Console
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmExitAdminLogout}
+                className="w-full sm:flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl transition-colors shadow-lg hover:shadow-red-600/30 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out & Exit</span>
               </button>
             </div>
           </div>

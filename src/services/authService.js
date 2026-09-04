@@ -5,6 +5,9 @@ import { merchantService } from './merchantService';
 const SESSION_STORAGE_KEY = 'growlocal_user_session';
 const ACCOUNTS_STORAGE_KEY = 'growlocal_registered_user_accounts';
 
+export const SUPER_ADMIN_EMAIL = "nikhileshmendhe07@gmail.com";
+export const SUPER_ADMIN_PASSWORD = "Nikhilesh@07";
+
 export const authService = {
   // Save active user session
   saveLocalSession(userData) {
@@ -66,6 +69,15 @@ export const authService = {
   // Sign up new user with email & password authentication
   async signUp({ email, password, fullName, role = 'customer' }) {
     const cleanEmail = email.toLowerCase().trim();
+
+    // Strict Security Guard: Admin account creation is permanently restricted
+    if (role === 'admin' || role === 'super_admin' || cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
+      return {
+        data: null,
+        error: { message: "Administrator registration is permanently restricted. The platform operates with a single designated Super Administrator." }
+      };
+    }
+
     const accounts = this.getRegisteredAccounts();
 
     // Check if account already exists
@@ -145,6 +157,64 @@ export const authService = {
   // Log in user with password verification
   async login({ email, password, targetRole }) {
     const cleanEmail = email.toLowerCase().trim();
+
+    // ── SUPER ADMIN ACCESS LOCKDOWN ──
+    const isTargetingAdmin = targetRole === 'admin' || targetRole === 'super_admin' || cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase();
+
+    if (isTargetingAdmin) {
+      // Reject any user who is not the designated Super Admin
+      if (cleanEmail !== SUPER_ADMIN_EMAIL.toLowerCase()) {
+        return {
+          data: null,
+          error: { message: "Access Denied: Only the designated Super Administrator (nikhileshmendhe07@gmail.com) is permitted to access the Administration Panel." }
+        };
+      }
+
+      // Verify designated Super Admin password
+      if (password !== SUPER_ADMIN_PASSWORD) {
+        return {
+          data: null,
+          error: { message: "Invalid Super Administrator credentials. Please verify your password and try again." }
+        };
+      }
+
+      // Successful Super Admin Authentication
+      const superAdminSession = {
+        id: "superadmin-master-07",
+        name: "Nikhilesh Mendhe",
+        email: SUPER_ADMIN_EMAIL,
+        role: "super_admin",
+        permissions: ["all"]
+      };
+
+      // Try Supabase auth if configured
+      if (isSupabaseConfigured) {
+        try {
+          const { error: sbErr } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: password
+          });
+          if (sbErr && (sbErr.message?.includes('Invalid') || sbErr.status === 400)) {
+            await supabase.auth.signUp({
+              email: cleanEmail,
+              password: password,
+              options: { data: { full_name: "Nikhilesh Mendhe", role: "super_admin" } }
+            });
+          }
+        } catch (_) {}
+      }
+
+      this.saveLocalSession(superAdminSession);
+
+      return {
+        data: {
+          user: { id: superAdminSession.id, email: cleanEmail },
+          profile: { full_name: superAdminSession.name, role: "super_admin" },
+          onboardingRequired: false
+        },
+        error: null
+      };
+    }
 
     // 1. If Supabase Cloud is configured, attempt Supabase Auth first
     if (isSupabaseConfigured) {
