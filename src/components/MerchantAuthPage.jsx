@@ -93,8 +93,26 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold leading-relaxed">
-            {errorMsg}
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold leading-relaxed space-y-1">
+            <p>{errorMsg}</p>
+            {errorMsg.toLowerCase().includes('already exists') && isSignUp && (
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(false); setErrorMsg(""); }}
+                className="text-xs text-[#138A36] underline hover:text-[#0B6B2B] font-extrabold cursor-pointer block mt-1"
+              >
+                👉 Click here to Log In with this email
+              </button>
+            )}
+            {errorMsg.toLowerCase().includes('no account found') && !isSignUp && (
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(true); setErrorMsg(""); }}
+                className="text-xs text-[#138A36] underline hover:text-[#0B6B2B] font-extrabold cursor-pointer block mt-1"
+              >
+                👉 Click here to Create New Account
+              </button>
+            )}
           </div>
         )}
 
@@ -108,6 +126,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
                 <input
                   type="text"
                   required
+                  autoComplete="name"
                   placeholder="e.g. Aman Verma"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
@@ -124,6 +143,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
               <input
                 type="email"
                 required
+                autoComplete="email"
                 placeholder="merchant@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -139,6 +159,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
               <input
                 type={showPassword ? "text" : "password"}
                 required
+                autoComplete={isSignUp ? "new-password" : "current-password"}
                 placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

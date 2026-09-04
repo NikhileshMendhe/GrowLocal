@@ -63,8 +63,6 @@ DECLARE
   user_name text;
   new_profile_id uuid;
 BEGIN
-  NEW.email_confirmed_at := COALESCE(NEW.email_confirmed_at, NOW());
-
   user_role := COALESCE(NEW.raw_user_meta_data->>'role', 'customer');
   user_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
 
@@ -91,10 +89,15 @@ BEGIN
   END IF;
 
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_auth_user error: %', SQLERRM;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_handle_new_auth_user ON auth.users;
 CREATE TRIGGER trg_handle_new_auth_user
-BEFORE INSERT ON auth.users
+AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
+
