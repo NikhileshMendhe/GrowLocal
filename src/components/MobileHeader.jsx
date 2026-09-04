@@ -79,11 +79,12 @@ export default function MobileHeader({
               </button>
             ) : (
               <button
-                onClick={() => onOpenAuthModal("merchant")}
-                className="bg-[#138A36] text-white p-1.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1"
-                title="Merchant Login"
+                onClick={() => onOpenAuthModal("customer")}
+                className="bg-[#138A36] hover:bg-[#0B6B2B] text-white px-3 py-1 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                title="Sign In"
               >
-                <Store className="w-4 h-4" />
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
               </button>
             )}
           </div>

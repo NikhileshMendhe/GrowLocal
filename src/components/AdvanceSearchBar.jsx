@@ -188,7 +188,7 @@ export default function AdvanceSearchBar({
             <button
               type="button"
               onClick={onOpenPhotoSearch}
-              className="hidden sm:flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#138A36] hover:bg-[#EAF7EE] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 rounded-xl p-2 sm:px-3 sm:py-2 text-xs font-bold text-[#138A36] hover:bg-[#EAF7EE] transition-colors cursor-pointer"
               title="Search by Photo"
             >
               <Camera className="w-4 h-4" />
@@ -199,9 +199,9 @@ export default function AdvanceSearchBar({
           {/* Submit Search Button */}
           <button
             type="submit"
-            className="flex items-center gap-1.5 rounded-xl bg-[#138A36] hover:bg-[#0B6B2B] active:scale-95 text-white font-black text-xs md:text-sm px-4 sm:px-5 py-2.5 sm:py-3 shadow-md transition-all cursor-pointer"
+            className="flex items-center gap-1.5 rounded-xl bg-[#138A36] hover:bg-[#0B6B2B] active:scale-95 text-white font-black text-xs md:text-sm px-3 sm:px-5 py-2.5 sm:py-3 shadow-md transition-all cursor-pointer shrink-0"
           >
-            <span>Search</span>
+            <span className="hidden sm:inline">Search</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

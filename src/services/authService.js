@@ -80,50 +80,91 @@ export const authService = {
     }
 
     // 1. Check if account already exists in Supabase profiles
+    let existingProf = null;
     if (isSupabaseConfigured) {
       try {
-        const { data: existingProf } = await supabase
+        const { data: prof } = await supabase
           .from('profiles')
           .select('*')
           .ilike('email', cleanEmail)
           .maybeSingle();
-
-        if (existingProf) {
-          if (existingProf.role !== role) {
-            const registeredRoleText = existingProf.role === 'merchant' ? 'a Merchant' : 'a Customer';
-            const portalText = existingProf.role === 'merchant' ? 'Merchant Portal' : 'Customer App';
-            return {
-              data: null,
-              error: {
-                message: `This email is already registered as ${registeredRoleText}. Please log in via the ${portalText} or use a different email.`
-              }
-            };
-          }
-          return {
-            data: null,
-            error: { message: "An account with this email address already exists. Please log in instead." }
-          };
-        }
+        existingProf = prof;
       } catch (_) {}
     }
 
     // 2. Check local accounts vault
     const accounts = this.getRegisteredAccounts();
     const localExisting = accounts.find(a => a.email.toLowerCase() === cleanEmail);
-    if (localExisting) {
-      if (localExisting.role !== role) {
-        const registeredRoleText = localExisting.role === 'merchant' ? 'a Merchant' : 'a Customer';
-        const portalText = localExisting.role === 'merchant' ? 'Merchant Portal' : 'Customer App';
-        return {
-          data: null,
-          error: {
-            message: `This email is already registered as ${registeredRoleText}. Please log in via the ${portalText} or use a different email.`
-          }
-        };
-      }
+
+    // If already registered with the requested role (e.g. already a merchant)
+    if (role === 'merchant' && ((existingProf && existingProf.role === 'merchant') || (localExisting && localExisting.role === 'merchant'))) {
       return {
         data: null,
-        error: { message: "An account with this email address already exists. Please log in instead." }
+        error: { message: "An account with this email address is already registered as a Merchant. Please log in instead." }
+      };
+    }
+    if (role === 'customer' && ((existingProf && existingProf.role === 'customer') || (localExisting && localExisting.role === 'customer'))) {
+      return {
+        data: null,
+        error: { message: "An account with this email address is already registered as a Customer. Please log in instead." }
+      };
+    }
+
+    // If an account was previously registered as a Customer, seamlessly upgrade/register them as a Merchant!
+    if (role === 'merchant' && ((existingProf && existingProf.role === 'customer') || (localExisting && localExisting.role === 'customer'))) {
+      const merchantDisplayName = fullName || existingProf?.full_name || localExisting?.name || cleanEmail.split('@')[0];
+
+      // Update Supabase profile to merchant
+      if (isSupabaseConfigured) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              role: 'merchant',
+              full_name: merchantDisplayName,
+              status: 'Active'
+            })
+            .ilike('email', cleanEmail);
+
+          await merchantService.registerMerchantInSupabase({
+            id: existingProf?.auth_user_id || existingProf?.id,
+            name: merchantDisplayName,
+            email: cleanEmail,
+            role: 'merchant',
+            shopName: `${merchantDisplayName}'s Store`
+          });
+        } catch (e) {
+          console.warn("Could not upgrade profile in Supabase:", e);
+        }
+      }
+
+      const upgradedAccount = {
+        name: merchantDisplayName,
+        email: cleanEmail,
+        password: password || localExisting?.password,
+        role: 'merchant',
+        onboardingRequired: true
+      };
+
+      this.saveAccountToVault(upgradedAccount);
+      merchantService.registerMerchantLocally(upgradedAccount);
+
+      const userSession = {
+        id: existingProf?.auth_user_id || existingProf?.id || `user-${Date.now()}`,
+        name: merchantDisplayName,
+        email: cleanEmail,
+        role: 'merchant',
+        onboardingRequired: true
+      };
+
+      this.saveLocalSession(userSession);
+      return {
+        data: {
+          user: { id: userSession.id, email: cleanEmail },
+          profile: { full_name: merchantDisplayName, role: 'merchant' },
+          onboardingRequired: true
+        },
+        error: null
       };
     }
 
@@ -163,6 +204,62 @@ export const authService = {
 
     if (error) {
       if (error.message?.toLowerCase().includes('already registered') || error.message?.toLowerCase().includes('user already exists')) {
+        // If registering as a merchant and account already exists in Supabase auth:
+        if (role === 'merchant') {
+          const merchantDisplayName = fullName || newAccount.name || cleanEmail.split('@')[0];
+          try {
+            await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+          } catch (_) {}
+
+          try {
+            await supabase
+              .from('profiles')
+              .upsert([{
+                email: cleanEmail,
+                full_name: merchantDisplayName,
+                role: 'merchant',
+                status: 'Active'
+              }], { onConflict: 'email' });
+
+            await merchantService.registerMerchantInSupabase({
+              name: merchantDisplayName,
+              email: cleanEmail,
+              role: 'merchant',
+              shopName: `${merchantDisplayName}'s Store`
+            });
+          } catch (e) {
+            console.warn("Could not upsert merchant profile:", e);
+          }
+
+          const upgradedAccount = {
+            name: merchantDisplayName,
+            email: cleanEmail,
+            password: password,
+            role: 'merchant',
+            onboardingRequired: true
+          };
+          this.saveAccountToVault(upgradedAccount);
+          merchantService.registerMerchantLocally(upgradedAccount);
+
+          const userSession = {
+            id: `user-${Date.now()}`,
+            name: merchantDisplayName,
+            email: cleanEmail,
+            role: 'merchant',
+            onboardingRequired: true
+          };
+          this.saveLocalSession(userSession);
+
+          return {
+            data: {
+              user: { id: userSession.id, email: cleanEmail },
+              profile: { full_name: merchantDisplayName, role: 'merchant' },
+              onboardingRequired: true
+            },
+            error: null
+          };
+        }
+
         return {
           data: null,
           error: { message: "An account with this email address already exists. Please log in instead." }
@@ -333,25 +430,8 @@ export const authService = {
 
     const registeredRole = profile?.role || existingAccount?.role;
 
-    // Strict Role Boundary Guard: reject accounts registered for other portals immediately
-    if (registeredRole) {
-      if (targetRole === 'merchant' && registeredRole === 'customer') {
-        return {
-          data: null,
-          error: {
-            message: "Access Restricted: This account is registered as a Customer. Merchant portal access is restricted to registered merchants. Please sign up as a merchant or use your merchant credentials."
-          }
-        };
-      }
-      if (targetRole === 'customer' && registeredRole === 'merchant') {
-        return {
-          data: null,
-          error: {
-            message: "Access Restricted: This account is registered as a Merchant. Please log in through the dedicated Merchant Portal."
-          }
-        };
-      }
-    }
+    // Role Access: Customers can seamlessly log in to Merchant Portal to setup/manage their store
+    // and Merchants can log into the Customer App to browse and shop. Super Admin is guarded above.
 
     // 2. If Supabase Cloud is configured, attempt Supabase Auth
     let supabaseAuthSuccess = false;
@@ -390,7 +470,27 @@ export const authService = {
       }
     }
 
-    const actualRole = profile?.role || supabaseUser?.user_metadata?.role || existingAccount?.role || targetRole || 'customer';
+    // Determine actual role for this session
+    let actualRole = targetRole || profile?.role || supabaseUser?.user_metadata?.role || existingAccount?.role || 'customer';
+
+    // If logging into merchant portal, seamlessly activate merchant role and store
+    if (targetRole === 'merchant') {
+      actualRole = 'merchant';
+      if (isSupabaseConfigured) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ role: 'merchant' })
+            .ilike('email', cleanEmail);
+        } catch (_) {}
+      }
+      if (existingAccount) {
+        existingAccount.role = 'merchant';
+        this.saveAccountToVault(existingAccount);
+      }
+    } else if (targetRole === 'customer') {
+      actualRole = 'customer';
+    }
 
     const displayName = profile?.full_name || supabaseUser?.user_metadata?.full_name || existingAccount?.name || cleanEmail.split('@')[0];
     const userId = supabaseUser?.id || profile?.id || existingAccount?.id || `user-${Date.now()}`;
@@ -573,7 +673,7 @@ export const authService = {
       return { data: null, error: { message: "Please enter a valid email address." } };
     }
 
-    // Guard: check if already registered
+    // Guard: check if already registered as a Merchant
     if (isSupabaseConfigured) {
       try {
         const { data: existingProf } = await supabase
@@ -582,24 +682,23 @@ export const authService = {
           .ilike('email', cleanEmail)
           .maybeSingle();
 
-        if (existingProf) {
-          if (existingProf.role === 'merchant') {
-            return { data: null, error: { message: "An account with this email address already exists. Please log in instead." } };
-          } else {
-            return { data: null, error: { message: "This email is already registered as a Customer. Please log in via the Customer App or use a different email." } };
-          }
+        if (existingProf && existingProf.role === 'merchant') {
+          return {
+            data: null,
+            error: { message: "An account with this email address is already registered as a Merchant. Please log in instead." }
+          };
         }
+        // If registered as customer, allow them to proceed to merchant OTP and registration!
       } catch (_) {}
     }
 
     const accounts = this.getRegisteredAccounts();
     const existingAcc = accounts.find(a => a.email.toLowerCase() === cleanEmail);
-    if (existingAcc) {
-      if (existingAcc.role === 'merchant') {
-        return { data: null, error: { message: "An account with this email address already exists. Please log in instead." } };
-      } else {
-        return { data: null, error: { message: "This email is already registered as a Customer. Please log in via the Customer App or use a different email." } };
-      }
+    if (existingAcc && existingAcc.role === 'merchant') {
+      return {
+        data: null,
+        error: { message: "An account with this email address is already registered as a Merchant. Please log in instead." }
+      };
     }
 
     // Generate secure 6-digit OTP
@@ -622,7 +721,7 @@ export const authService = {
       try {
         const { data, error } = await supabase.auth.signInWithOtp({
           email: cleanEmail,
-          options: { shouldCreateUser: false }
+          options: { shouldCreateUser: true }
         });
 
         if (!error) {

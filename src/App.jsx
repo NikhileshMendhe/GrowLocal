@@ -130,9 +130,41 @@ import {
   TrendingUp, Sparkles, Tag, Store 
 } from 'lucide-react';
 
+const extractShopFromUrl = () => {
+  if (typeof window === 'undefined') return null;
+  const path = window.location.pathname;
+  const search = new URLSearchParams(window.location.search);
+  const hash = window.location.hash;
+
+  // 1. Query param: ?shop=xyz or ?shopId=xyz or ?id=xyz or ?store=xyz
+  const queryParam = search.get('shop') || search.get('shopId') || search.get('id') || search.get('store');
+  if (queryParam) return decodeURIComponent(queryParam).trim();
+
+  // 2. Path: /shop/xyz or /shops/xyz or /store/xyz
+  const pathMatch = path.match(/^\/(?:shop|shops|store|stores)\/([^\/?#]+)/i);
+  if (pathMatch && pathMatch[1]) return decodeURIComponent(pathMatch[1]).trim();
+
+  // 3. Hash: #/shop/xyz or #shop=xyz
+  if (hash) {
+    const hashMatch = hash.match(/(?:shop|shops|store)\/([^\/?#&]+)/i);
+    if (hashMatch && hashMatch[1]) return decodeURIComponent(hashMatch[1]).trim();
+    const hashParams = new URLSearchParams(hash.replace(/^#\/?/, '?'));
+    const hashParam = hashParams.get('shop') || hashParams.get('shopId') || hashParams.get('id');
+    if (hashParam) return decodeURIComponent(hashParam).trim();
+  }
+
+  return null;
+};
+
 const parseUrlRoute = () => {
   if (typeof window === 'undefined') return { platform: 'customer', tab: 'home', adminTab: 'dashboard' };
   const path = window.location.pathname.toLowerCase();
+
+  // Check if a direct shop link was scanned or shared (e.g. /shop/yasnick or /shops?id=...)
+  const targetShop = extractShopFromUrl();
+  if (targetShop && targetShop !== 'all') {
+    return { platform: 'customer', tab: 'shopProfile', adminTab: 'dashboard', shopId: targetShop };
+  }
 
   if (path.startsWith('/admin')) {
     const sub = path.replace('/admin', '').replace(/^\//, '');
@@ -197,7 +229,7 @@ const parseUrlRoute = () => {
 
   if (path === '/discover' || path === '/search') return { platform: 'customer', tab: 'search', adminTab: 'dashboard' };
   if (path === '/categories') return { platform: 'customer', tab: 'categories', adminTab: 'dashboard' };
-  if (path === '/shops' || path === '/nearby-shops') return { platform: 'customer', tab: 'searchResults', adminTab: 'dashboard' };
+  if (path === '/shops' || path === '/nearby-shops' || path === '/stores') return { platform: 'customer', tab: 'searchResults', adminTab: 'dashboard' };
   if (path === '/enquiries') return { platform: 'customer', tab: 'enquiries', adminTab: 'dashboard' };
   if (path === '/saved') return { platform: 'customer', tab: 'saved', adminTab: 'dashboard' };
   if (path === '/reservations') return { platform: 'customer', tab: 'reservations', adminTab: 'dashboard' };
@@ -412,6 +444,9 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const route = parseUrlRoute();
+      if (route.shopId) {
+        setSelectedShopId(route.shopId);
+      }
       if (route.platform === 'merchant') {
         const isMerchantAuth = currentUser && (currentUser.role === 'merchant' || currentUser.role === 'admin' || currentUser.role === 'super_admin');
         if (!isMerchantAuth) {
@@ -489,7 +524,7 @@ export default function App() {
 
   // Selections & Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedShopId, setSelectedShopId] = useState("shop-1");
+  const [selectedShopId, setSelectedShopId] = useState(() => initialRoute.shopId || "shop-1");
   const [selectedProductId, setSelectedProductId] = useState("prod-1");
 
   // Fetch initial data & initialize Supabase Realtime listeners
@@ -580,10 +615,98 @@ export default function App() {
     };
   }, []);
 
-  const activeShop = shops.find(s => s.id === selectedShopId) || shops[0];
+  // Resilient Shop Matching: matches by id, slugified name, exact name, or email prefix
+  const activeShop = shops.find(s => {
+    if (!selectedShopId) return false;
+    const target = String(selectedShopId).toLowerCase().trim();
+    return (
+      String(s.id).toLowerCase() === target ||
+      s.name?.toLowerCase().trim() === target ||
+      s.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') === target.replace(/[^a-z0-9]/g, '-') ||
+      (s.merchantEmail && s.merchantEmail.toLowerCase().startsWith(target)) ||
+      (s.merchantId && String(s.merchantId).toLowerCase() === target)
+    );
+  }) || (selectedShopId && selectedShopId !== 'shop-1' ? {
+    id: selectedShopId,
+    name: selectedShopId.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    category: 'Verified Local Retail',
+    verified: true,
+    rating: 4.8,
+    reviewsCount: 1,
+    distance: '0.5 km away',
+    address: 'Nagpur, Maharashtra',
+    status: 'Open',
+    openHours: '10:00 AM – 9:00 PM',
+    priceRange: '₹299 – ₹9,999',
+    about: `Welcome to our store on GrowLocal! Browse our in-store digital catalog, check real stock, and chat directly with us.`,
+    coverImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
+    logoImage: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80'
+  } : shops[0]);
+
   const activeProduct = products.find(p => p.id === selectedProductId) || products[0];
 
+  // Automatically restore / fetch merchant shop if referenced by URL slug or ID
+  useEffect(() => {
+    if (!selectedShopId) return;
+    const target = String(selectedShopId).toLowerCase().trim();
+    const alreadyFound = shops.some(s => 
+      String(s.id).toLowerCase() === target ||
+      s.name?.toLowerCase().trim() === target ||
+      s.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') === target.replace(/[^a-z0-9]/g, '-')
+    );
+    if (alreadyFound) return;
 
+    try {
+      const storedShops = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
+      const localMatch = storedShops.find(s => 
+        String(s.id).toLowerCase() === target || 
+        s.name?.toLowerCase().trim() === target ||
+        s.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') === target.replace(/[^a-z0-9]/g, '-')
+      );
+      if (localMatch) {
+        setShops(prev => [localMatch, ...prev.filter(s => s.id !== localMatch.id)]);
+        return;
+      }
+
+      const storedMerchants = JSON.parse(localStorage.getItem('growlocal_registered_merchants') || '[]');
+      const mMatch = storedMerchants.find(m => 
+        String(m.id).toLowerCase() === target || 
+        m.name?.toLowerCase().trim() === target ||
+        (m.email && m.email.toLowerCase().startsWith(target))
+      );
+      if (mMatch) {
+        const synthShop = {
+          id: mMatch.id || selectedShopId,
+          name: mMatch.shopName || mMatch.name || selectedShopId,
+          category: 'Verified Local Retail',
+          verified: true,
+          rating: 4.8,
+          reviewsCount: 1,
+          distance: '0.5 km away',
+          address: mMatch.address || 'Nagpur, Maharashtra',
+          status: 'Open',
+          openHours: '10:00 AM – 9:00 PM',
+          about: `${mMatch.name || selectedShopId} is a verified neighborhood merchant on GrowLocal.`,
+          coverImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
+          logoImage: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80'
+        };
+        setShops(prev => [synthShop, ...prev]);
+        return;
+      }
+    } catch (_) {}
+
+    shopService.getAllShops().then(({ data }) => {
+      if (data && data.length > 0) {
+        setShops(prev => {
+          const merged = [...prev];
+          data.forEach(item => {
+            if (!merged.some(m => m.id === item.id)) merged.push(item);
+          });
+          return merged;
+        });
+      }
+    });
+  }, [selectedShopId]);
 
   const handleExecuteSearch = (query) => {
     setSearchQuery(query);
@@ -595,6 +718,11 @@ export default function App() {
     setSelectedShopId(shopId);
     setActivePlatform("customer");
     setActiveTab("shopProfile");
+    if (typeof window !== 'undefined') {
+      const targetShopObj = shops.find(s => s.id === shopId);
+      const urlSlug = targetShopObj?.name ? targetShopObj.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') : shopId;
+      window.history.pushState({}, '', `/shop/${encodeURIComponent(urlSlug)}`);
+    }
   };
 
   const handleSelectProduct = (productId) => {

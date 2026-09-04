@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   ArrowLeft, Heart, Share2, MessageSquare, Navigation, Bookmark, 
   Clock, Calendar, Tag, MapPin, ChevronDown, ChevronUp, Star, ShieldCheck, 
-  Lock, Store, Check, ExternalLink, Image as ImageIcon 
+  Lock, Store, Check, ExternalLink, Image as ImageIcon, QrCode, Copy, X 
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import Rating from '../components/Rating';
@@ -23,8 +24,38 @@ export default function CustomerShopProfile({
   const [readMore, setReadMore] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   if (!shop) return null;
+
+  const shopSlug = shop.id || (shop.name ? shop.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') : 'store');
+  const shopUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/shop/${encodeURIComponent(shopSlug)}`
+    : `https://growlocal.netlify.app/shop/${encodeURIComponent(shopSlug)}`;
+
+  const handleShareClick = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${shop.name} on GrowLocal`,
+          text: `Check out ${shop.name} on GrowLocal Nagpur! Browse local in-store catalog and message the shop directly:`,
+          url: shopUrl
+        });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+    setShowShareModal(true);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard?.writeText(shopUrl);
+    setCopiedLink(true);
+    if (onShowToast) onShowToast("🔗 Shop link copied to clipboard!");
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
   const shopProducts = (products || []).filter(p => 
     p.shopId === shop.id || 
@@ -61,11 +92,9 @@ export default function CustomerShopProfile({
             </button>
 
             <button 
-              onClick={() => {
-                navigator.clipboard?.writeText(window.location.href);
-                onShowToast("Shop link copied to clipboard!");
-              }}
-              className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-[#111111] hover:bg-white shadow-md transition-all"
+              onClick={handleShareClick}
+              className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-[#111111] hover:bg-white shadow-md transition-all cursor-pointer active:scale-95"
+              title="Share Shop Link & QR"
             >
               <Share2 className="w-5 h-5" />
             </button>
@@ -360,6 +389,66 @@ export default function CustomerShopProfile({
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
           <div className="relative max-w-2xl w-full">
             <img src={selectedPhoto} alt="Preview" className="w-full h-auto rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+
+      {/* Share & QR Code Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center border border-gray-200 shadow-2xl relative space-y-4">
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center mx-auto text-xl shadow-xs">
+              <QrCode className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-gray-900">{shop.name}</h3>
+              <p className="text-xs text-gray-500">Share Store & Scan Inventory QR</p>
+            </div>
+
+            {/* Crisp client-side vector SVG QR Code */}
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 inline-block shadow-xs">
+              <QRCodeSVG
+                value={shopUrl}
+                size={200}
+                bgColor="#ffffff"
+                fgColor="#111111"
+                level="H"
+                includeMargin={false}
+                className="w-44 h-44 rounded-xl mx-auto"
+              />
+            </div>
+
+            <p className="text-xs text-gray-600">
+              Scan with any phone camera to view {shop.name}'s real store inventory and enquire directly.
+            </p>
+
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                onClick={handleCopyLink}
+                className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
+                <span>{copiedLink ? 'Link Copied to Clipboard!' : 'Copy Store Web Link'}</span>
+              </button>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Check out ${shop.name} on GrowLocal: ${shopUrl}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 px-4 bg-[#138A36] hover:bg-[#0F752C] text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer active:scale-98"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share via WhatsApp</span>
+              </a>
+            </div>
           </div>
         </div>
       )}

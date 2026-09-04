@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import {
   Store, MapPin, Clock, Phone, Save, Eye, Share2, QrCode,
   CheckCircle2, Star, Sparkles, Package, ExternalLink, Camera,
   ArrowRight, ShieldCheck, Copy, Check, MessageSquare, Tag,
-  ShoppingBag, Award, ChevronRight, X, Heart, Globe
+  ShoppingBag, Award, ChevronRight, X, Heart, Globe, Download
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -98,15 +99,34 @@ export default function MerchantShopProfile({
     setActiveSubTab('overview');
   };
 
+  const shopSlug = currentShop.id || (name ? name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') : 'store');
   const shopUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/shops?id=${currentShop.id || 'current'}`
-    : `https://growlocal.in/shops/${currentShop.id || 'my-shop'}`;
+    ? `${window.location.origin}/shop/${encodeURIComponent(shopSlug)}`
+    : `https://growlocal.netlify.app/shop/${encodeURIComponent(shopSlug)}`;
 
   const handleCopyLink = () => {
     navigator.clipboard?.writeText(shopUrl);
     setCopiedLink(true);
     if (onShowToast) onShowToast("🔗 Store link copied to clipboard!");
     setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleDownloadQR = () => {
+    try {
+      const canvas = document.getElementById('merchant-qr-canvas');
+      if (!canvas) {
+        if (onShowToast) onShowToast("Generating QR image...");
+        return;
+      }
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.download = `${(name || 'shop').toLowerCase().replace(/[^a-z0-9]/g, '-')}-qr-station.png`;
+      a.href = url;
+      a.click();
+      if (onShowToast) onShowToast("📥 Store QR Code poster downloaded!");
+    } catch (e) {
+      console.warn("Could not download QR canvas:", e);
+    }
   };
 
   const storeProducts = products.filter(p => p.shopId === currentShop.id || p.shopName === currentShop.name);
@@ -412,14 +432,32 @@ export default function MerchantShopProfile({
                 </div>
 
                 {/* QR Code Frame */}
-                <div className="p-3 bg-white rounded-2xl border border-[#CDEED5] shadow-sm max-w-[200px] mx-auto">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shopUrl)}`}
-                    alt="Store QR Code"
-                    className="w-full h-auto rounded-xl"
-                  />
-                  <p className="text-[10px] font-black text-gray-800 mt-2 truncate">{name}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase">Scan with Phone Camera</p>
+                <div className="p-3.5 bg-white rounded-2xl border border-[#CDEED5] shadow-sm max-w-[210px] mx-auto space-y-2">
+                  <div className="flex justify-center p-2 bg-white rounded-xl">
+                    <QRCodeSVG
+                      value={shopUrl}
+                      size={180}
+                      bgColor="#ffffff"
+                      fgColor="#111111"
+                      level="H"
+                      includeMargin={false}
+                      className="w-full h-auto rounded-lg mx-auto"
+                    />
+                    {/* Hidden canvas for downloading crisp high-res 600px PNG */}
+                    <div className="hidden">
+                      <QRCodeCanvas
+                        id="merchant-qr-canvas"
+                        value={shopUrl}
+                        size={600}
+                        bgColor="#ffffff"
+                        fgColor="#111111"
+                        level="H"
+                        includeMargin={true}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] font-black text-gray-800 truncate">{name}</p>
+                  <p className="text-[9px] text-[#138A36] font-bold uppercase tracking-wider">Scan with Phone Camera</p>
                 </div>
 
                 <p className="text-xs text-gray-600 px-2">
@@ -429,7 +467,7 @@ export default function MerchantShopProfile({
                 <div className="flex flex-col gap-2 pt-1">
                   <button
                     onClick={handleCopyLink}
-                    className="w-full py-2.5 px-3 bg-white hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold border border-gray-200 transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    className="w-full py-2.5 px-3 bg-white hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold border border-gray-200 transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98"
                   >
                     {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-gray-500" />}
                     <span>{copiedLink ? 'Link Copied!' : 'Copy Store Web Link'}</span>
@@ -439,11 +477,20 @@ export default function MerchantShopProfile({
                     href={`https://wa.me/?text=${encodeURIComponent(`Check out our shop ${name} on GrowLocal: ${shopUrl}`)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="w-full py-2.5 px-3 bg-[#138A36] hover:bg-[#0F752C] text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                    className="w-full py-2.5 px-3 bg-[#138A36] hover:bg-[#0F752C] text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98"
                   >
                     <Share2 className="w-4 h-4" />
                     <span>Share on WhatsApp</span>
                   </a>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadQR}
+                    className="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-[#138A36] rounded-xl text-xs font-bold border border-[#CDEED5] transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download QR Code (PNG)</span>
+                  </button>
                 </div>
               </div>
 
@@ -773,9 +820,13 @@ export default function MerchantShopProfile({
             </div>
 
             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 inline-block shadow-xs">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(shopUrl)}`}
-                alt="Store QR Code"
+              <QRCodeSVG
+                value={shopUrl}
+                size={220}
+                bgColor="#ffffff"
+                fgColor="#111111"
+                level="H"
+                includeMargin={false}
                 className="w-48 h-48 rounded-xl mx-auto"
               />
             </div>
@@ -787,7 +838,7 @@ export default function MerchantShopProfile({
             <div className="flex flex-col gap-2 pt-1">
               <button
                 onClick={handleCopyLink}
-                className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
                 <span>{copiedLink ? 'Link Copied to Clipboard!' : 'Copy Web Link'}</span>
@@ -797,11 +848,20 @@ export default function MerchantShopProfile({
                 href={`https://wa.me/?text=${encodeURIComponent(`Check out our shop ${name} on GrowLocal: ${shopUrl}`)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full py-2.5 px-4 bg-[#138A36] hover:bg-[#0F752C] text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-2 shadow-xs"
+                className="w-full py-2.5 px-4 bg-[#138A36] hover:bg-[#0F752C] text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer active:scale-98"
               >
                 <Share2 className="w-4 h-4" />
                 <span>Share via WhatsApp</span>
               </a>
+
+              <button
+                type="button"
+                onClick={handleDownloadQR}
+                className="w-full py-2 px-4 bg-emerald-50 hover:bg-emerald-100 text-[#138A36] rounded-xl text-xs font-bold border border-[#CDEED5] transition-colors flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download QR Code Poster</span>
+              </button>
             </div>
           </div>
         </div>
