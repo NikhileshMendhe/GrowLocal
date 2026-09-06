@@ -64,6 +64,8 @@ import CustomerEnquiries from './views/CustomerEnquiries';
 import CustomerSavedShops from './views/CustomerSavedShops';
 import CustomerReservations from './views/CustomerReservations';
 import CustomerProfile from './views/CustomerProfile';
+import CustomerPrivacySecurity from './views/CustomerPrivacySecurity';
+import CustomerHelpSupport from './views/CustomerHelpSupport';
 import VendorTerms from './views/VendorTerms';
 
 // Merchant Views
@@ -233,7 +235,9 @@ const parseUrlRoute = () => {
   if (path === '/enquiries') return { platform: 'customer', tab: 'enquiries', adminTab: 'dashboard' };
   if (path === '/saved') return { platform: 'customer', tab: 'saved', adminTab: 'dashboard' };
   if (path === '/reservations') return { platform: 'customer', tab: 'reservations', adminTab: 'dashboard' };
-  if (path === '/profile') return { platform: 'customer', tab: 'profile', adminTab: 'dashboard' };
+  if (path === '/privacy' || path === '/privacy-policy') return { platform: 'customer', tab: 'privacy', adminTab: 'dashboard' };
+  if (path === '/help' || path === '/support' || path === '/contact') return { platform: 'customer', tab: 'help', adminTab: 'dashboard' };
+  if (path === '/terms' || path === '/vendor-terms') return { platform: 'customer', tab: 'vendorTerms', adminTab: 'dashboard' };
   if (path === '/overview' || path === '/landing') return { platform: 'landing', tab: 'home', adminTab: 'dashboard' };
   if (path === '/for-merchants' || path === '/grow' || path === '/merchant-info') return { platform: 'merchantMarketing', tab: 'home', adminTab: 'dashboard' };
 
@@ -754,15 +758,84 @@ export default function App() {
     });
   };
 
+  const handleStartProductEnquiry = (product, selectedSize) => {
+    requireUserAuth('enquiry', { product, selectedSize }, () => {
+      const targetShop = shops.find(s => 
+        s.id === product.shopId || 
+        (product.shopName && s.name && s.name.toLowerCase().trim() === product.shopName.toLowerCase().trim())
+      ) || activeShop;
+
+      if (targetShop?.id) {
+        setSelectedShopId(targetShop.id);
+      }
+
+      const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
+      const userPhone = currentUser?.phone || "+91 98765 43210";
+      const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const newEnquiry = {
+        id: code,
+        customerName: userName,
+        customerPhone: userPhone,
+        customerAvatar: currentUser?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
+        shopId: targetShop?.id || product.shopId || "shop-1",
+        shopName: targetShop?.name || product.shopName || "Local Shop",
+        productName: product.name,
+        productImage: product.images ? product.images[0] : (product.image || ""),
+        size: selectedSize || (product.sizes ? product.sizes[0] : "Standard"),
+        budget: `₹${product.price}`,
+        status: "Pending",
+        timestamp: "Just now",
+        lastMessage: `Hi, is "${product.name}" in size ${selectedSize || 'Standard'} available?`
+      };
+
+      enquiryService.saveEnquiryLocally(newEnquiry);
+      setEnquiries(enquiryService.getStoredEnquiries());
+
+      const initMsg = {
+        id: `msg-${Date.now()}`,
+        sender: "customer",
+        text: `Hi ${targetShop?.name || 'Shopkeeper'}! Is "${product.name}" (Size: ${selectedSize || 'Standard'}) available in stock at your store? What's your best price?`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        enquiryId: code
+      };
+      setMessages(prev => [...prev, initMsg]);
+
+      triggerToast(`✓ Enquiry sent to ${targetShop?.name || 'merchant'}!`);
+      setActivePlatform("customer");
+      setActiveTab("chat");
+    });
+  };
+
   const handleSendCustomOffer = (offerObj) => {
     const newOfferMsg = {
       id: `msg-${Date.now()}`,
       sender: "shop",
-      text: `We can offer ${offerObj.productName} (Size ${offerObj.size}) for ₹${offerObj.price}!`,
+      text: `We have verified stock! Special store offer for you: ${offerObj.productName} (Size ${offerObj.size}) for ₹${offerObj.price}!`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       offer: offerObj
     };
     setMessages(prev => [...prev, newOfferMsg]);
+
+    // Update enquiry status so both merchant & customer see "Offer Received"
+    setEnquiries(prev => {
+      const updated = prev.map(e => {
+        if (e.productName === offerObj.productName || (offerObj.enquiryId && e.id === offerObj.enquiryId)) {
+          return {
+            ...e,
+            status: "Offer Received",
+            lastMessage: `Offer Sent: ₹${offerObj.price} (Size: ${offerObj.size})`
+          };
+        }
+        return e;
+      });
+      try {
+        localStorage.setItem('growlocal_enquiries', JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+
+    triggerToast(`✓ Custom offer of ₹${offerObj.price} broadcasted to customer!`);
   };
 
   const handleReserveProduct = (productToReserve, size) => {
@@ -770,19 +843,27 @@ export default function App() {
       const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
       const userPhone = currentUser?.phone || "+91 98765 43210";
       const code = `GL-R-${Math.floor(10000 + Math.random() * 90000)}`;
+      const agreedPrice = productToReserve.price !== undefined
+        ? (typeof productToReserve.price === 'number' ? `₹${productToReserve.price}` : productToReserve.price)
+        : "₹1,299";
+
+      const targetShop = shops.find(s => 
+        s.id === productToReserve.shopId || 
+        (productToReserve.shopName && s.name && s.name.toLowerCase().trim() === productToReserve.shopName.toLowerCase().trim())
+      ) || activeShop;
 
       const newRes = {
         id: code,
         reservationCode: code,
         customerName: userName,
         customerPhone: userPhone,
-        shopId: productToReserve.shopId || "shop-1",
-        shopName: productToReserve.shopName || "Trendy Wear",
-        shopAddress: "Shop #14, Main Market, Model Town, Butibori, Nagpur",
+        shopId: targetShop?.id || productToReserve.shopId || "shop-1",
+        shopName: targetShop?.name || productToReserve.shopName || "Trendy Wear",
+        shopAddress: targetShop?.address || "Main Market, Butibori, Nagpur",
         productName: productToReserve.name || productToReserve.productName,
-        productImage: productToReserve.images ? productToReserve.images[0] : productToReserve.productImage,
-        size: size || "L",
-        price: typeof productToReserve.price === 'number' ? `₹${productToReserve.price}` : productToReserve.price || "₹1,299",
+        productImage: productToReserve.images ? productToReserve.images[0] : (productToReserve.image || productToReserve.productImage || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80"),
+        size: size || productToReserve.size || "L",
+        price: agreedPrice,
         reservedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
         pickupTime: "Today by 7:00 PM",
         status: "Confirmed",
@@ -791,7 +872,22 @@ export default function App() {
 
       reservationService.saveReservationLocally(newRes);
       setReservations(reservationService.getStoredReservations());
-      triggerToast(`✓ Product reserved! Show QR code at ${newRes.shopName}`);
+
+      // Also update enquiry status to Completed
+      setEnquiries(prev => {
+        const updated = prev.map(e => {
+          if (e.productName === newRes.productName) {
+            return { ...e, status: "Completed", lastMessage: `Store visit reservation confirmed (${code})` };
+          }
+          return e;
+        });
+        try {
+          localStorage.setItem('growlocal_enquiries', JSON.stringify(updated));
+        } catch (_) {}
+        return updated;
+      });
+
+      triggerToast(`🎉 Product reserved! Show verification pass at ${newRes.shopName}`);
       if (typeof window !== 'undefined') window.history.pushState({}, '', '/reservations');
       setActivePlatform("customer");
       setActiveTab("reservations");
@@ -1649,7 +1745,8 @@ export default function App() {
                   <CustomerProductDetails
                     product={activeProduct}
                     onBack={() => setActiveTab("home")}
-                    onOpenChat={() => setActiveTab("chat")}
+                    onSelectShop={handleSelectShop}
+                    onOpenChat={handleStartProductEnquiry}
                     onReserveProduct={handleReserveProduct}
                     onBuyNow={handleOpenBuyNow}
                     onShowToast={triggerToast}
@@ -1690,6 +1787,7 @@ export default function App() {
                 {activeTab === "reservations" && (
                   <CustomerReservations
                     reservations={reservations}
+                    onNavigate={setActiveTab}
                     onShowToast={triggerToast}
                   />
                 )}
@@ -1704,6 +1802,23 @@ export default function App() {
                     reservationsCount={reservations.length}
                     currentUser={currentUser}
                     onLogOut={handleUserLogout}
+                    onShowToast={triggerToast}
+                  />
+                )}
+
+                {activeTab === "privacy" && (
+                  <CustomerPrivacySecurity
+                    onBack={() => setActiveTab("profile")}
+                    currentUser={currentUser}
+                    onShowToast={triggerToast}
+                  />
+                )}
+
+                {activeTab === "help" && (
+                  <CustomerHelpSupport
+                    onBack={() => setActiveTab("profile")}
+                    currentUser={currentUser}
+                    onShowToast={triggerToast}
                   />
                 )}
 
@@ -1796,8 +1911,9 @@ export default function App() {
                 <ul className="space-y-2 text-xs text-[#666666]">
                   <li><button onClick={() => setActivePlatform("landing")} className="hover:text-[#138A36]">About GrowLocal</button></li>
                   <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Vendor Terms & Conditions</button></li>
-                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Privacy Policy</button></li>
+                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("privacy"); }} className="hover:text-[#138A36]">Privacy Policy & Data Security</button></li>
                   <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("vendorTerms"); }} className="hover:text-[#138A36]">Terms of Service</button></li>
+                  <li><button onClick={() => { setActivePlatform("customer"); setActiveTab("help"); }} className="hover:text-[#138A36]">Help & Support Desk</button></li>
                 </ul>
               </div>
             </div>

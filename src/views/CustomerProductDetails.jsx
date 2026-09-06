@@ -5,6 +5,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 export default function CustomerProductDetails({ 
   product, 
   onBack, 
+  onSelectShop,
   onOpenChat, 
   onReserveProduct, 
   onBuyNow,
@@ -19,7 +20,7 @@ export default function CustomerProductDetails({
     <div className="max-w-4xl mx-auto px-4 py-6 pb-20 space-y-6">
       <button 
         onClick={onBack}
-        className="flex items-center gap-1.5 text-xs font-bold text-[#666666] hover:text-[#111111]"
+        className="flex items-center gap-1.5 text-xs font-bold text-[#666666] hover:text-[#111111] cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to results</span>
@@ -30,7 +31,7 @@ export default function CustomerProductDetails({
         <div className="space-y-4">
           <div className="relative h-80 md:h-96 w-full rounded-2xl overflow-hidden bg-gray-100 border border-[#E5E7E5]">
             <img src={selectedImage || product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-            <div className="absolute top-3 left-3 bg-[#138A36] text-white text-xs font-bold px-3 py-1 rounded-full">
+            <div className="absolute top-3 left-3 bg-[#138A36] text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
               {product.availability}
             </div>
           </div>
@@ -41,7 +42,7 @@ export default function CustomerProductDetails({
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(imgUrl)}
-                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
                     selectedImage === imgUrl ? "border-[#138A36]" : "border-[#E5E7E5] opacity-70"
                   }`}
                 >
@@ -55,10 +56,16 @@ export default function CustomerProductDetails({
         {/* Right: Info & Actions */}
         <div className="space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
-            {/* Shop Header Pill */}
-            <div className="bg-[#F7F8F7] p-3 rounded-2xl border border-[#E5E7E5] flex items-center justify-between">
+            {/* Clickable Shop Header Pill */}
+            <div 
+              onClick={() => onSelectShop && product.shopId ? onSelectShop(product.shopId) : null}
+              className={`bg-[#F7F8F7] p-3 rounded-2xl border border-[#E5E7E5] flex items-center justify-between transition-colors ${
+                onSelectShop ? 'hover:bg-[#EAF7EE] hover:border-[#138A36] cursor-pointer' : ''
+              }`}
+              title="Click to view shop profile"
+            >
               <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-[#111111]">{product.shopName}</span>
+                <span className="font-bold text-xs text-[#111111] hover:underline">{product.shopName}</span>
                 {product.shopVerified && <VerifiedBadge size="small" />}
               </div>
               <span className="text-xs text-[#138A36] font-semibold flex items-center gap-1">
@@ -131,7 +138,7 @@ export default function CustomerProductDetails({
             </button>
 
             <button
-              onClick={() => onOpenChat(product)}
+              onClick={() => onOpenChat && onOpenChat(product, selectedSize)}
               className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] font-bold text-sm py-3 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <MessageSquare className="w-4 h-4" />

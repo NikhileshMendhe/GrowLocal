@@ -1,5 +1,6 @@
-import React from 'react';
-import { User, MapPin, Bookmark, MessageSquare, ShoppingBag, Shield, Bell, HelpCircle, LogOut, Store, LogIn, Mail, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, MapPin, Bookmark, MessageSquare, ShoppingBag, Shield, Bell, HelpCircle, LogOut, Store, LogIn, Mail, CheckCircle, ChevronRight } from 'lucide-react';
+import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
 
 export default function CustomerProfile({ 
   onNavigate, 
@@ -9,8 +10,10 @@ export default function CustomerProfile({
   enquiriesCount,
   reservationsCount,
   currentUser,
-  onLogOut
+  onLogOut,
+  onShowToast
 }) {
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header Profile Card */}
@@ -120,6 +123,7 @@ export default function CustomerProfile({
             <Bookmark className="w-5 h-5 text-[#666666]" />
             <span>Saved Shops & Bookmarks</span>
           </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </button>
 
         <button 
@@ -130,6 +134,7 @@ export default function CustomerProfile({
             <MessageSquare className="w-5 h-5 text-[#666666]" />
             <span>My Inquiries & Offers</span>
           </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </button>
 
         <button 
@@ -140,26 +145,45 @@ export default function CustomerProfile({
             <ShoppingBag className="w-5 h-5 text-[#666666]" />
             <span>Store Visit Reservations</span>
           </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </button>
 
-        <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 text-[#111111] text-xs font-semibold">
+        <button 
+          onClick={() => setShowNotificationModal(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 text-[#111111] text-xs font-semibold cursor-pointer transition-colors"
+        >
           <div className="flex items-center gap-3">
             <Bell className="w-5 h-5 text-[#666666]" />
             <span>Notification Preferences</span>
           </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </button>
 
-        <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 text-[#111111] text-xs font-semibold">
+        <button 
+          onClick={() => onNavigate("privacy")}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 text-[#111111] text-xs font-semibold cursor-pointer transition-colors"
+        >
           <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-[#666666]" />
-            <span>Privacy & Security</span>
+            <Shield className="w-5 h-5 text-[#138A36]" />
+            <span className="text-[#111111] font-bold">Privacy & Security</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-extrabold text-[#138A36] bg-[#EAF7EE] px-2 py-0.5 rounded-full border border-[#DDF3E3]">Active</span>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
           </div>
         </button>
 
-        <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 text-[#111111] text-xs font-semibold">
+        <button 
+          onClick={() => onNavigate("help")}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 text-[#111111] text-xs font-semibold cursor-pointer transition-colors"
+        >
           <div className="flex items-center gap-3">
-            <HelpCircle className="w-5 h-5 text-[#666666]" />
-            <span>Help & Support</span>
+            <HelpCircle className="w-5 h-5 text-[#138A36]" />
+            <span className="text-[#111111] font-bold">Help & Support Desk</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Nagpur Support</span>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
           </div>
         </button>
 
@@ -181,6 +205,14 @@ export default function CustomerProfile({
           </button>
         )}
       </div>
+
+      {/* Notification Preferences Modal */}
+      <NotificationPreferencesModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 }
+

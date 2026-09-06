@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { 
   ArrowLeft, Heart, Share2, MessageSquare, Navigation, Bookmark, 
   Clock, Calendar, Tag, MapPin, ChevronDown, ChevronUp, Star, ShieldCheck, 
-  Lock, Store, Check, ExternalLink, Image as ImageIcon, QrCode, Copy, X 
+  Lock, Store, Check, ExternalLink, Image as ImageIcon, QrCode, Copy, X, Phone 
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import Rating from '../components/Rating';
@@ -25,6 +25,7 @@ export default function CustomerShopProfile({
   const [showMap, setShowMap] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   if (!shop) return null;
@@ -133,21 +134,38 @@ export default function CustomerShopProfile({
               <p className="text-xs text-[#666666] mt-1">{shop.address}</p>
             </div>
 
-            {/* Main Action Buttons */}
+            {/* Main Action Buttons: Enquire / Call / Directions / Save */}
             <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
               <button
                 onClick={() => onOpenChat(shop)}
-                className="flex-1 md:flex-initial bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs md:text-sm px-5 py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md"
+                className="flex-1 md:flex-initial bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs md:text-sm px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                title="Send Enquiry / Message"
               >
                 <MessageSquare className="w-4 h-4 fill-white" />
-                <span>Message Shop</span>
+                <span>Enquire / Message</span>
               </button>
+
+              <a
+                href={`tel:${shop.phone || '+917122548899'}`}
+                onClick={(e) => {
+                  if (typeof window !== 'undefined' && !window.matchMedia('(max-width: 768px)').matches) {
+                    e.preventDefault();
+                    setShowCallModal(true);
+                  }
+                }}
+                className="bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] font-bold text-xs md:text-sm px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-[#DDF3E3]"
+                title="Call Shopkeeper"
+              >
+                <Phone className="w-4 h-4" />
+                <span>Call</span>
+              </a>
 
               <button
                 onClick={() => setShowMap(!showMap)}
-                className="bg-[#EAF7EE] hover:bg-[#DDF3E3] text-[#138A36] font-bold text-xs md:text-sm px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                className="bg-[#F7F8F7] hover:bg-gray-100 text-[#111111] font-bold text-xs md:text-sm px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-[#E5E7E5]"
+                title="View Directions on Map"
               >
-                <Navigation className="w-4 h-4" />
+                <Navigation className="w-4 h-4 text-[#138A36]" />
                 <span>{showMap ? "Hide Map" : "Directions"}</span>
               </button>
 
@@ -156,10 +174,10 @@ export default function CustomerShopProfile({
                   onToggleSave(shop.id);
                   onShowToast(isSaved ? "Shop removed from saved list" : "Shop saved!");
                 }}
-                className={`p-3 rounded-xl border transition-colors ${
+                className={`p-3 rounded-xl border transition-colors cursor-pointer ${
                   isSaved ? "bg-[#138A36] text-white border-[#138A36]" : "bg-white text-[#111111] border-[#E5E7E5] hover:bg-gray-50"
                 }`}
-                title="Save Shop"
+                title={isSaved ? "Saved" : "Save Shop"}
               >
                 <Bookmark className={`w-4 h-4 ${isSaved ? "fill-white" : ""}`} />
               </button>
@@ -170,6 +188,62 @@ export default function CustomerShopProfile({
           {showMap && (
             <div className="pt-3 animate-in fade-in duration-200">
               <MapPlaceholder shopName={shop.name} address={shop.address} distance={shop.distance} />
+              <div className="mt-2 text-right">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.name + ' ' + (shop.address || 'Nagpur'))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#138A36] hover:underline"
+                >
+                  <span>Open in Google Maps</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Call Modal for Desktop */}
+          {showCallModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 border border-[#E5E7E5] shadow-2xl relative animate-in zoom-in-95 duration-150">
+                <button
+                  onClick={() => setShowCallModal(false)}
+                  className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="w-12 h-12 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center mx-auto">
+                  <Phone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#111111]">{shop.name}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Verified Nagpur Merchant Contact</p>
+                  <p className="text-lg font-mono font-black text-[#138A36] mt-2">
+                    {shop.phone || '+91 712 254 8899'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">Available during store hours: {shop.openHours || '10:00 AM – 9:00 PM'}</p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <a
+                    href={`tel:${shop.phone || '+917122548899'}`}
+                    className="flex-1 py-2.5 px-4 bg-[#138A36] hover:bg-[#0F752C] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Dial Number</span>
+                  </a>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(shop.phone || '+91 712 254 8899');
+                      if (onShowToast) onShowToast('📋 Phone number copied!');
+                      setShowCallModal(false);
+                    }}
+                    className="flex-1 py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -1,17 +1,45 @@
 import React from 'react';
-import { ShoppingBag, MapPin, Clock, CheckCircle2, Navigation, QrCode } from 'lucide-react';
+import { ShoppingBag, MapPin, Clock, CheckCircle2, Navigation, QrCode, ArrowRight, Sparkles } from 'lucide-react';
 import MapPlaceholder from '../components/MapPlaceholder';
 
-export default function CustomerReservations({ reservations, onShowToast }) {
+export default function CustomerReservations({ reservations = [], onNavigate, onShowToast }) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-[#111111] font-poppins">My Product Reservations</h1>
-        <p className="text-xs text-[#666666]">Reserved items held for pickup at Nagpur local stores</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-[#111111] font-poppins">My Product Reservations</h1>
+          <p className="text-xs text-[#666666]">Reserved items held for pickup at Nagpur local stores</p>
+        </div>
+        {reservations.length > 0 && (
+          <span className="bg-[#EAF7EE] text-[#138A36] text-xs font-bold px-3 py-1 rounded-full border border-[#DDF3E3]">
+            {reservations.length} Active
+          </span>
+        )}
       </div>
 
-      <div className="space-y-6">
-        {reservations.map((res) => (
+      {reservations.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-[#E5E7E5] p-8 text-center space-y-4 card-shadow">
+          <div className="w-16 h-16 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center mx-auto">
+            <ShoppingBag className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-[#111111]">No Active Reservations</h3>
+            <p className="text-xs text-[#666666] max-w-sm mx-auto mt-1">
+              Reserve products from verified shops near you, try or inspect in person, and pay offline at the counter.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigate ? onNavigate('searchResults') : null}
+            className="bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs px-6 py-3 rounded-xl transition-all shadow-md inline-flex items-center gap-2 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Discover Products Nearby</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {reservations.map((res) => (
           <div key={res.id} className="bg-white rounded-3xl border border-[#E5E7E5] p-5 md:p-6 card-shadow space-y-5">
             {/* Header Status */}
             <div className="flex items-center justify-between border-b border-[#E5E7E5] pb-4">
@@ -72,6 +100,7 @@ export default function CustomerReservations({ reservations, onShowToast }) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

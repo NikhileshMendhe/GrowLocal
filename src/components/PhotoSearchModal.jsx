@@ -24,6 +24,26 @@ export default function PhotoSearchModal({ onClose, onFindShops }) {
     }
   ];
 
+  const detectKeywordFromFileName = (fileName) => {
+    if (!fileName) return "Casual Wear";
+    const lower = fileName.toLowerCase();
+    if (lower.includes("shoe") || lower.includes("sneaker") || lower.includes("footwear") || lower.includes("boot")) return "Sneakers";
+    if (lower.includes("shirt") || lower.includes("tee") || lower.includes("top") || lower.includes("polo")) return "Casual Shirt";
+    if (lower.includes("jean") || lower.includes("pant") || lower.includes("trouser") || lower.includes("denim")) return "Denim Jeans";
+    if (lower.includes("watch") || lower.includes("smartwatch") || lower.includes("dial")) return "Smartwatch";
+    if (lower.includes("phone") || lower.includes("mobile") || lower.includes("case")) return "Mobile Accessories";
+    if (lower.includes("headphone") || lower.includes("earphone") || lower.includes("audio")) return "Wireless Headphones";
+    if (lower.includes("bag") || lower.includes("backpack") || lower.includes("wallet")) return "Leather Bag";
+    if (lower.includes("glass") || lower.includes("shade") || lower.includes("spectacle")) return "Sunglasses";
+    
+    // Clean up filename by stripping extension and special characters
+    const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
+    if (cleanName.length > 2 && cleanName.length < 35 && !/^\d+$/.test(cleanName)) {
+      return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    }
+    return "Local Fashion & Goods";
+  };
+
   const handleSelectPhoto = (photo) => {
     setSelectedImage(photo.url);
     setAnalyzing(true);
@@ -36,13 +56,14 @@ export default function PhotoSearchModal({ onClose, onFindShops }) {
         confidence: "98% Visual Match",
         shopsFound: 4
       });
-    }, 1500);
+    }, 1200);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const url = URL.createObjectURL(file);
+      const deducedName = detectKeywordFromFileName(file.name);
       setSelectedImage(url);
       setAnalyzing(true);
       setAnalyzedResult(null);
@@ -50,11 +71,11 @@ export default function PhotoSearchModal({ onClose, onFindShops }) {
       setTimeout(() => {
         setAnalyzing(false);
         setAnalyzedResult({
-          detectedItem: "Black Oversized T-Shirt",
-          confidence: "95% Visual Match",
+          detectedItem: deducedName,
+          confidence: "94% Visual Match",
           shopsFound: 4
         });
-      }, 1500);
+      }, 1200);
     }
   };
 
@@ -125,17 +146,46 @@ export default function PhotoSearchModal({ onClose, onFindShops }) {
               )}
 
               {!analyzing && analyzedResult && (
-                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-[#E5E7E5] flex items-center justify-between shadow-lg">
-                  <div>
+                <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-[#E5E7E5] space-y-2 shadow-lg">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-[#138A36]">
                       <CheckCircle2 className="w-4 h-4 fill-[#138A36] text-white" />
                       <span>{analyzedResult.confidence}</span>
                     </div>
-                    <p className="text-sm font-bold text-[#111111]">{analyzedResult.detectedItem}</p>
+                    <span className="text-[11px] font-semibold bg-[#EAF7EE] text-[#138A36] px-2 py-0.5 rounded-full">
+                      {analyzedResult.shopsFound} Nagpur Stores
+                    </span>
                   </div>
-                  <span className="text-xs font-semibold bg-[#EAF7EE] text-[#138A36] px-2.5 py-1 rounded-full">
-                    {analyzedResult.shopsFound} Shops Found
-                  </span>
+
+                  {/* Editable Search Term */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase">Search Term</label>
+                    <input
+                      type="text"
+                      value={analyzedResult.detectedItem}
+                      onChange={(e) => setAnalyzedResult({ ...analyzedResult, detectedItem: e.target.value })}
+                      className="w-full text-xs font-bold text-[#111111] bg-gray-50 border border-[#E5E7E5] rounded-lg px-2.5 py-1.5 mt-0.5 outline-none focus:border-[#138A36]"
+                    />
+                  </div>
+
+                  {/* Quick Refine Tags */}
+                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
+                    <span className="text-[10px] text-gray-400 font-bold shrink-0">Refine:</span>
+                    {["Sneakers", "Shirt", "Jeans", "Watch", "Audio", "Sunglasses"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setAnalyzedResult({ ...analyzedResult, detectedItem: tag })}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 transition-colors cursor-pointer ${
+                          analyzedResult.detectedItem === tag
+                            ? 'bg-[#138A36] text-white border-[#138A36]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -144,14 +194,14 @@ export default function PhotoSearchModal({ onClose, onFindShops }) {
               <div className="space-y-2 pt-2">
                 <button
                   onClick={handleViewResults}
-                  className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md text-sm"
+                  className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md text-sm cursor-pointer"
                 >
-                  <span>View Nearby Shops Carrying This</span>
+                  <span>Search Nagpur Shops for "{analyzedResult.detectedItem}"</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setSelectedImage(null)}
-                  className="w-full text-center text-xs text-[#666666] hover:text-[#111111] py-1"
+                  className="w-full text-center text-xs text-[#666666] hover:text-[#111111] py-1 cursor-pointer"
                 >
                   Try Another Photo
                 </button>

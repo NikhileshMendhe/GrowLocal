@@ -28,6 +28,9 @@ export default function CustomerSearchResults({
   // Advanced Filters State
   const [priceRange, setPriceRange] = useState('all'); // 'all' | 'under500' | '500-1000' | '1000-2000' | '2000plus'
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [openNow, setOpenNow] = useState(false);
+  const [selectedRadius, setSelectedRadius] = useState('all'); // 'all' | '1' | '3' | '5' | '10'
   const [selectedSize, setSelectedSize] = useState('all');
   const [sortBy, setSortBy] = useState('relevance'); // 'relevance' | 'price_low' | 'price_high'
   const [shopFilterOpenNow, setShopFilterOpenNow] = useState(false);
@@ -38,17 +41,39 @@ export default function CustomerSearchResults({
   const categoryIntent = detectCategoryIntent(searchQuery);
 
   // Execute advanced product search engine
-  const matchedProducts = advancedProductSearch(products, searchQuery, {
+  const baseMatchedProducts = advancedProductSearch(products, searchQuery, {
     priceRange,
     inStockOnly,
     selectedSize,
     sortBy
   });
 
+  // Apply distance, verified shop, and open now filters
+  const matchedProducts = baseMatchedProducts.filter(p => {
+    if (selectedRadius !== 'all') {
+      const distNum = parseFloat(p.shopDistance) || 1.0;
+      if (distNum > parseFloat(selectedRadius)) return false;
+    }
+    if (verifiedOnly) {
+      const shopObj = shops.find(s => s.id === p.shopId || s.name === p.shopName);
+      if (!p.shopVerified && !shopObj?.verified) return false;
+    }
+    if (openNow) {
+      const shopObj = shops.find(s => s.id === p.shopId || s.name === p.shopName);
+      if (shopObj && shopObj.status !== 'Open') return false;
+    }
+    return true;
+  });
+
   // Get shops carrying matching products
   const matchedShops = getMatchingShopsForSearch(shops, matchedProducts, searchQuery).filter(shop => {
-    if (shopFilterOpenNow && shop.status !== 'Open') return false;
+    if ((openNow || shopFilterOpenNow) && shop.status !== 'Open') return false;
     if (shopFilterRating && shop.rating < 4.5) return false;
+    if (verifiedOnly && !shop.verified) return false;
+    if (selectedRadius !== 'all') {
+      const distNum = parseFloat(shop.distance) || 1.0;
+      if (distNum > parseFloat(selectedRadius)) return false;
+    }
     return true;
   });
 
@@ -220,6 +245,60 @@ export default function CustomerSearchResults({
           Quick Filters:
         </span>
 
+        {/* Distance Radius Pills */}
+        <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-[#E5E7E5]">
+          <span className="text-[10px] font-bold text-[#888888] pl-2 flex items-center gap-1">
+            <MapPin className="w-3 h-3 text-[#138A36]" /> Radius:
+          </span>
+          {[
+            { label: 'All', val: 'all' },
+            { label: '1 km', val: '1' },
+            { label: '3 km', val: '3' },
+            { label: '5 km', val: '5' },
+            { label: '10 km', val: '10' }
+          ].map((item) => (
+            <button
+              key={item.val}
+              onClick={() => setSelectedRadius(item.val)}
+              className={`text-[11px] font-bold px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                selectedRadius === item.val
+                  ? 'bg-[#138A36] text-white shadow-2xs'
+                  : 'text-[#555555] hover:text-[#111111] hover:bg-gray-100'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Verified Shop Only Toggle */}
+        <button
+          onClick={() => setVerifiedOnly(!verifiedOnly)}
+          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+            verifiedOnly
+              ? 'bg-[#138A36] text-white border-[#138A36] shadow-xs'
+              : 'bg-white text-[#111111] border-[#E5E7E5] hover:border-[#138A36]'
+          }`}
+          title="Filter verified shops only"
+        >
+          <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
+          <span>Verified Only</span>
+        </button>
+
+        {/* Open Now Toggle */}
+        <button
+          onClick={() => setOpenNow(!openNow)}
+          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+            openNow
+              ? 'bg-[#138A36] text-white border-[#138A36] shadow-xs'
+              : 'bg-white text-[#111111] border-[#E5E7E5] hover:border-[#138A36]'
+          }`}
+          title="Shops open right now"
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>Open Now</span>
+        </button>
+
         {/* In-Stock Toggle */}
         <button
           onClick={() => setInStockOnly(!inStockOnly)}
@@ -283,11 +362,14 @@ export default function CustomerSearchResults({
         )}
 
         {/* Reset Filters */}
-        {(priceRange !== 'all' || inStockOnly || selectedSize !== 'all' || sortBy !== 'relevance') && (
+        {(priceRange !== 'all' || inStockOnly || verifiedOnly || openNow || selectedRadius !== 'all' || selectedSize !== 'all' || sortBy !== 'relevance') && (
           <button
             onClick={() => {
               setPriceRange('all');
               setInStockOnly(false);
+              setVerifiedOnly(false);
+              setOpenNow(false);
+              setSelectedRadius('all');
               setSelectedSize('all');
               setSortBy('relevance');
             }}
