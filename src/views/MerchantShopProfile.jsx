@@ -5,7 +5,7 @@ import {
   Store, MapPin, Clock, Phone, Save, Eye, Share2, QrCode,
   CheckCircle2, Star, Sparkles, Package, ExternalLink, Camera,
   ArrowRight, ShieldCheck, Copy, Check, MessageSquare, Tag,
-  ShoppingBag, Award, ChevronRight, X, Heart, Globe, Download
+  ShoppingBag, Award, ChevronRight, X, Heart, Globe, Download, Edit3
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -33,7 +33,15 @@ export default function MerchantShopProfile({
   const currentShop = shop || {};
   const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'products' | 'edit'
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Operating Status State (Open / Closed)
+  const [isOpen, setIsOpen] = useState(() => {
+    if (currentShop.status !== undefined) return currentShop.status === "Open";
+    if (currentShop.isOpen !== undefined) return Boolean(currentShop.isOpen);
+    return true;
+  });
 
   // Form State
   const [name, setName] = useState(currentShop.name || 'My Store');
@@ -73,6 +81,39 @@ export default function MerchantShopProfile({
     reader.readAsDataURL(file);
   };
 
+  const handleToggleOperatingStatus = async () => {
+    const nextIsOpen = !isOpen;
+    setIsOpen(nextIsOpen);
+    const nextStatus = nextIsOpen ? "Open" : "Closed";
+
+    const updated = {
+      ...currentShop,
+      name,
+      category,
+      address,
+      city,
+      phone,
+      openHours: hours,
+      openDays,
+      about,
+      coverImage,
+      logoImage,
+      priceRange,
+      status: nextStatus,
+      isOpen: nextIsOpen
+    };
+
+    if (onSaveShop) {
+      await onSaveShop(updated);
+    }
+    if (onShowToast) {
+      onShowToast(nextIsOpen 
+        ? "🟢 Store marked OPEN! Nearby Nagpur customers see you as Open Now." 
+        : "🔴 Store marked CLOSED. Walk-in and pickup status updated on marketplace."
+      );
+    }
+  };
+
   const handleSave = async (e) => {
     e?.preventDefault();
     const updated = {
@@ -88,6 +129,8 @@ export default function MerchantShopProfile({
       coverImage,
       logoImage,
       priceRange,
+      status: isOpen ? "Open" : "Closed",
+      isOpen
     };
 
     if (onSaveShop) {
@@ -96,6 +139,7 @@ export default function MerchantShopProfile({
     if (onShowToast) {
       onShowToast("✓ Your Shop details saved & synchronized in realtime!");
     }
+    setShowEditModal(false);
     setActiveSubTab('overview');
   };
 
@@ -190,15 +234,35 @@ export default function MerchantShopProfile({
             </button>
           )}
 
+          {/* Operating Status Quick Switch in Header */}
           <button
-            onClick={() => setActiveSubTab(activeSubTab === 'edit' ? 'overview' : 'edit')}
-            className={`px-4 py-2 font-black text-xs rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-xs ${
-              activeSubTab === 'edit'
-                ? 'bg-gray-900 text-white'
-                : 'bg-[#138A36] hover:bg-[#0F752C] text-white'
+            type="button"
+            onClick={handleToggleOperatingStatus}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs border ${
+              isOpen
+                ? 'bg-[#EAF7EE] text-[#138A36] border-[#CDEED5] hover:bg-[#DDF3E3]'
+                : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
             }`}
+            title="Click to toggle store Operating Status ON / OFF"
           >
-            <span>{activeSubTab === 'edit' ? 'Close Editor' : '✏️ Edit Shop'}</span>
+            <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-emerald-500 animate-ping' : 'bg-rose-500'}`} />
+            <span>{isOpen ? 'Status: OPEN' : 'Status: CLOSED'}</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+              isOpen ? 'bg-[#138A36] text-white' : 'bg-rose-600 text-white'
+            }`}>
+              {isOpen ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
+          {/* Prominent Edit Your Shop Button */}
+          <button
+            type="button"
+            onClick={() => setShowEditModal(true)}
+            className="px-4 py-2 bg-[#138A36] hover:bg-[#0F752C] text-white font-black text-xs rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Edit store details, address, hours and branding"
+          >
+            <Edit3 className="w-4 h-4" />
+            <span>Edit Your Shop</span>
           </button>
         </div>
       </div>
@@ -271,14 +335,48 @@ export default function MerchantShopProfile({
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
 
-              {/* Cover Photo Change Trigger */}
-              <button
-                onClick={() => fileCoverRef.current?.click()}
-                className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 shadow-md cursor-pointer"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{coverImage ? 'Change Cover Photo' : 'Upload Cover Photo'}</span>
-              </button>
+              {/* Controls inside top-right banner */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-10 flex-wrap">
+                {/* Operating Status Quick Pill */}
+                <button
+                  type="button"
+                  onClick={handleToggleOperatingStatus}
+                  className={`backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all border shadow-md cursor-pointer ${
+                    isOpen 
+                      ? 'bg-emerald-600/85 hover:bg-emerald-700 text-white border-emerald-400/40' 
+                      : 'bg-rose-600/85 hover:bg-rose-700 text-white border-rose-400/40'
+                  }`}
+                  title="Click to toggle store operating status ON/OFF"
+                >
+                  <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-white animate-pulse' : 'bg-white/80'}`} />
+                  <span>{isOpen ? 'Store: OPEN' : 'Store: CLOSED'}</span>
+                  <span className="text-[9px] bg-white/25 px-1.5 py-0.2 rounded font-black uppercase">
+                    {isOpen ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+
+                {/* Edit Your Shop Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(true)}
+                  className="bg-[#138A36]/90 hover:bg-[#0F752C] text-white backdrop-blur-md px-3.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors border border-white/20 shadow-md cursor-pointer"
+                  title="Edit store details, address, hours and branding"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Edit Your Shop</span>
+                  <span className="sm:hidden">Edit</span>
+                </button>
+
+                {/* Cover Photo Change Trigger */}
+                <button
+                  type="button"
+                  onClick={() => fileCoverRef.current?.click()}
+                  className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 shadow-md cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{coverImage ? 'Change Cover' : 'Upload Cover'}</span>
+                </button>
+              </div>
               <input
                 type="file"
                 ref={fileCoverRef}
@@ -375,19 +473,70 @@ export default function MerchantShopProfile({
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Store Catalog</p>
                 <p className="text-lg sm:text-xl font-black text-[#111111]">{storeProducts.length} Item{storeProducts.length !== 1 ? 's' : ''} Listed</p>
               </div>
-              <div className="p-2">
-                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Operating Status</p>
-                <p className="text-lg sm:text-xl font-black text-[#138A36] flex items-center justify-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  {hours ? 'Open Today' : 'Hours Not Set'}
+              {/* OPERATING STATUS WITH ON / OFF TOGGLE SWITCH */}
+              <div className="p-2 flex flex-col items-center justify-center">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Operating Status</p>
+                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded-md ${
+                    isOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'
+                  }`}>
+                    {isOpen ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isOpen}
+                    onClick={handleToggleOperatingStatus}
+                    className={`relative inline-flex h-6 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isOpen ? 'bg-[#138A36]' : 'bg-gray-300'
+                    }`}
+                    title={isOpen ? "Click to set store status to OFF (Closed)" : "Click to set store status to ON (Open)"}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out flex items-center justify-center text-[9px] font-bold ${
+                        isOpen ? 'translate-x-6 text-[#138A36]' : 'translate-x-0 text-gray-400'
+                      }`}
+                    >
+                      {isOpen ? '✓' : '✕'}
+                    </span>
+                  </button>
+
+                  <p className={`text-base sm:text-lg font-black flex items-center gap-1.5 leading-none ${
+                    isOpen ? 'text-[#138A36]' : 'text-rose-600'
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-emerald-500 animate-ping' : 'bg-rose-500'}`} />
+                    {isOpen ? 'Open Today' : 'Closed'}
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-400 font-medium mt-1">
+                  Toggle status ON / OFF
                 </p>
               </div>
-              <div className="p-2">
-                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Estimated Price</p>
-                <p className="text-lg sm:text-xl font-black text-[#111111]">
-                  {priceRange || (storeProducts.length > 0 ? `₹${Math.min(...storeProducts.map(p => Number(p.price) || 0))} – ₹${Math.max(...storeProducts.map(p => Number(p.price) || 0))}` : '—')}
+
+              {/* ESTIMATED PRICE WITH EDIT TRIGGER */}
+              <div 
+                onClick={() => setShowEditModal(true)}
+                className="p-2 cursor-pointer hover:bg-gray-50 rounded-2xl transition-colors group"
+                title="Click to edit store price range"
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Estimated Price</p>
+                  <Edit3 className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <p className="text-lg sm:text-xl font-black text-[#111111] group-hover:text-[#138A36] transition-colors">
+                  {priceRange && priceRange !== '₹299 – ₹9,999' 
+                    ? priceRange 
+                    : (storeProducts.length > 0 
+                        ? `₹${Math.min(...storeProducts.map(p => Number(p.price) || 0))} – ₹${Math.max(...storeProducts.map(p => Number(p.price) || 0))}` 
+                        : '—')}
                 </p>
+                <span className="text-[10px] text-gray-400 font-medium group-hover:text-[#138A36]">Click to set</span>
               </div>
+
               <div className="p-2">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Customer Trust</p>
                 <p className={`text-lg sm:text-xl font-black ${currentShop.verified ? 'text-[#138A36]' : 'text-amber-600'}`}>
@@ -411,10 +560,11 @@ export default function MerchantShopProfile({
                     About Your Store
                   </h3>
                   <button
-                    onClick={() => setActiveSubTab('edit')}
-                    className="text-xs font-bold text-[#138A36] hover:underline cursor-pointer"
+                    onClick={() => setShowEditModal(true)}
+                    className="text-xs font-bold text-[#138A36] hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    Edit Story
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit Story</span>
                   </button>
                 </div>
                 <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
@@ -444,10 +594,19 @@ export default function MerchantShopProfile({
 
               {/* Location & Contact Information */}
               <div className="bg-white rounded-3xl border border-[#E5E7E5] p-5 sm:p-6 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-[#111111] uppercase tracking-wider flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#138A36]" />
-                  Location & Contact Details
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-[#111111] uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#138A36]" />
+                    Location & Contact Details
+                  </h3>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="text-xs font-bold text-[#138A36] hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit Details</span>
+                  </button>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200">
@@ -933,6 +1092,241 @@ export default function MerchantShopProfile({
                 <span>Download QR Code Poster</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT YOUR SHOP POPUP MODAL ───────────────────────── */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 border border-gray-200 shadow-2xl relative my-auto font-sans animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-[#111111] font-poppins">
+                    Edit Your Shop
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Update store information, hours, address, and branding
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Form */}
+            <form onSubmit={handleSave} className="overflow-y-auto py-4 space-y-5 flex-1 pr-1 text-xs">
+              
+              {/* Operating Status Switch in Modal */}
+              <div className="p-4 bg-[#F8FAF8] rounded-2xl border border-[#E5E7E5] flex items-center justify-between">
+                <div>
+                  <p className="font-black text-sm text-[#111111]">Store Operating Status</p>
+                  <p className="text-xs text-gray-500">
+                    {isOpen 
+                      ? 'Store is OPEN. Local buyers see your store as Open Now.' 
+                      : 'Store is CLOSED. Customers see that walk-ins are closed.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-black uppercase ${isOpen ? 'text-[#138A36]' : 'text-rose-600'}`}>
+                    {isOpen ? 'OPEN' : 'CLOSED'}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isOpen}
+                    onClick={() => setIsOpen(!isOpen)}
+                    className={`relative inline-flex h-6 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isOpen ? 'bg-[#138A36]' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out flex items-center justify-center text-[9px] font-bold ${
+                        isOpen ? 'translate-x-6 text-[#138A36]' : 'translate-x-0 text-gray-400'
+                      }`}
+                    >
+                      {isOpen ? '✓' : '✕'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Shop Name */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Shop Business Name *</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Trends Footwear"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                    required
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Business Category *</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Address */}
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-[#111111] mb-1">Store Address (Nagpur) *</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Shop No., Market, Landmark, Sitabuldi / Dharampeth / Sadar"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                    required
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Contact Phone / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98230 12345"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                  />
+                </div>
+
+                {/* Price Range */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Price Range</label>
+                  <input
+                    type="text"
+                    value={priceRange}
+                    onChange={(e) => setPriceRange(e.target.value)}
+                    placeholder="e.g. ₹499 – ₹2,999 (leave blank for automatic)"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                  />
+                </div>
+
+                {/* Hours */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Operating Hours</label>
+                  <input
+                    type="text"
+                    value={hours}
+                    onChange={(e) => setHours(e.target.value)}
+                    placeholder="10:00 AM – 9:00 PM"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                  />
+                </div>
+
+                {/* Open Days */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Open Days</label>
+                  <input
+                    type="text"
+                    value={openDays}
+                    onChange={(e) => setOpenDays(e.target.value)}
+                    placeholder="Mon – Sun (or Mon – Sat)"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                  />
+                </div>
+
+                {/* Cover Image */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Cover Photo URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={coverImage}
+                      onChange={(e) => setCoverImage(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileCoverRef.current?.click()}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs shrink-0 cursor-pointer"
+                    >
+                      Upload
+                    </button>
+                  </div>
+                </div>
+
+                {/* Logo Image */}
+                <div>
+                  <label className="block font-bold text-[#111111] mb-1">Store Logo / Avatar URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={logoImage}
+                      onChange={(e) => setLogoImage(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileLogoRef.current?.click()}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs shrink-0 cursor-pointer"
+                    >
+                      Upload
+                    </button>
+                  </div>
+                </div>
+
+                {/* About Story */}
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-[#111111] mb-1">About Your Store Story</label>
+                  <textarea
+                    rows={3}
+                    value={about}
+                    onChange={(e) => setAbout(e.target.value)}
+                    placeholder="Tell local Nagpur customers what makes your store special, products offered, and quality guarantees..."
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#138A36] focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#138A36] hover:bg-[#0F752C] text-white font-black rounded-xl text-xs transition-colors shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

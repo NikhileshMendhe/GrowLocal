@@ -179,10 +179,10 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
       rating: 0,
       reviewsCount: 0,
       distance: '0.5 km away',
-      priceRange: priceMin && priceMax ? `₹${priceMin} – ₹${priceMax}` : '₹299 – ₹9,999',
-      coverImage: coverImageUrl || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
-      logoImage: coverImageUrl || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80',
-      photos: [coverImageUrl || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80'],
+      priceRange: priceMin && priceMax ? `₹${priceMin} – ₹${priceMax}` : '',
+      coverImage: coverImageUrl || '',
+      logoImage: coverImageUrl || '',
+      photos: coverImageUrl ? [coverImageUrl] : [],
     };
     try {
       const existing = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
