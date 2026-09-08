@@ -117,30 +117,6 @@ export default function MerchantLayout({
               <ArrowUpRight className="w-3 h-3 text-gray-400" />
             </button>
 
-            {/* Store Information on Tablet/Desktop */}
-            <div className="hidden sm:flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl shrink-0">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#EAF7EE] flex items-center justify-center text-[#138A36] shrink-0 font-bold text-xs">
-                🏪
-              </div>
-              <div className="text-left max-w-[110px] md:max-w-[150px] truncate">
-                <p className="text-xs font-bold text-[#111111] truncate">{shopName}</p>
-                <p className="text-[10px] text-gray-500 truncate">{userEmail || 'Active Store'}</p>
-              </div>
-              {isVerified && <VerifiedBadge text="Verified" />}
-            </div>
-
-            {/* Mobile Store Chip: Clean, compact store pill */}
-            <div 
-              onClick={() => setMobileNavOpen(true)}
-              className="sm:hidden flex items-center gap-1.5 px-2 py-1 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl cursor-pointer"
-              title={shopName}
-            >
-              <span className="text-xs">🏪</span>
-              <span className="text-[11px] font-bold text-gray-800 max-w-[80px] truncate">{shopName}</span>
-              {isVerified && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[#138A36] shrink-0" />
-              )}
-            </div>
 
             {/* Add Shop quick trigger (hidden once shop is listed) */}
             {onAddShop && !hasListedShop && (
