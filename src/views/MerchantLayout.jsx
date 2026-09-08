@@ -24,25 +24,17 @@ export default function MerchantLayout({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const currentShop = shops?.find(s => 
-    (currentUser?.id && s.merchantId === currentUser?.id) ||
-    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
-  ) || shops?.[0] || {
-    name: merchantProfile?.businessName || currentUser?.shopName || 'My Store',
-    category: 'Local Retail',
-    verified: true
-  };
+    (currentUser?.id && (s.merchantId === currentUser.id || s.id === currentUser.id)) ||
+    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.shopId && s.id === currentUser.shopId)
+  ) || null;
 
-  const hasListedShop = Boolean(
-    shops?.some(s => 
-      (currentUser?.id && s.merchantId === currentUser?.id) ||
-      (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
-    )
-  );
+  const hasListedShop = Boolean(currentShop);
 
-  const shopName = currentShop.name || merchantProfile?.businessName || currentUser?.shopName || 'My Store';
+  const shopName = currentShop?.name || merchantProfile?.businessName || currentUser?.shopName || (currentUser?.name ? `${currentUser.name}'s Store` : 'My Store');
   const ownerName = merchantProfile?.ownerName || currentUser?.name || 'Store Manager';
   const userEmail = currentUser?.email || merchantProfile?.email || 'merchant@growlocal.in';
-  const isVerified = merchantProfile?.verificationStatus === 'approved' || merchantProfile?.verified || currentShop.verified;
+  const isVerified = merchantProfile?.verificationStatus === 'approved' || merchantProfile?.verified || Boolean(currentShop?.verified);
 
   const pendingEnquiriesCount = enquiries?.filter(e =>
     e.status === 'Pending' || e.status === 'pending' || e.status === 'Pending Quotes'

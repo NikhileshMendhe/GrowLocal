@@ -1,7 +1,13 @@
 import React from 'react';
 import { TrendingUp, Users, ShoppingBag, Eye, DollarSign, Sparkles, MapPin } from 'lucide-react';
 
-export default function MerchantAnalytics({ stats }) {
+export default function MerchantAnalytics({ stats, enquiries = [], reservations = [] }) {
+  const enquiriesCount = enquiries?.length !== undefined ? enquiries.length : (stats?.enquiriesCount ?? stats?.todayEnquiries ?? 0);
+  const offersCount = stats?.offersSent ?? 0;
+  const reservationsCount = reservations?.length !== undefined ? reservations.length : (stats?.reservations ?? 0);
+  const visitsCount = stats?.visits ?? 0;
+  const searchesCount = enquiriesCount > 0 ? (enquiriesCount * 12) : 0;
+
   return (
     <div className="space-y-6 pb-12">
       {/* Banner */}
@@ -19,27 +25,27 @@ export default function MerchantAnalytics({ stats }) {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-center">
         <div className="bg-white p-4 rounded-2xl border border-[#E5E7E5] space-y-1">
           <p className="text-[11px] font-bold text-[#666666] uppercase">1. Customer Searches</p>
-          <p className="text-xl font-black text-[#111111]">1,420</p>
-          <span className="text-[10px] text-[#138A36]">In Butibori Radius</span>
+          <p className="text-xl font-black text-[#111111]">{searchesCount.toLocaleString()}</p>
+          <span className="text-[10px] text-[#138A36]">In Local Radius</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-[#E5E7E5] space-y-1">
           <p className="text-[11px] font-bold text-[#666666] uppercase">2. Direct Enquiries</p>
-          <p className="text-xl font-black text-blue-600">124</p>
+          <p className="text-xl font-black text-blue-600">{enquiriesCount}</p>
           <span className="text-[10px] text-blue-700">Stock Availability</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-[#E5E7E5] space-y-1">
           <p className="text-[11px] font-bold text-[#666666] uppercase">3. Offers Sent</p>
-          <p className="text-xl font-black text-[#138A36]">98</p>
+          <p className="text-xl font-black text-[#138A36]">{offersCount}</p>
           <span className="text-[10px] text-[#138A36]">Custom Price Quotes</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-[#E5E7E5] space-y-1">
           <p className="text-[11px] font-bold text-[#666666] uppercase">4. Reservations</p>
-          <p className="text-xl font-black text-amber-600">42</p>
+          <p className="text-xl font-black text-amber-600">{reservationsCount}</p>
           <span className="text-[10px] text-amber-700">Held at Store</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-[#E5E7E5] space-y-1 bg-[#EAF7EE]">
           <p className="text-[11px] font-bold text-[#138A36] uppercase">5. Store Visits</p>
-          <p className="text-xl font-black text-[#138A36]">34</p>
+          <p className="text-xl font-black text-[#138A36]">{visitsCount}</p>
           <span className="text-[10px] font-bold text-[#138A36]">Completed Sales</span>
         </div>
       </div>

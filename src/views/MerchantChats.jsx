@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
-import { Search, Send, Tag, Plus, CheckCircle2, ShoppingBag, Sparkles } from 'lucide-react';
+import { Search, Send, Tag, Plus, CheckCircle2, ShoppingBag, Sparkles, MessageSquare } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 
-export default function MerchantChats({ enquiries, messages, onSendMessage, onSendCustomOffer, onShowToast }) {
-  const [selectedChatId, setSelectedChatId] = useState(enquiries[0]?.id || "#GL1256");
+export default function MerchantChats({ enquiries = [], messages = [], onSendMessage, onSendCustomOffer, onShowToast }) {
+  const [selectedChatId, setSelectedChatId] = useState(enquiries[0]?.id || null);
   const [inputText, setInputText] = useState("");
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [offerPrice, setOfferPrice] = useState("699");
   const [offerSize, setOfferSize] = useState("L");
 
-  const activeEnquiry = enquiries.find(e => e.id === selectedChatId) || enquiries[0];
+  const activeEnquiry = enquiries.find(e => e.id === selectedChatId) || enquiries[0] || null;
+
+  if (enquiries.length === 0 || !activeEnquiry) {
+    return (
+      <div className="bg-white border border-[#E5E7E5] rounded-3xl p-12 text-center card-shadow min-h-[400px] flex flex-col items-center justify-center space-y-4">
+        <div className="w-16 h-16 bg-[#EAF7EE] text-[#138A36] rounded-2xl flex items-center justify-center text-3xl shadow-xs">
+          <MessageSquare className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-lg font-black text-[#111111] font-poppins mb-1">
+            No Active Customer Chats Yet
+          </h2>
+          <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
+            When buyers in Nagpur discover your products and enquire about sizing, stock availability, or price negotiation, you will be able to message them here in real time and send custom discounted price quotes.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSend = (e) => {
     e.preventDefault();

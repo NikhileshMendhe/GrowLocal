@@ -129,7 +129,23 @@ export default function MerchantShopProfile({
     }
   };
 
-  const storeProducts = products.filter(p => p.shopId === currentShop.id || p.shopName === currentShop.name);
+  const storeProducts = products.length > 0
+    ? (products.filter(p => 
+        !currentShop?.id || 
+        p.shopId === currentShop.id || 
+        (currentShop.name && p.shopName?.toLowerCase() === currentShop.name?.toLowerCase()) ||
+        (currentShop.merchantId && p.merchantId === currentShop.merchantId) ||
+        (currentShop.merchantEmail && p.merchantEmail?.toLowerCase() === currentShop.merchantEmail?.toLowerCase())
+      ).length > 0 
+        ? products.filter(p => 
+            !currentShop?.id || 
+            p.shopId === currentShop.id || 
+            (currentShop.name && p.shopName?.toLowerCase() === currentShop.name?.toLowerCase()) ||
+            (currentShop.merchantId && p.merchantId === currentShop.merchantId) ||
+            (currentShop.merchantEmail && p.merchantEmail?.toLowerCase() === currentShop.merchantEmail?.toLowerCase())
+          )
+        : products)
+    : [];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20 font-sans">

@@ -29,7 +29,7 @@ const STEP_INFO = [
 ];
 
 // ─── Wizard Modal (Add / Edit) ────────────────────────────────────────────────
-function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct, onShowToast, currentMerchantShop, shops }) {
+function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct, onShowToast, currentMerchantShop, shops, currentUser }) {
   const isEditing = Boolean(editingProduct);
   const [step, setStep] = useState(1);
   // Step 1
@@ -84,7 +84,12 @@ function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct,
     );
   };
 
-  const targetShop = currentMerchantShop || (shops && shops[0]);
+  const targetShop = currentMerchantShop || {
+    id: currentUser?.shopId || (currentUser?.id ? `shop-${currentUser.id}` : `shop-${Date.now()}`),
+    name: currentUser?.shopName || (currentUser?.name ? `${currentUser.name}'s Store` : 'My Store'),
+    verified: false,
+    distance: '0.5 km away'
+  };
 
   const handleFinish = () => {
     const finalImage = image || DEFAULT_IMAGE;
@@ -99,7 +104,11 @@ function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct,
         availability,
         stockCount: stock,
         description: description || `Fresh ${selectedCat?.label || 'product'} from a verified local merchant.`,
-        images: [finalImage]
+        images: [finalImage],
+        merchantId: currentUser?.id || editingProduct.merchantId,
+        merchantEmail: currentUser?.email || editingProduct.merchantEmail,
+        shopId: targetShop?.id || editingProduct.shopId,
+        shopName: targetShop?.name || editingProduct.shopName
       };
       if (onUpdateProduct) {
         onUpdateProduct(updatedProduct);
@@ -112,8 +121,10 @@ function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct,
     } else {
       const product = {
         id: `prod-${Date.now()}`,
-        shopId: targetShop?.id || 'shop-1',
-        shopName: targetShop?.name || 'Local Store',
+        shopId: targetShop.id,
+        shopName: targetShop.name,
+        merchantId: currentUser?.id,
+        merchantEmail: currentUser?.email,
         shopVerified: Boolean(targetShop?.verified),
         shopDistance: targetShop?.distance || '0.5 km away',
         name,
@@ -658,13 +669,17 @@ const inputStyle = {
 };
 
 // ─── Main MerchantProducts View ───────────────────────────────────────────────
-export default function MerchantProducts({ products, onAddProduct, onUpdateProduct, onShowToast, currentUser, shops }) {
+export default function MerchantProducts({ products = [], onAddProduct, onUpdateProduct, onShowToast, currentUser, shops }) {
   const [showWizard, setShowWizard] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Try to find the current merchant's shop
-  const currentMerchantShop = shops?.find(s => s.merchantId === currentUser?.id) || shops?.[0];
+  const currentMerchantShop = shops?.find(s => 
+    (currentUser?.id && (s.merchantId === currentUser.id || s.id === currentUser.id)) ||
+    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.shopId && s.id === currentUser.shopId)
+  ) || null;
 
   const filteredProducts = products.filter(p =>
     !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -835,6 +850,7 @@ export default function MerchantProducts({ products, onAddProduct, onUpdateProdu
           onShowToast={onShowToast}
           currentMerchantShop={currentMerchantShop}
           shops={shops}
+          currentUser={currentUser}
         />
       )}
     </div>

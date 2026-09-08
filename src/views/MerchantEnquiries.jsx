@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import { Search, Filter, Calendar, MessageSquare, Clock, ChevronRight } from 'lucide-react';
 
-export default function MerchantEnquiries({ enquiries, onOpenChat, onShowToast }) {
+export default function MerchantEnquiries({ enquiries = [], onOpenChat, onShowToast }) {
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const pendingCount = (enquiries || []).filter(e => e.status === 'Pending' || e.status === 'pending' || e.status === 'Pending Quotes').length;
+  const offerSentCount = (enquiries || []).filter(e => e.status === 'Offer Sent' || e.status === 'Offer Received').length;
+  const interestedCount = (enquiries || []).filter(e => e.status === 'Interested').length;
+  const completedCount = (enquiries || []).filter(e => e.status === 'Completed').length;
+
   const TABS = [
-    { label: "All", count: enquiries.length },
-    { label: "Pending", count: 6 },
-    { label: "Offer Sent", count: 8 },
-    { label: "Interested", count: 5 },
-    { label: "Completed", count: 5 }
+    { label: "All", count: (enquiries || []).length },
+    { label: "Pending", count: pendingCount },
+    { label: "Offer Sent", count: offerSentCount },
+    { label: "Interested", count: interestedCount },
+    { label: "Completed", count: completedCount }
   ];
 
-  const filteredEnquiries = enquiries.filter(enq => {
+  const filteredEnquiries = (enquiries || []).filter(enq => {
     if (activeTab !== "All" && enq.status !== activeTab) return false;
-    if (searchQuery && !enq.customerName.toLowerCase().includes(searchQuery.toLowerCase()) && !enq.productName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !enq.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) && !enq.productName?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -39,7 +44,7 @@ export default function MerchantEnquiries({ enquiries, onOpenChat, onShowToast }
             }`}
           >
             <span>{t.label}</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === t.label ? "bg-white text-[#138A36]" : "bg-gray-100"}`}>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === t.label ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"}`}>
               {t.count}
             </span>
           </button>
@@ -61,61 +66,77 @@ export default function MerchantEnquiries({ enquiries, onOpenChat, onShowToast }
       </div>
 
       {/* Enquiries Cards List */}
-      <div className="space-y-4">
-        {filteredEnquiries.map((enq) => (
-          <div 
-            key={enq.id}
-            onClick={() => onOpenChat(enq)}
-            className="bg-white rounded-2xl border border-[#E5E7E5] p-5 card-shadow-hover cursor-pointer space-y-4"
-          >
-            <div className="flex items-center justify-between border-b border-[#E5E7E5] pb-3">
-              <div className="flex items-center gap-3">
-                <img src={enq.customerAvatar} alt={enq.customerName} className="w-10 h-10 rounded-full object-cover border border-[#E5E7E5]" />
+      {filteredEnquiries.length === 0 ? (
+        <div className="text-center py-16 px-6 bg-white rounded-3xl border-2 border-dashed border-gray-200">
+          <div className="w-16 h-16 bg-[#EAF7EE] text-[#138A36] rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-xs">
+            <MessageSquare className="w-8 h-8" />
+          </div>
+          <h3 className="text-base font-black text-[#111111] mb-1">
+            {searchQuery ? "No matching enquiries found" : (activeTab === "All" ? "No Customer Enquiries Yet" : `No ${activeTab} Enquiries`)}
+          </h3>
+          <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
+            {searchQuery
+              ? "Try searching with a different product name or customer name."
+              : "When customers in Nagpur discover your products and ask about size, stock availability, or price negotiation, you'll receive direct enquiries here."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredEnquiries.map((enq) => (
+            <div 
+              key={enq.id}
+              onClick={() => onOpenChat(enq)}
+              className="bg-white rounded-2xl border border-[#E5E7E5] p-5 card-shadow-hover cursor-pointer space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-[#E5E7E5] pb-3">
+                <div className="flex items-center gap-3">
+                  <img src={enq.customerAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"} alt={enq.customerName} className="w-10 h-10 rounded-full object-cover border border-[#E5E7E5]" />
+                  <div>
+                    <h3 className="font-bold text-sm text-[#111111]">{enq.customerName}</h3>
+                    <span className="text-xs font-mono font-semibold text-[#666666]">{enq.id}</span>
+                  </div>
+                </div>
+
+                <span className="text-xs font-bold bg-[#EAF7EE] text-[#138A36] px-3 py-1 rounded-full">
+                  {enq.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
-                  <h3 className="font-bold text-sm text-[#111111]">{enq.customerName}</h3>
-                  <span className="text-xs font-mono font-semibold text-[#666666]">{enq.id}</span>
+                  <span className="text-[#666666] block">Requested Product</span>
+                  <span className="font-bold text-[#111111]">{enq.productName}</span>
+                </div>
+                <div>
+                  <span className="text-[#666666] block">Size / Option</span>
+                  <span className="font-bold text-[#111111]">{enq.size}</span>
+                </div>
+                <div>
+                  <span className="text-[#666666] block">Customer Budget</span>
+                  <span className="font-bold text-[#138A36]">{enq.budget}</span>
+                </div>
+                <div>
+                  <span className="text-[#666666] block">Last Activity</span>
+                  <span className="font-bold text-[#111111]">{enq.timestamp}</span>
                 </div>
               </div>
 
-              <span className="text-xs font-bold bg-[#EAF7EE] text-[#138A36] px-3 py-1 rounded-full">
-                {enq.status}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-              <div>
-                <span className="text-[#666666] block">Requested Product</span>
-                <span className="font-bold text-[#111111]">{enq.productName}</span>
-              </div>
-              <div>
-                <span className="text-[#666666] block">Size / Option</span>
-                <span className="font-bold text-[#111111]">{enq.size}</span>
-              </div>
-              <div>
-                <span className="text-[#666666] block">Customer Budget</span>
-                <span className="font-bold text-[#138A36]">{enq.budget}</span>
-              </div>
-              <div>
-                <span className="text-[#666666] block">Last Activity</span>
-                <span className="font-bold text-[#111111]">{enq.timestamp}</span>
+              <div className="flex items-center justify-between pt-2 border-t border-[#E5E7E5]">
+                <p className="text-xs text-[#666666] italic truncate max-w-md">"{enq.lastMessage}"</p>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenChat(enq);
+                  }}
+                  className="bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shrink-0 cursor-pointer"
+                >
+                  Reply with Price Offer
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-[#E5E7E5]">
-              <p className="text-xs text-[#666666] italic truncate max-w-md">"{enq.lastMessage}"</p>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenChat(enq);
-                }}
-                className="bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shrink-0"
-              >
-                Reply with Price Offer
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

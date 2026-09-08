@@ -895,18 +895,23 @@ export default function App() {
   };
 
   const handleAddProduct = async (newProd) => {
+    const prodWithOwnership = {
+      ...newProd,
+      merchantId: currentUser?.id || newProd.merchantId,
+      merchantEmail: currentUser?.email || newProd.merchantEmail
+    };
     try {
-      const { data: savedProd } = await productService.createProduct(newProd);
-      const prodToUse = savedProd || newProd;
+      const { data: savedProd } = await productService.createProduct(prodWithOwnership);
+      const prodToUse = savedProd || prodWithOwnership;
       setProducts(prev => [prodToUse, ...prev.filter(p => p.id !== prodToUse.id)]);
       triggerToast(`🎉 "${prodToUse.name}" is now live on GrowLocal Customer Home!`);
       return prodToUse;
     } catch (e) {
       console.warn('handleAddProduct error:', e);
-      productService.saveProductLocally(newProd);
-      setProducts(prev => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
-      triggerToast(`🎉 "${newProd.name}" is live!`);
-      return newProd;
+      productService.saveProductLocally(prodWithOwnership);
+      setProducts(prev => [prodWithOwnership, ...prev.filter(p => p.id !== prodWithOwnership.id)]);
+      triggerToast(`🎉 "${prodWithOwnership.name}" is live!`);
+      return prodWithOwnership;
     }
   };
 
@@ -1047,6 +1052,84 @@ export default function App() {
     payments: paymentsLog.length,
     reports: reports.length,
     totalAlerts: pendingVerifications.length + reports.length
+  };
+
+  // ── DEDICATED MERCHANT SCOPED DATA ──────────────────────────────────────────
+  // When any user registers or logs into a merchant account, they start with a clean
+  // slate from scratch: 0 products, 0 reservations, 0 enquiries, 0 dummy stats.
+  const currentMerchantShop = shops.find(s => 
+    (currentUser?.id && (s.merchantId === currentUser.id || s.id === currentUser.id)) ||
+    (currentUser?.email && s.merchantEmail && s.merchantEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.shopId && s.id === currentUser.shopId)
+  ) || null;
+
+  const isItemOwnedByCurrentMerchant = (item) => {
+    if (!currentUser || !item) return false;
+    const userEmail = currentUser.email?.toLowerCase().trim();
+    const userId = currentUser.id ? String(currentUser.id) : null;
+    const shopId = currentMerchantShop?.id ? String(currentMerchantShop.id) : (currentUser.shopId ? String(currentUser.shopId) : null);
+
+    if (userEmail && item.merchantEmail && item.merchantEmail.toLowerCase().trim() === userEmail) return true;
+    if (userId && item.merchantId && String(item.merchantId) === userId) return true;
+    if (shopId && item.shopId && String(item.shopId) === shopId) return true;
+
+    // Match if demo merchant explicitly logged in with matching shop name
+    const userShopName = currentMerchantShop?.name || currentUser.shopName;
+    if (userShopName && item.shopName && item.shopName.toLowerCase().trim() === userShopName.toLowerCase().trim()) return true;
+
+    return false;
+  };
+
+  const merchantProducts = products.filter(isItemOwnedByCurrentMerchant);
+  const merchantReservations = reservations.filter(isItemOwnedByCurrentMerchant);
+  const merchantEnquiries = enquiries.filter(isItemOwnedByCurrentMerchant);
+
+  const merchantMessages = messages.filter(m => {
+    if (!currentUser) return false;
+    if (m.enquiryId) {
+      return merchantEnquiries.some(e => e.id === m.enquiryId);
+    }
+    return false;
+  });
+
+  const merchantTodayEnquiries = merchantEnquiries.filter(e => 
+    e.timestamp === 'Today' || e.date === 'Today' || e.submittedDate === 'Today'
+  ).length;
+
+  const merchantPendingEnquiries = merchantEnquiries.filter(e =>
+    e.status === 'Pending' || e.status === 'pending' || e.status === 'Pending Quotes'
+  ).length;
+
+  const merchantStats = {
+    todayEnquiries: merchantTodayEnquiries,
+    pendingEnquiries: merchantPendingEnquiries,
+    offersSent: merchantEnquiries.filter(e => e.status === 'Offer Sent' || e.status === 'Offer Received').length,
+    customerInterested: merchantEnquiries.filter(e => e.status === 'Interested').length,
+    completedEnquiries: merchantEnquiries.filter(e => e.status === 'Completed').length,
+    responseRate: merchantEnquiries.length > 0 
+      ? `${Math.round(((merchantEnquiries.length - merchantPendingEnquiries) / merchantEnquiries.length) * 100)}%` 
+      : "—",
+    reservations: merchantReservations.length,
+    visits: merchantReservations.filter(r => r.status === 'Visited' || r.status === 'Completed').length,
+    conversionRate: merchantEnquiries.length > 0 
+      ? `${Math.round((merchantReservations.length / merchantEnquiries.length) * 100)}%` 
+      : "—",
+    revenueGenerated: merchantReservations.length > 0 
+      ? `₹${merchantReservations.reduce((sum, r) => sum + (Number(String(r.price).replace(/[^0-9]/g, '')) || 0), 0).toLocaleString('en-IN')}` 
+      : "₹0"
+  };
+
+  const merchantFallbackDraftShop = currentMerchantShop || {
+    id: currentUser?.shopId || (currentUser?.id ? `shop-${currentUser.id}` : `shop-${Date.now()}`),
+    name: currentUser?.shopName || (currentUser?.name ? `${currentUser.name}'s Store` : 'My Store'),
+    category: 'Local Retail',
+    address: 'Nagpur, Maharashtra',
+    city: 'Nagpur',
+    verified: false,
+    rating: 0,
+    reviewsCount: 0,
+    openHours: '10:00 AM – 9:00 PM',
+    isDraft: true
   };
 
   const isSuperAdminAuthenticated = Boolean(
@@ -1491,9 +1574,9 @@ export default function App() {
           currentUser={currentUser}
           merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
           shops={shops}
-          products={products}
-          enquiries={enquiries}
-          reservations={reservations}
+          products={merchantProducts}
+          enquiries={merchantEnquiries}
+          reservations={merchantReservations}
           onAddShop={() => setActivePlatform('merchantOnboarding')}
           onLogout={() => {
             setCurrentUser(null);
@@ -1505,8 +1588,10 @@ export default function App() {
         >
           {(activeTab === "merchantDashboard" || activeTab === "home") && (
             <MerchantDashboard
-              stats={MERCHANT_STATS}
-              enquiries={enquiries}
+              stats={merchantStats}
+              enquiries={merchantEnquiries}
+              reservations={merchantReservations}
+              products={merchantProducts}
               onNavigateMerchant={setActiveTab}
               currentUser={currentUser}
               merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
@@ -1524,8 +1609,8 @@ export default function App() {
 
           {activeTab === "merchantChats" && (
             <MerchantChats
-              enquiries={enquiries}
-              messages={messages}
+              enquiries={merchantEnquiries}
+              messages={merchantMessages}
               onSendMessage={handleSendMessage}
               onSendCustomOffer={handleSendCustomOffer}
               onShowToast={triggerToast}
@@ -1534,7 +1619,7 @@ export default function App() {
 
           {activeTab === "merchantEnquiries" && (
             <MerchantEnquiries
-              enquiries={enquiries}
+              enquiries={merchantEnquiries}
               onOpenChat={() => setActiveTab("merchantChats")}
               onShowToast={triggerToast}
             />
@@ -1542,7 +1627,7 @@ export default function App() {
 
           {activeTab === "merchantProducts" && (
             <MerchantProducts
-              products={products}
+              products={merchantProducts}
               shops={shops}
               currentUser={currentUser}
               onAddProduct={handleAddProduct}
@@ -1553,27 +1638,32 @@ export default function App() {
 
           {activeTab === "merchantShopProfile" && (
             <MerchantShopProfile
-              shop={shops.find(s => 
-                (currentUser?.id && s.merchantId === currentUser?.id) ||
-                (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
-              ) || shops[0]}
-              products={products}
+              shop={merchantFallbackDraftShop}
+              products={merchantProducts}
               onPreviewPublic={() => {
-                const curShop = shops.find(s => 
-                  (currentUser?.id && s.merchantId === currentUser?.id) ||
-                  (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
-                ) || shops[0];
-                setSelectedShopId(curShop?.id);
+                setSelectedShopId(merchantFallbackDraftShop?.id);
                 setActivePlatform("customer");
                 setActiveTab("shopProfile");
               }}
               onSaveShop={async (updatedShop) => {
+                const shopToSave = {
+                  ...updatedShop,
+                  merchantId: currentUser?.id || updatedShop.merchantId,
+                  merchantEmail: currentUser?.email || updatedShop.merchantEmail
+                };
                 try {
-                  await shopService.updateShop(updatedShop.id, updatedShop);
+                  await shopService.updateShop(shopToSave.id, shopToSave);
                 } catch (e) {
-                  shopService.saveShopLocally(updatedShop);
+                  shopService.saveShopLocally(shopToSave);
                 }
-                setShops(prev => prev.map(s => s.id === updatedShop.id ? { ...s, ...updatedShop } : s));
+                setShops(prev => {
+                  const exists = prev.some(s => s.id === shopToSave.id);
+                  if (exists) {
+                    return prev.map(s => s.id === shopToSave.id ? { ...s, ...shopToSave } : s);
+                  } else {
+                    return [shopToSave, ...prev];
+                  }
+                });
               }}
               onNavigate={setActiveTab}
               onShowToast={triggerToast}
@@ -1582,19 +1672,22 @@ export default function App() {
 
           {activeTab === "merchantReservations" && (
             <MerchantReservations
-              reservations={reservations}
+              reservations={merchantReservations}
               onShowToast={triggerToast}
             />
           )}
 
           {activeTab === "merchantAnalytics" && (
             <MerchantAnalytics
-              stats={MERCHANT_STATS}
+              stats={merchantStats}
+              enquiries={merchantEnquiries}
+              reservations={merchantReservations}
             />
           )}
 
           {activeTab === "merchantOffers" && (
             <MerchantOffers
+              currentUser={currentUser}
               onShowToast={triggerToast}
             />
           )}

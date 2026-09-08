@@ -10,8 +10,12 @@ import VerifiedBadge from '../components/VerifiedBadge';
 function AnimatedStat({ value, prefix = '', suffix = '' }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
-    if (!value || isNaN(Number(value))) return;
+    if (value === null || value === undefined || isNaN(Number(value))) return;
     const target = Number(value);
+    if (target === 0) {
+      setDisplay(0);
+      return;
+    }
     let start = 0;
     const duration = 600;
     const step = target / (duration / 16);
@@ -22,13 +26,15 @@ function AnimatedStat({ value, prefix = '', suffix = '' }) {
     }, 16);
     return () => clearInterval(timer);
   }, [value]);
-  if (!value || isNaN(Number(value))) return <span>{value ?? '—'}</span>;
+  if (value === null || value === undefined || isNaN(Number(value))) return <span>{value ?? '—'}</span>;
   return <span>{prefix}{display}{suffix}</span>;
 }
 
 export default function MerchantDashboard({
   stats,
-  enquiries,
+  enquiries = [],
+  reservations = [],
+  products = [],
   onNavigateMerchant,
   currentUser,
   merchantProfile,
@@ -37,29 +43,33 @@ export default function MerchantDashboard({
   onLogout,
 }) {
   const currentShop = shops?.find(s => 
-    (currentUser?.id && s.merchantId === currentUser?.id) ||
-    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser?.email?.toLowerCase())
+    (currentUser?.id && (s.merchantId === currentUser.id || s.id === currentUser.id)) ||
+    (currentUser?.email && s.merchantEmail?.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.shopId && s.id === currentUser.shopId)
   );
-  const hasListedShop = Boolean(currentShop || merchantProfile?.businessName || currentUser?.shopName);
-  const shopName = currentShop?.name || merchantProfile?.businessName || currentUser?.shopName || currentUser?.name || 'My Store';
+  const hasListedShop = Boolean(currentShop);
+  const shopName = currentShop?.name || merchantProfile?.businessName || currentUser?.shopName || (currentUser?.name ? `${currentUser.name}'s Store` : 'My Store');
   const ownerName = merchantProfile?.ownerName || currentUser?.name || 'Store Manager';
   const userEmail = currentUser?.email || merchantProfile?.email || '';
-  const isVerified = merchantProfile?.verificationStatus === 'approved' || merchantProfile?.verified;
+  const isVerified = merchantProfile?.verificationStatus === 'approved' || merchantProfile?.verified || Boolean(currentShop?.verified);
 
   const pendingEnquiries = enquiries?.filter(e =>
     e.status === 'Pending' || e.status === 'pending' || e.status === 'Pending Quotes'
   ).length || 0;
 
   const recentEnquiries = (enquiries || []).slice(0, 3);
+  const reservationsCount = reservations?.length !== undefined ? reservations.length : (stats?.reservations ?? 0);
+  const todayEnquiriesCount = stats?.todayEnquiries !== undefined ? stats.todayEnquiries : (enquiries || []).filter(e => e.timestamp === 'Today' || e.date === 'Today' || e.submittedDate === 'Today').length;
 
   const kpiItems = [
     {
       label: "New Today",
-      value: stats?.todayEnquiries ?? 0,
+      value: todayEnquiriesCount,
       icon: Bell,
       color: '#138A36',
       bg: '#EAF7EE',
-      suffix: ''
+      suffix: '',
+      targetTab: 'merchantEnquiries'
     },
     {
       label: "Need Reply",
@@ -68,15 +78,17 @@ export default function MerchantDashboard({
       color: pendingEnquiries > 0 ? '#D97706' : '#138A36',
       bg: pendingEnquiries > 0 ? '#FEF3C7' : '#EAF7EE',
       suffix: '',
-      urgent: pendingEnquiries > 0
+      urgent: pendingEnquiries > 0,
+      targetTab: 'merchantEnquiries'
     },
     {
       label: "Reservations",
-      value: stats?.reservations ?? 0,
+      value: reservationsCount,
       icon: ShoppingBag,
       color: '#2563EB',
       bg: '#EFF6FF',
-      suffix: ''
+      suffix: '',
+      targetTab: 'merchantReservations'
     },
   ];
 
@@ -121,7 +133,7 @@ export default function MerchantDashboard({
       id: 'merchantReservations',
       icon: ShoppingBag,
       title: 'Store Reservations',
-      subtitle: `${stats?.reservations ?? 0} active held pickup orders`,
+      subtitle: `${reservationsCount} active held pickup orders`,
       iconColor: '#7C3AED',
       iconBg: '#F5F3FF',
       iconBorder: '#DDD6FE',
@@ -279,7 +291,7 @@ export default function MerchantDashboard({
             return (
               <div
                 key={i}
-                onClick={() => onNavigateMerchant('merchantEnquiries')}
+                onClick={() => onNavigateMerchant(kpi.targetTab || 'merchantEnquiries')}
                 className={`bg-white rounded-2xl p-2.5 sm:p-4 cursor-pointer transition-all duration-150 hover:-translate-y-0.5 ${
                   kpi.urgent
                     ? 'border-2 border-amber-500 shadow-sm'
@@ -400,12 +412,12 @@ export default function MerchantDashboard({
       </div>
 
       {/* ── Recent Activity ───────────────────────────────── */}
-      {recentEnquiries.length > 0 && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
-              Recent Enquiries
-            </p>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            Recent Enquiries
+          </p>
+          {recentEnquiries.length > 0 && (
             <button
               onClick={() => onNavigateMerchant('merchantEnquiries')}
               style={{
@@ -415,8 +427,10 @@ export default function MerchantDashboard({
             >
               See all <ChevronRight style={{ width: '12px', height: '12px' }} />
             </button>
-          </div>
+          )}
+        </div>
 
+        {recentEnquiries.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {recentEnquiries.map((enq, i) => {
               const status = enq.status || 'Pending';
@@ -459,11 +473,18 @@ export default function MerchantDashboard({
               );
             })}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-5 text-center">
+            <p className="text-xs font-bold text-gray-700 mb-0.5">No customer enquiries yet</p>
+            <p className="text-[11px] text-gray-500">
+              When shoppers in Nagpur enquire about size, availability, or prices, their requests will appear here.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* ── Performance Snapshot ─────────────────────────── */}
-      {(stats?.responseRate || stats?.visits) && (
+      {stats && (
         <div style={{ marginTop: '20px' }}>
           <p style={{ fontSize: '11px', fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>
             Performance
