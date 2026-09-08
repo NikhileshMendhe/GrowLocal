@@ -1125,10 +1125,16 @@ export default function App() {
     category: 'Local Retail',
     address: 'Nagpur, Maharashtra',
     city: 'Nagpur',
+    phone: currentUser?.phone || '',
     verified: false,
     rating: 0,
     reviewsCount: 0,
-    openHours: '10:00 AM – 9:00 PM',
+    openHours: '',
+    openDays: 'Mon – Sun',
+    about: '',
+    coverImage: '',
+    logoImage: '',
+    priceRange: '',
     isDraft: true
   };
 

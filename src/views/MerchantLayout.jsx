@@ -48,7 +48,7 @@ export default function MerchantLayout({
     { id: 'merchantReservations', label: 'Reservations', icon: ShoppingBag, count: reservations?.length },
     { id: 'merchantAnalytics', label: 'Analytics', icon: TrendingUp },
     { id: 'merchantOffers', label: 'Offers', icon: Tag },
-    { id: 'merchantShopProfile', label: 'Your Shop', icon: Store, badge: hasListedShop ? 'Live' : null, badgeColor: 'bg-[#138A36] text-white' },
+    { id: 'merchantShopProfile', label: 'Your Shop', icon: Store, badge: (hasListedShop && (products?.length || 0) > 0) ? 'Live' : null, badgeColor: 'bg-[#138A36] text-white' },
   ];
 
   return (

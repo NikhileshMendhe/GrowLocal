@@ -40,13 +40,13 @@ export default function MerchantShopProfile({
   const [category, setCategory] = useState(currentShop.category || 'Local Retail');
   const [address, setAddress] = useState(currentShop.address || 'Nagpur, Maharashtra');
   const [city, setCity] = useState(currentShop.city || 'Nagpur');
-  const [phone, setPhone] = useState(currentShop.phone || '+91 98230 12345');
+  const [phone, setPhone] = useState(currentShop.phone || '');
   const [hours, setHours] = useState(currentShop.openHours || '10:00 AM – 9:00 PM');
   const [openDays, setOpenDays] = useState(currentShop.openDays || 'Mon – Sun');
-  const [about, setAbout] = useState(currentShop.about || `${currentShop.name || 'Our store'} is dedicated to serving Nagpur with genuine quality, instant availability, and warm local hospitality.`);
-  const [coverImage, setCoverImage] = useState(currentShop.coverImage || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80');
-  const [logoImage, setLogoImage] = useState(currentShop.logoImage || currentShop.coverImage || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80');
-  const [priceRange, setPriceRange] = useState(currentShop.priceRange || '₹299 – ₹9,999');
+  const [about, setAbout] = useState(currentShop.about || '');
+  const [coverImage, setCoverImage] = useState(currentShop.coverImage || '');
+  const [logoImage, setLogoImage] = useState(currentShop.logoImage || '');
+  const [priceRange, setPriceRange] = useState(currentShop.priceRange || '');
 
   const fileCoverRef = useRef(null);
   const fileLogoRef = useRef(null);
@@ -158,11 +158,13 @@ export default function MerchantShopProfile({
               🟢 Your Shop Command Center
             </span>
             <span className="text-xs text-gray-400 font-medium">·</span>
-            <span className="text-xs text-gray-500 font-semibold">Nagpur Verified Retailer</span>
+            <span className="text-xs text-gray-500 font-semibold">
+              {currentShop.verified ? 'Nagpur Verified Retailer' : 'Nagpur Retail Partner'}
+            </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-[#111111] font-poppins tracking-tight flex items-center gap-2">
             <span>{name}</span>
-            <VerifiedBadge text="Verified" />
+            {Boolean(currentShop.verified) && <VerifiedBadge text="Verified" />}
           </h1>
         </div>
 
@@ -246,22 +248,36 @@ export default function MerchantShopProfile({
           
           {/* Creative Hero Banner Card */}
           <div className="bg-white rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs relative">
-            {/* Cover Image with Gradient Vignette */}
-            <div className="relative h-48 sm:h-64 w-full bg-gray-900 overflow-hidden group">
-              <img
-                src={coverImage}
-                alt={name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            {/* Cover Image with Gradient Vignette or Clean Slate Banner */}
+            <div className="relative h-48 sm:h-64 w-full bg-linear-to-r from-[#0F2417] via-[#163622] to-[#0A1B11] overflow-hidden group">
+              {coverImage ? (
+                <img
+                  src={coverImage}
+                  alt={name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white/90 select-none">
+                  <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center text-white mb-2 shadow-inner">
+                    <Store className="w-7 h-7 text-emerald-300" />
+                  </div>
+                  <p className="text-sm sm:text-base font-black text-white tracking-wide">
+                    {name}
+                  </p>
+                  <p className="text-xs text-emerald-200/70 max-w-xs mt-0.5">
+                    Your storefront in {city} · Upload photos to showcase your shop
+                  </p>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
 
               {/* Cover Photo Change Trigger */}
               <button
                 onClick={() => fileCoverRef.current?.click()}
-                className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 text-white backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 shadow-md"
+                className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 shadow-md cursor-pointer"
               >
                 <Camera className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Change Cover Photo</span>
+                <span className="hidden sm:inline">{coverImage ? 'Change Cover Photo' : 'Upload Cover Photo'}</span>
               </button>
               <input
                 type="file"
@@ -273,9 +289,9 @@ export default function MerchantShopProfile({
 
               {/* Status pills inside cover */}
               <div className="absolute top-4 left-4 flex items-center gap-2 flex-wrap">
-                <span className="px-3 py-1 bg-emerald-600/90 text-white backdrop-blur-md text-xs font-black rounded-full flex items-center gap-1.5 shadow-md">
+                <span className={`px-3 py-1 ${storeProducts.length > 0 ? 'bg-emerald-600/90' : 'bg-amber-600/90'} text-white backdrop-blur-md text-xs font-black rounded-full flex items-center gap-1.5 shadow-md`}>
                   <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                  Live on GrowLocal
+                  {storeProducts.length > 0 ? 'Live on GrowLocal' : 'Draft · Ready to List'}
                 </span>
                 <span className="px-2.5 py-1 bg-black/60 text-white/90 backdrop-blur-md text-[11px] font-bold rounded-full">
                   📍 {city}
@@ -285,15 +301,23 @@ export default function MerchantShopProfile({
               {/* Store Identity Overlay */}
               <div className="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3 text-white">
                 <div className="flex items-end gap-3.5">
-                  {/* Logo / Avatar with Live dot */}
+                  {/* Logo / Avatar */}
                   <div className="relative shrink-0">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-white shadow-xl bg-white">
-                      <img src={logoImage} alt={name} className="w-full h-full object-cover" />
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-white shadow-xl bg-white flex items-center justify-center">
+                      {logoImage ? (
+                        <img src={logoImage} alt={name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-linear-to-br from-[#EAF7EE] to-[#D1FAE5] flex flex-col items-center justify-center text-[#138A36]">
+                          <span className="text-2xl sm:text-3xl font-black font-poppins">
+                            {name ? name.charAt(0).toUpperCase() : 'S'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => fileLogoRef.current?.click()}
-                      className="absolute -bottom-1 -right-1 bg-[#138A36] text-white p-1 rounded-lg shadow-md hover:bg-[#0F752C] transition-colors"
-                      title="Update Store Logo"
+                      className="absolute -bottom-1 -right-1 bg-[#138A36] text-white p-1 rounded-lg shadow-md hover:bg-[#0F752C] transition-colors cursor-pointer"
+                      title={logoImage ? "Update Store Logo" : "Upload Store Logo"}
                     >
                       <Camera className="w-3 h-3" />
                     </button>
@@ -311,7 +335,13 @@ export default function MerchantShopProfile({
                       <h2 className="text-lg sm:text-2xl font-black text-white leading-tight drop-shadow-md truncate">
                         {name}
                       </h2>
-                      <VerifiedBadge text="Verified" />
+                      {Boolean(currentShop.verified) ? (
+                        <VerifiedBadge text="Verified" />
+                      ) : (
+                        <span className="bg-white/20 text-white backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold border border-white/20">
+                          Verification In Review
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-white/80 font-medium truncate flex items-center gap-2 mt-0.5">
                       <span className="bg-white/20 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">
@@ -326,8 +356,14 @@ export default function MerchantShopProfile({
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="px-3 py-1.5 rounded-xl bg-white/20 backdrop-blur-md text-white border border-white/20 text-xs font-extrabold flex items-center gap-1.5">
                     <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
-                    <span>{currentShop.rating || '4.9'} / 5.0</span>
-                    <span className="text-white/60 font-normal">({currentShop.reviewsCount || '38'} reviews)</span>
+                    {currentShop.reviewsCount > 0 ? (
+                      <>
+                        <span>{(Number(currentShop.rating) || 5.0).toFixed(1)} / 5.0</span>
+                        <span className="text-white/60 font-normal">({currentShop.reviewsCount} review{currentShop.reviewsCount !== 1 ? 's' : ''})</span>
+                      </>
+                    ) : (
+                      <span>New Store · No reviews yet</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -337,22 +373,26 @@ export default function MerchantShopProfile({
             <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 bg-white p-3 sm:p-4 text-center">
               <div className="p-2">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Store Catalog</p>
-                <p className="text-lg sm:text-xl font-black text-[#111111]">{storeProducts.length} Items Listed</p>
+                <p className="text-lg sm:text-xl font-black text-[#111111]">{storeProducts.length} Item{storeProducts.length !== 1 ? 's' : ''} Listed</p>
               </div>
               <div className="p-2">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Operating Status</p>
                 <p className="text-lg sm:text-xl font-black text-[#138A36] flex items-center justify-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  Open Now
+                  {hours ? 'Open Today' : 'Hours Not Set'}
                 </p>
               </div>
               <div className="p-2">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Estimated Price</p>
-                <p className="text-lg sm:text-xl font-black text-[#111111]">{priceRange}</p>
+                <p className="text-lg sm:text-xl font-black text-[#111111]">
+                  {priceRange || (storeProducts.length > 0 ? `₹${Math.min(...storeProducts.map(p => Number(p.price) || 0))} – ₹${Math.max(...storeProducts.map(p => Number(p.price) || 0))}` : '—')}
+                </p>
               </div>
               <div className="p-2">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Customer Trust</p>
-                <p className="text-lg sm:text-xl font-black text-amber-600">100% Verified Local</p>
+                <p className={`text-lg sm:text-xl font-black ${currentShop.verified ? 'text-[#138A36]' : 'text-amber-600'}`}>
+                  {currentShop.verified ? '100% Verified Local' : 'Verification In Review'}
+                </p>
               </div>
             </div>
           </div>
@@ -372,13 +412,17 @@ export default function MerchantShopProfile({
                   </h3>
                   <button
                     onClick={() => setActiveSubTab('edit')}
-                    className="text-xs font-bold text-[#138A36] hover:underline"
+                    className="text-xs font-bold text-[#138A36] hover:underline cursor-pointer"
                   >
                     Edit Story
                   </button>
                 </div>
                 <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                  {about}
+                  {about || (
+                    <span className="text-gray-400 italic">
+                      No store description added yet. Click "Edit Story" to add your store background, specialties, and offerings for local customers in Nagpur.
+                    </span>
+                  )}
                 </p>
 
                 {/* Highlights / Badges */}
@@ -390,10 +434,10 @@ export default function MerchantShopProfile({
                     💳 UPI, Cards & Cash Accepted
                   </span>
                   <span className="px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1">
-                    🛡️ Authenticated Merchant
+                    🛡️ {currentShop.verified ? 'Verified Merchant' : 'Local Retail Merchant'}
                   </span>
                   <span className="px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1">
-                    💬 Direct WhatsApp Inquiries
+                    💬 Direct Customer Inquiries
                   </span>
                 </div>
               </div>
@@ -414,22 +458,32 @@ export default function MerchantShopProfile({
 
                   <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200">
                     <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Contact Phone</p>
-                    <p className="font-extrabold text-gray-900 text-sm">{phone}</p>
-                    <p className="text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Available for buyer calls
+                    <p className="font-extrabold text-gray-900 text-sm">
+                      {phone || <span className="text-gray-400 font-normal italic">Not specified</span>}
                     </p>
+                    {phone ? (
+                      <p className="text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Available for buyer calls
+                      </p>
+                    ) : (
+                      <p className="text-amber-700 font-semibold mt-0.5 text-[11px]">
+                        Add phone in Edit Details
+                      </p>
+                    )}
                   </div>
 
                   <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200">
                     <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Open Timings</p>
-                    <p className="font-extrabold text-gray-900 text-sm">{hours}</p>
+                    <p className="font-extrabold text-gray-900 text-sm">{hours || '10:00 AM – 9:00 PM'}</p>
                     <p className="text-gray-500 mt-0.5">Days: {openDays}</p>
                   </div>
 
                   <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200">
                     <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Price Range</p>
-                    <p className="font-extrabold text-gray-900 text-sm">{priceRange}</p>
+                    <p className="font-extrabold text-gray-900 text-sm">
+                      {priceRange || (storeProducts.length > 0 ? `₹${Math.min(...storeProducts.map(p => Number(p.price) || 0))} – ₹${Math.max(...storeProducts.map(p => Number(p.price) || 0))}` : 'Based on catalog')}
+                    </p>
                     <p className="text-gray-500 mt-0.5">Local retail pricing</p>
                   </div>
                 </div>
