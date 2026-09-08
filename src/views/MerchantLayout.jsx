@@ -147,26 +147,6 @@ export default function MerchantLayout({
         {/* Mobile Navigation Drawer */}
         {mobileNavOpen && (
           <div className="lg:hidden border-t border-[#E5E7E5] bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200 shadow-xl">
-            {/* Store Information Card in Drawer */}
-            <div className="p-3.5 bg-gradient-to-br from-[#EAF7EE] to-[#DDF3E3] rounded-2xl border border-[#CDEED5]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-black text-[#138A36] uppercase tracking-wider">Active Store</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-                  </span>
-                  <span className="text-[9px] font-bold bg-white text-[#138A36] px-1.5 py-0.5 rounded-md border border-[#CDEED5]">
-                    LIVE
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="font-extrabold text-sm text-[#111111] truncate">{shopName}</p>
-                {isVerified && <VerifiedBadge text="Verified" />}
-              </div>
-              <p className="text-[11px] text-gray-600 truncate">{userEmail || 'Nagpur, Maharashtra'}</p>
-            </div>
 
             {/* Quick Actions in Mobile Drawer */}
             <div className="flex items-center gap-2">
@@ -261,17 +241,6 @@ export default function MerchantLayout({
         <aside className="hidden lg:block w-64 shrink-0">
           <div className="bg-white border border-[#E5E7E5] rounded-3xl p-4 shadow-xs sticky top-24 space-y-4">
             
-            {/* Store Information Card */}
-            <div className="p-3.5 bg-gradient-to-br from-[#EAF7EE] to-[#DDF3E3] rounded-2xl border border-[#CDEED5]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-black text-[#138A36] uppercase tracking-wider">Active Store</span>
-                <span className="text-[9px] font-bold bg-white text-[#138A36] px-1.5 py-0.5 rounded-md border border-[#CDEED5]">
-                  🟢 LIVE
-                </span>
-              </div>
-              <p className="font-extrabold text-sm text-[#111111] truncate">{shopName}</p>
-              <p className="text-[11px] text-gray-600 truncate">{currentShop.address || 'Nagpur, Maharashtra'}</p>
-            </div>
 
             {/* High-visibility Add / Setup Shop button (hidden if shop is already listed) */}
             {onAddShop && !hasListedShop && (
