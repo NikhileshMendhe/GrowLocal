@@ -1,276 +1,155 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { INITIAL_SHOPS } from '../data/mockData';
+import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
-const isUuid = (val) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+const isUuid = (value) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
+// Never load unbounded base64 images with every marketplace request. Images are
+// fetched from storage URLs when present; this keeps the live feed responsive.
+const SHOP_SELECT = 'id, merchant_id, name, description, category_id, phone, email, address, city, state, pincode, price_min, price_max, rating, review_count, is_verified, is_featured, status, created_at, updated_at, categories(name), shop_photos(image_url), merchants(id, email)';
 
 export const shopService = {
-  // Helper to format Supabase shop row into unified frontend shape
-  formatShopRow(s) {
-    if (!s) return null;
+  formatShopRow(shop) {
+    if (!shop) return null;
     return {
-      id: s.id,
-      merchantId: s.merchant_id,
-      merchantEmail: s.email || '',
-      email: s.email || '',
-      phone: s.phone || '',
-      name: s.name || "Local Store",
-      category: s.categories?.name || s.category || "Local Business",
-      categoryId: s.category_id,
-      verified: Boolean(s.is_verified),
-      is_verified: Boolean(s.is_verified),
-      rating: s.rating ? Number(s.rating) : 4.8,
-      reviewsCount: s.review_count || 0,
-      distance: s.distance ? `${s.distance} km away` : "0.5 km away",
-      address: s.address || "Nagpur, Maharashtra",
-      city: s.city || "Nagpur",
-      status: s.status === 'open' || s.status === 'Open' ? 'Open' : (s.status || 'Open'),
-      closingTime: "Closes 9 PM",
-      openHours: "10:00 AM – 9:00 PM",
-      openDays: "Mon – Sun",
-      priceRange: s.price_min && s.price_max ? `₹${s.price_min} – ₹${s.price_max}` : "₹299 – ₹9,999",
-      coverImage: s.cover_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
-      logoImage: s.logo_url || s.cover_image_url || "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80",
-      about: s.description || "Verified local store in Nagpur.",
-      photos: s.shop_photos && s.shop_photos.length > 0
-        ? s.shop_photos.map(p => p.image_url)
-        : [s.cover_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80"]
+      id: shop.id,
+      merchantId: shop.merchant_id,
+      merchantEmail: shop.merchants?.email || shop.email || '',
+      email: shop.email || shop.merchants?.email || '',
+      phone: shop.phone || '',
+      name: shop.name,
+      category: shop.categories?.name || '',
+      categoryId: shop.category_id || null,
+      verified: Boolean(shop.is_verified),
+      is_verified: Boolean(shop.is_verified),
+      rating: Number(shop.rating || 0),
+      reviewsCount: Number(shop.review_count || 0),
+      distance: shop.distance ? `${shop.distance} km away` : '',
+      address: shop.address || '',
+      city: shop.city || '',
+      status: shop.status === 'open' ? 'Open' : (shop.status || 'Closed'),
+      priceRange: shop.price_min != null && shop.price_max != null ? `₹${shop.price_min} – ₹${shop.price_max}` : '',
+      coverImage: shop.cover_image_url || '',
+      logoImage: shop.logo_url || shop.cover_image_url || '',
+      about: shop.description || '',
+      photos: (shop.shop_photos || []).map((photo) => photo.image_url).filter(Boolean)
     };
   },
 
-  // Check if a merchant already has a registered shop in Supabase or local storage
-  async checkMerchantHasShop(email, userId, shopName) {
-    const cleanEmail = (email || '').toLowerCase().trim();
-
-    // 1. Check in local storage first
-    try {
-      const localShops = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-      const match = localShops.some(s => 
-        (cleanEmail && s.merchantEmail?.toLowerCase() === cleanEmail) ||
-        (cleanEmail && s.email?.toLowerCase() === cleanEmail) ||
-        (userId && s.merchantId === userId) ||
-        (shopName && s.name?.toLowerCase() === shopName.toLowerCase())
-      );
-      if (match) return true;
-    } catch (_) {}
-
-    // 2. Check in Supabase if configured
-    if (isSupabaseConfigured) {
-      try {
-        if (cleanEmail) {
-          const { data, error } = await supabase
-            .from('shops')
-            .select('id, name, email')
-            .ilike('email', cleanEmail)
-            .limit(1);
-          if (!error && data && data.length > 0) return true;
-        }
-
-        if (userId && isUuid(userId)) {
-          const { data, error } = await supabase
-            .from('shops')
-            .select('id, name, merchant_id')
-            .eq('merchant_id', userId)
-            .limit(1);
-          if (!error && data && data.length > 0) return true;
-        }
-      } catch (e) {
-        console.warn('Error checking shop existence in Supabase:', e);
-      }
-    }
-
-    return false;
-  },
-
-  // Fetch all shops (Supabase + locally added merchant shops)
   async getAllShops() {
-    let localShops = [];
-    try {
-      localShops = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-    } catch (_) {}
-
-    if (!isSupabaseConfigured) {
-      return { data: localShops, error: null };
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('shops')
-        .select('*, shop_hours(*), shop_photos(*), categories(name)')
-        .order('created_at', { ascending: false });
-
-      if (error || !data || data.length === 0) {
-        return { data: localShops, error: null };
-      }
-
-      const formatted = data.map(s => this.formatShopRow(s)).filter(Boolean);
-      // Merge: local merchant-created shops first, then Supabase shops
-      const supabaseIds = new Set(formatted.map(s => s.id));
-      const supabaseEmails = new Set(formatted.map(s => s.email?.toLowerCase()).filter(Boolean));
-
-      // Filter local shops that aren't already represented in Supabase
-      const uniqueLocal = localShops.filter(s => 
-        !supabaseIds.has(s.id) && 
-        !(s.merchantEmail && supabaseEmails.has(s.merchantEmail.toLowerCase()))
-      );
-
-      return { data: [...uniqueLocal, ...formatted], error: null };
-    } catch (err) {
-      console.warn('getAllShops Supabase fetch error:', err);
-      return { data: localShops, error: null };
-    }
+    if (!isSupabaseConfigured) return { data: [], error: { message: 'Supabase is not configured.' } };
+    const { data, error } = await supabase
+      .from('shops')
+      .select(SHOP_SELECT)
+      .order('created_at', { ascending: false });
+    return { data: (data || []).map((shop) => this.formatShopRow(shop)).filter(Boolean), error };
   },
 
-  // Create new shop in Supabase and sync locally
+  async getCurrentMerchant() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: { message: 'Sign in as a merchant before managing a shop.' } };
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+    if (profileError || !profile) return { data: null, error: profileError || { message: 'Your profile could not be found.' } };
+    if (!['merchant', 'admin', 'super_admin'].includes(profile.role)) {
+      return { data: null, error: { message: 'Only merchant accounts can create shops.' } };
+    }
+
+    const { data: merchant, error: merchantError } = await supabase
+      .from('merchants')
+      .select('id, user_id, email')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    return { data: merchant, error: merchantError || (!merchant ? { message: 'Your merchant account is not ready yet. Please sign in again.' } : null) };
+  },
+
+  async checkMerchantHasShop(_email, authUserId) {
+    if (!isSupabaseConfigured || !authUserId) return false;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    if (!profile) return false;
+    const { data: merchant } = await supabase
+      .from('merchants')
+      .select('id')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    if (!merchant) return false;
+    const { data, error } = await supabase.from('shops').select('id').eq('merchant_id', merchant.id).limit(1);
+    return !error && Boolean(data?.length);
+  },
+
   async createShop(shopData) {
-    let priceMin = 0;
-    let priceMax = 9999;
-    if (shopData.priceRange) {
-      const match = String(shopData.priceRange).match(/(\d+)/g);
-      if (match && match.length >= 2) {
-        priceMin = Number(match[0]);
-        priceMax = Number(match[1]);
-      }
+    if (!isSupabaseConfigured) return { data: null, error: { message: 'Supabase is not configured.' } };
+    const { data: merchant, error: merchantError } = await this.getCurrentMerchant();
+    if (merchantError || !merchant) return { data: null, error: merchantError };
+
+    let categoryId = isUuid(shopData.categoryId) ? shopData.categoryId : null;
+    if (!categoryId && shopData.category) {
+      const { data: categories } = await supabase
+        .from('categories')
+        .select('id')
+        .ilike('name', shopData.category)
+        .limit(1);
+      categoryId = categories?.[0]?.id || null;
     }
 
-    let resolvedCategoryId = isUuid(shopData.categoryId) ? shopData.categoryId : null;
-
-    // Lookup category UUID in Supabase if category name is provided
-    if (isSupabaseConfigured && !resolvedCategoryId && shopData.category) {
-      try {
-        const { data: catRows } = await supabase
-          .from('categories')
-          .select('id, name')
-          .ilike('name', `%${shopData.category.split(' ')[0]}%`)
-          .limit(1);
-        if (catRows && catRows[0]) {
-          resolvedCategoryId = catRows[0].id;
-        }
-      } catch (_) {}
-    }
-
-    const shopRow = {
-      name: shopData.name,
-      description: shopData.about || shopData.description || `${shopData.name} — local verified store on GrowLocal.`,
-      address: shopData.address || `${shopData.city || 'Nagpur'}, Maharashtra`,
-      city: shopData.city || 'Nagpur',
+    const prices = String(shopData.priceRange || '').match(/\d+(?:\.\d+)?/g) || [];
+    const row = {
+      merchant_id: merchant.id,
+      name: shopData.name?.trim(),
+      description: shopData.about?.trim() || null,
+      category_id: categoryId,
+      logo_url: shopData.logoImage || null,
+      cover_image_url: shopData.coverImage || null,
+      phone: shopData.phone?.trim() || null,
+      email: merchant.email,
+      address: shopData.address?.trim(),
+      city: shopData.city?.trim() || 'Nagpur',
       state: 'Maharashtra',
-      cover_image_url: shopData.coverImage || shopData.coverImageUrl || null,
-      logo_url: shopData.logoImage || shopData.coverImage || null,
-      phone: shopData.phone || null,
-      email: (shopData.merchantEmail || shopData.email || '').toLowerCase().trim() || null,
-      price_min: priceMin,
-      price_max: priceMax,
+      price_min: Number(prices[0] || 0),
+      price_max: Number(prices[1] || prices[0] || 0),
       status: 'open',
-      is_verified: Boolean(shopData.verified || shopData.is_verified),
-      is_featured: false,
-      rating: 4.8,
-      review_count: 0,
-      ...(resolvedCategoryId ? { category_id: resolvedCategoryId } : {}),
-      ...(isUuid(shopData.merchantId) ? { merchant_id: shopData.merchantId } : {})
+      is_verified: false
     };
-
-    let resultShop = {
-      ...shopData,
-      id: shopData.id || `shop-${Date.now()}`
-    };
-
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('shops')
-          .insert([shopRow])
-          .select('*, categories(name)')
-          .single();
-
-        if (!error && data) {
-          resultShop = this.formatShopRow(data);
-        } else if (error) {
-          console.warn('Supabase shop insertion notice:', error);
-        }
-      } catch (err) {
-        console.warn('Supabase createShop network error:', err);
-      }
-    }
-
-    // Always update local cache
-    this.saveShopLocally(resultShop);
-    return { data: resultShop, error: null };
-  },
-
-  // Update shop details in Supabase and local cache
-  async updateShop(shopId, updates) {
-    let formatted = { ...updates };
-    if (isSupabaseConfigured && isUuid(shopId)) {
-      try {
-        const updateRow = {};
-        if (updates.name !== undefined) updateRow.name = updates.name;
-        if (updates.about !== undefined) updateRow.description = updates.about;
-        if (updates.description !== undefined) updateRow.description = updates.description;
-        if (updates.address !== undefined) updateRow.address = updates.address;
-        if (updates.city !== undefined) updateRow.city = updates.city;
-        if (updates.coverImage !== undefined) updateRow.cover_image_url = updates.coverImage;
-        if (updates.logoImage !== undefined) updateRow.logo_url = updates.logoImage;
-        if (updates.phone !== undefined) updateRow.phone = updates.phone;
-        updateRow.updated_at = new Date().toISOString();
-
-        const { data, error } = await supabase
-          .from('shops')
-          .update(updateRow)
-          .eq('id', shopId)
-          .select('*, categories(name)')
-          .single();
-
-        if (!error && data) {
-          formatted = this.formatShopRow(data);
-        } else if (error) {
-          console.warn('Supabase updateShop notice:', error);
-        }
-      } catch (err) {
-        console.warn('Supabase updateShop network error:', err);
-      }
-    }
-    this.saveShopLocally(formatted);
-    return { data: formatted, error: null };
-  },
-
-  // Save a merchant-created shop locally
-  saveShopLocally(shop) {
-    try {
-      const existing = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-      const updated = [shop, ...existing.filter(s => s.id !== shop.id)];
-      localStorage.setItem('growlocal_merchant_shops', JSON.stringify(updated));
-    } catch (_) {}
-  },
-
-  // Toggle featured status of a shop
-  async toggleFeatureShop(shopId, isFeatured) {
-    if (!isSupabaseConfigured || !isUuid(shopId)) return { success: true };
+    if (!row.name || !row.address) return { data: null, error: { message: 'Shop name and address are required.' } };
 
     const { data, error } = await supabase
       .from('shops')
-      .update({ is_featured: isFeatured, updated_at: new Date() })
-      .eq('id', shopId);
-
-    return { data, error };
+      .insert(row)
+      .select(SHOP_SELECT)
+      .single();
+    return { data: data ? this.formatShopRow(data) : null, error };
   },
 
-  // Real-time subscription to shops channel
-  subscribeToShops(onShopChange) {
-    if (!isSupabaseConfigured) return () => {};
-
-    const channel = supabase
-      .channel('public:shops')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'shops'
-      }, (payload) => {
-        onShopChange(payload);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+  async updateShop(shopId, updates) {
+    if (!isUuid(shopId)) return { data: null, error: { message: 'Invalid shop ID.' } };
+    const row = {
+      ...(updates.name !== undefined ? { name: updates.name } : {}),
+      ...(updates.about !== undefined ? { description: updates.about } : {}),
+      ...(updates.address !== undefined ? { address: updates.address } : {}),
+      ...(updates.city !== undefined ? { city: updates.city } : {}),
+      ...(updates.coverImage !== undefined ? { cover_image_url: updates.coverImage || null } : {}),
+      ...(updates.logoImage !== undefined ? { logo_url: updates.logoImage || null } : {}),
+      ...(updates.phone !== undefined ? { phone: updates.phone } : {})
     };
+    const { data, error } = await supabase
+      .from('shops')
+      .update(row)
+      .eq('id', shopId)
+      .select(SHOP_SELECT)
+      .single();
+    return { data: data ? this.formatShopRow(data) : null, error };
+  },
+
+  subscribeToShops(onChange) {
+    if (!isSupabaseConfigured) return () => {};
+    const channel = supabase.channel('shops-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shops' }, onChange)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
   }
 };

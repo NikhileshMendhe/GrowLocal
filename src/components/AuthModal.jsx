@@ -42,11 +42,12 @@ export default function AuthModal({
         return;
       }
 
-      onLoginSuccess({
-        role,
-        name: fullName || email.split('@')[0],
-        email
-      });
+      if (data?.requiresEmailConfirmation) {
+        setErrorMsg("Account created. Check your email, confirm your address, then log in to continue.");
+        return;
+      }
+
+      onLoginSuccess(data?.profile);
       onClose();
     } else {
       const { data, error } = await authService.login({ email, password, targetRole: role });
@@ -57,11 +58,7 @@ export default function AuthModal({
         return;
       }
 
-      onLoginSuccess({
-        role: data?.profile?.role || role,
-        name: data?.profile?.full_name || email.split('@')[0],
-        email
-      });
+      onLoginSuccess(data?.profile);
       onClose();
     }
   };
@@ -202,4 +199,3 @@ export default function AuthModal({
     </div>
   );
 }
-

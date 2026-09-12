@@ -331,21 +331,13 @@ export default function App() {
     }
   };
 
-  // handleAddShop: save to Supabase + local storage and update shared state
+  // Shops only become visible after Supabase has accepted the merchant-owned row.
   const handleAddShop = async (newShop) => {
-    try {
-      const { data: savedShop } = await shopService.createShop(newShop);
-      const shopToUse = savedShop || newShop;
-      setShops(prev => [shopToUse, ...prev.filter(s => s.id !== shopToUse.id)]);
-      triggerToast(`✓ "${shopToUse.name}" is now live on GrowLocal!`);
-      return shopToUse;
-    } catch (e) {
-      console.warn('handleAddShop fallback notice:', e);
-      shopService.saveShopLocally(newShop);
-      setShops(prev => [newShop, ...prev.filter(s => s.id !== newShop.id)]);
-      triggerToast(`✓ "${newShop.name}" is live!`);
-      return newShop;
-    }
+    const { data: savedShop, error } = await shopService.createShop(newShop);
+    if (error || !savedShop) throw new Error(error?.message || 'Your shop could not be published.');
+    setShops(prev => [savedShop, ...prev.filter(s => s.id !== savedShop.id)]);
+    triggerToast(`✓ "${savedShop.name}" is now live on GrowLocal!`);
+    return savedShop;
   };
 
   // Central Auth Opener: "merchant" role opens dedicated MerchantAuthPage, "customer" opens shared modal
@@ -474,22 +466,10 @@ export default function App() {
 
   // Shared Master Platform Data State
   const [currentLocation, setCurrentLocation] = useState(INITIAL_LOCATION);
-  const [shops, setShops] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-      if (Array.isArray(stored) && stored.length > 0) return stored;
-    } catch (_) {}
-    return INITIAL_SHOPS;
-  });
-  const [products, setProducts] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
-      if (Array.isArray(stored) && stored.length > 0) return stored;
-    } catch (_) {}
-    return INITIAL_PRODUCTS;
-  });
+  const [shops, setShops] = useState([]);
+  const [products, setProducts] = useState([]);
   const [enquiries, setEnquiries] = useState(() => enquiryService.getStoredEnquiries());
-  const [messages, setMessages] = useState(INITIAL_CHAT_MESSAGES);
+  const [messages, setMessages] = useState(() => chatService.getStoredMessages());
   const [reservations, setReservations] = useState(() => reservationService.getStoredReservations());
   const [savedShopIds, setSavedShopIds] = useState(() => {
     try {
@@ -503,8 +483,8 @@ export default function App() {
   // Admin Master State
   const [adminUsers, setAdminUsers] = useState(INITIAL_ADMIN_USERS);
   const [customers, setCustomers] = useState(() => userService.getStoredRegisteredCustomers());
-  const [merchants, setMerchants] = useState(() => merchantService.getStoredMerchants());
-  const [pendingVerifications, setPendingVerifications] = useState(() => merchantService.getStoredPendingVerifications());
+  const [merchants, setMerchants] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
   const [featuredShops, setFeaturedShops] = useState(INITIAL_FEATURED_SHOPS);
   const [categories, setCategories] = useState(CATEGORIES);
   const [locations, setLocations] = useState(INITIAL_LOCATIONS);
@@ -528,8 +508,8 @@ export default function App() {
 
   // Selections & Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedShopId, setSelectedShopId] = useState(() => initialRoute.shopId || "shop-1");
-  const [selectedProductId, setSelectedProductId] = useState("prod-1");
+  const [selectedShopId, setSelectedShopId] = useState(() => initialRoute.shopId || null);
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   // Fetch initial data & initialize Supabase Realtime listeners
   useEffect(() => {
@@ -552,6 +532,18 @@ export default function App() {
           }
         }
 
+        // Load the public marketplace independently from the administrative
+        // projections. An admin-only query must never make the customer feed or
+        // search catalogue disappear.
+        const [shopsResult, productsResult, categoriesResult] = await Promise.all([
+          shopService.getAllShops(),
+          productService.getAllProducts(),
+          categoryService.getCategories()
+        ]);
+        if (Array.isArray(shopsResult.data)) setShops(shopsResult.data);
+        if (Array.isArray(productsResult.data)) setProducts(productsResult.data);
+        if (Array.isArray(categoriesResult.data)) setCategories(categoriesResult.data);
+
         const { data: fetchedCust } = await userService.getAllCustomers();
         if (fetchedCust && fetchedCust.length > 0) setCustomers(fetchedCust);
 
@@ -560,15 +552,6 @@ export default function App() {
 
         const { data: fetchedVerifs } = await merchantService.getPendingVerifications();
         if (fetchedVerifs && fetchedVerifs.length > 0) setPendingVerifications(fetchedVerifs);
-
-        const { data: fetchedShops } = await shopService.getAllShops();
-        if (fetchedShops && fetchedShops.length > 0) setShops(fetchedShops);
-
-        const { data: fetchedProducts } = await productService.getAllProducts();
-        if (fetchedProducts && fetchedProducts.length > 0) setProducts(fetchedProducts);
-
-        const { data: fetchedCats } = await categoryService.getCategories();
-        if (fetchedCats && fetchedCats.length > 0) setCategories(fetchedCats);
 
         const { data: fetchedEnq } = await enquiryService.getEnquiries();
         if (fetchedEnq && fetchedEnq.length > 0) setEnquiries(fetchedEnq);
@@ -609,6 +592,14 @@ export default function App() {
       reservationService.getReservations().then(({ data }) => data && setReservations(data));
     }) : null;
 
+    const unSubChat = chatService?.subscribeToChat ? chatService.subscribeToChat((incomingMsg) => {
+      if (!incomingMsg || !incomingMsg.id) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === incomingMsg.id)) return prev;
+        return [...prev, incomingMsg];
+      });
+    }) : null;
+
     return () => {
       if (typeof unSubCustomers === 'function') unSubCustomers();
       if (typeof unSubShops === 'function') unSubShops();
@@ -616,6 +607,7 @@ export default function App() {
       if (typeof unSubEnquiries === 'function') unSubEnquiries();
       if (typeof unSubOffers === 'function') unSubOffers();
       if (typeof unSubReservations === 'function') unSubReservations();
+      if (typeof unSubChat === 'function') unSubChat();
     };
   }, []);
 
@@ -630,26 +622,27 @@ export default function App() {
       (s.merchantEmail && s.merchantEmail.toLowerCase().startsWith(target)) ||
       (s.merchantId && String(s.merchantId).toLowerCase() === target)
     );
-  }) || (selectedShopId && selectedShopId !== 'shop-1' ? {
-    id: selectedShopId,
-    name: selectedShopId.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    category: 'Verified Local Retail',
-    verified: true,
-    rating: 4.8,
-    reviewsCount: 1,
-    distance: '0.5 km away',
-    address: 'Nagpur, Maharashtra',
-    status: 'Open',
-    openHours: '10:00 AM – 9:00 PM',
-    priceRange: '₹299 – ₹9,999',
-    about: `Welcome to our store on GrowLocal! Browse our in-store digital catalog, check real stock, and chat directly with us.`,
-    coverImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
-    logoImage: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80'
-  } : shops[0]);
+  }) || shops[0] || null;
 
   const activeProduct = products.find(p => p.id === selectedProductId) || products[0];
 
-  // Automatically restore / fetch merchant shop if referenced by URL slug or ID
+  const activeCustomerChatMessages = messages.filter(m => {
+    if (!activeShop) return false;
+    const shopMatches = (m.shopId && String(m.shopId).toLowerCase() === String(activeShop.id).toLowerCase()) ||
+                        (m.shopName && activeShop.name && m.shopName.toLowerCase().trim() === activeShop.name.toLowerCase().trim()) ||
+                        (m.conversationId && m.conversationId.startsWith(activeShop.id));
+    if (!shopMatches) return false;
+
+    const userId = currentUser?.id ? String(currentUser.id) : null;
+    const userEmail = currentUser?.email ? currentUser.email.toLowerCase().trim() : null;
+    if (userId && m.customerId && String(m.customerId) === userId) return true;
+    if (userEmail && m.customerEmail && m.customerEmail.toLowerCase().trim() === userEmail) return true;
+    if (!m.customerId || m.customerId === 'guest-customer' || m.customerId === 'guest') return true;
+    return true;
+  });
+
+  // Resolve a deep-linked shop from the live marketplace only. Missing shops are
+  // shown as missing rather than being replaced with a fabricated storefront.
   useEffect(() => {
     if (!selectedShopId) return;
     const target = String(selectedShopId).toLowerCase().trim();
@@ -659,45 +652,6 @@ export default function App() {
       s.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') === target.replace(/[^a-z0-9]/g, '-')
     );
     if (alreadyFound) return;
-
-    try {
-      const storedShops = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-      const localMatch = storedShops.find(s => 
-        String(s.id).toLowerCase() === target || 
-        s.name?.toLowerCase().trim() === target ||
-        s.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') === target.replace(/[^a-z0-9]/g, '-')
-      );
-      if (localMatch) {
-        setShops(prev => [localMatch, ...prev.filter(s => s.id !== localMatch.id)]);
-        return;
-      }
-
-      const storedMerchants = JSON.parse(localStorage.getItem('growlocal_registered_merchants') || '[]');
-      const mMatch = storedMerchants.find(m => 
-        String(m.id).toLowerCase() === target || 
-        m.name?.toLowerCase().trim() === target ||
-        (m.email && m.email.toLowerCase().startsWith(target))
-      );
-      if (mMatch) {
-        const synthShop = {
-          id: mMatch.id || selectedShopId,
-          name: mMatch.shopName || mMatch.name || selectedShopId,
-          category: 'Verified Local Retail',
-          verified: true,
-          rating: 4.8,
-          reviewsCount: 1,
-          distance: '0.5 km away',
-          address: mMatch.address || 'Nagpur, Maharashtra',
-          status: 'Open',
-          openHours: '10:00 AM – 9:00 PM',
-          about: `${mMatch.name || selectedShopId} is a verified neighborhood merchant on GrowLocal.`,
-          coverImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
-          logoImage: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=200&q=80'
-        };
-        setShops(prev => [synthShop, ...prev]);
-        return;
-      }
-    } catch (_) {}
 
     shopService.getAllShops().then(({ data }) => {
       if (data && data.length > 0) {
@@ -713,6 +667,7 @@ export default function App() {
   }, [selectedShopId]);
 
   const handleExecuteSearch = (query) => {
+    searchService.recordSearch(query, currentUser?.profileId).catch((error) => console.warn('Search could not be recorded:', error.message));
     setSearchQuery(query);
     setActivePlatform("customer");
     setActiveTab("searchResults");
@@ -746,15 +701,102 @@ export default function App() {
     });
   };
 
-  const handleSendMessage = (text) => {
+  const handleSendMessage = (text, contextOrAttachment = null, attachmentUrl = null) => {
+    // 1. If sent by merchant from MerchantChats
+    if (activePlatform === "merchant") {
+      const activeEnq = contextOrAttachment;
+      const targetShop = currentMerchantShop || shops.find(s => s.id === activeEnq?.shopId) || shops[0];
+      const convId = activeEnq?.id || `${targetShop?.id}_${activeEnq?.customerId || 'cust'}`;
+
+      chatService.sendMessage({
+        conversationId: convId,
+        shopId: targetShop?.id || activeEnq?.shopId,
+        shopName: targetShop?.name || 'Shop Owner',
+        customerId: activeEnq?.customerId || activeEnq?.customerName || 'customer',
+        customerName: activeEnq?.customerName || 'Customer',
+        sender: 'shop',
+        senderRole: 'shop',
+        senderName: targetShop?.name || 'Store Owner',
+        text: text,
+        attachmentUrl: attachmentUrl || null
+      }).then(({ data: created }) => {
+        if (created) {
+          setMessages(prev => prev.some(m => m.id === created.id) ? prev : [...prev, created]);
+        }
+      });
+
+      // Update enquiry lastMessage and timestamp
+      if (activeEnq?.id) {
+        setEnquiries(prev => {
+          const updated = prev.map(e => e.id === activeEnq.id ? { ...e, lastMessage: `Shop: ${text}`, timestamp: 'Just now' } : e);
+          try { localStorage.setItem('growlocal_user_enquiries', JSON.stringify(updated)); } catch (_) {}
+          return updated;
+        });
+      }
+      return;
+    }
+
+    // 2. If sent by customer from CustomerChat
     requireUserAuth('chat', text, () => {
-      const newMsg = {
-        id: `msg-${Date.now()}`,
-        sender: activePlatform === "merchant" ? "shop" : "customer",
-        text,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, newMsg]);
+      const targetShop = activeShop || shops[0];
+      const customerId = currentUser?.id || currentUser?.email || 'guest-customer';
+      const customerName = currentUser?.name || currentUser?.email?.split('@')[0] || 'Customer';
+      const convId = `${targetShop?.id}_${customerId}`;
+      const actualAttachment = attachmentUrl || (typeof contextOrAttachment === 'string' && contextOrAttachment.startsWith('data:') ? contextOrAttachment : null);
+
+      chatService.sendMessage({
+        conversationId: convId,
+        shopId: targetShop?.id,
+        shopName: targetShop?.name,
+        customerId: customerId,
+        customerName: customerName,
+        customerAvatar: currentUser?.avatar || '',
+        sender: 'customer',
+        senderRole: 'customer',
+        senderName: customerName,
+        text: text,
+        attachmentUrl: actualAttachment
+      }).then(({ data: created }) => {
+        if (created) {
+          setMessages(prev => prev.some(m => m.id === created.id) ? prev : [...prev, created]);
+        }
+      });
+
+      // Ensure an enquiry exists so merchant sees this conversation in their inbox
+      setEnquiries(prev => {
+        const existing = prev.find(e =>
+          (e.shopId === targetShop?.id || e.shopName === targetShop?.name) &&
+          (e.customerId === customerId || e.customerName === customerName)
+        );
+
+        let updated;
+        if (existing) {
+          updated = prev.map(e => e.id === existing.id ? { ...e, lastMessage: text, timestamp: 'Just now' } : e);
+        } else {
+          const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
+          const freshEnquiry = {
+            id: code,
+            customerId: customerId,
+            customerName: customerName,
+            customerPhone: currentUser?.phone || "+91 98765 43210",
+            customerAvatar: currentUser?.avatar || "",
+            shopId: targetShop?.id,
+            shopName: targetShop?.name,
+            merchantId: targetShop?.merchantId,
+            merchantEmail: targetShop?.merchantEmail,
+            productName: "Direct Shop Enquiry",
+            productImage: targetShop?.logoImage || "",
+            size: "General",
+            budget: targetShop?.priceRange || "Negotiable",
+            status: "Pending",
+            timestamp: "Just now",
+            lastMessage: text
+          };
+          updated = [freshEnquiry, ...prev];
+        }
+        try { localStorage.setItem('growlocal_user_enquiries', JSON.stringify(updated)); } catch (_) {}
+        return updated;
+      });
     });
   };
 
@@ -771,15 +813,19 @@ export default function App() {
 
       const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
       const userPhone = currentUser?.phone || "+91 98765 43210";
+      const customerId = currentUser?.id || currentUser?.email || 'guest-customer';
       const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
 
       const newEnquiry = {
         id: code,
+        customerId: customerId,
         customerName: userName,
         customerPhone: userPhone,
-        customerAvatar: currentUser?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
+        customerAvatar: currentUser?.avatar || "",
         shopId: targetShop?.id || product.shopId || "shop-1",
         shopName: targetShop?.name || product.shopName || "Local Shop",
+        merchantId: targetShop?.merchantId,
+        merchantEmail: targetShop?.merchantEmail,
         productName: product.name,
         productImage: product.images ? product.images[0] : (product.image || ""),
         size: selectedSize || (product.sizes ? product.sizes[0] : "Standard"),
@@ -790,16 +836,26 @@ export default function App() {
       };
 
       enquiryService.saveEnquiryLocally(newEnquiry);
-      setEnquiries(enquiryService.getStoredEnquiries());
+      setEnquiries(prev => [newEnquiry, ...prev]);
 
-      const initMsg = {
-        id: `msg-${Date.now()}`,
+      const promptText = `Hi ${targetShop?.name || 'Shopkeeper'}! Is "${product.name}" (Size: ${selectedSize || 'Standard'}) available in stock at your store? What's your best price?`;
+
+      chatService.sendMessage({
+        conversationId: `${targetShop?.id}_${customerId}`,
+        enquiryId: code,
+        shopId: targetShop?.id,
+        shopName: targetShop?.name,
+        customerId: customerId,
+        customerName: userName,
         sender: "customer",
-        text: `Hi ${targetShop?.name || 'Shopkeeper'}! Is "${product.name}" (Size: ${selectedSize || 'Standard'}) available in stock at your store? What's your best price?`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        enquiryId: code
-      };
-      setMessages(prev => [...prev, initMsg]);
+        senderRole: "customer",
+        senderName: userName,
+        text: promptText
+      }).then(({ data: created }) => {
+        if (created) {
+          setMessages(prev => prev.some(m => m.id === created.id) ? prev : [...prev, created]);
+        }
+      });
 
       triggerToast(`✓ Enquiry sent to ${targetShop?.name || 'merchant'}!`);
       setActivePlatform("customer");
@@ -807,20 +863,32 @@ export default function App() {
     });
   };
 
-  const handleSendCustomOffer = (offerObj) => {
-    const newOfferMsg = {
-      id: `msg-${Date.now()}`,
+  const handleSendCustomOffer = (offerObj, activeEnquiry = null) => {
+    const targetShop = currentMerchantShop || shops.find(s => s.id === offerObj.shopId) || activeShop;
+    const convId = activeEnquiry?.id || offerObj.enquiryId || `${targetShop?.id}_${activeEnquiry?.customerId || 'cust'}`;
+
+    chatService.sendMessage({
+      conversationId: convId,
+      enquiryId: offerObj.enquiryId || activeEnquiry?.id,
+      shopId: targetShop?.id || offerObj.shopId,
+      shopName: targetShop?.name || offerObj.shopName,
+      customerId: activeEnquiry?.customerId || 'customer',
+      customerName: activeEnquiry?.customerName || 'Customer',
       sender: "shop",
-      text: `We have verified stock! Special store offer for you: ${offerObj.productName} (Size ${offerObj.size}) for ₹${offerObj.price}!`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      senderRole: "shop",
+      senderName: targetShop?.name || "Shopkeeper",
+      text: `Special store offer for you: ${offerObj.productName} (Size ${offerObj.size}) for ₹${offerObj.price}!`,
       offer: offerObj
-    };
-    setMessages(prev => [...prev, newOfferMsg]);
+    }).then(({ data: created }) => {
+      if (created) {
+        setMessages(prev => prev.some(m => m.id === created.id) ? prev : [...prev, created]);
+      }
+    });
 
     // Update enquiry status so both merchant & customer see "Offer Received"
     setEnquiries(prev => {
       const updated = prev.map(e => {
-        if (e.productName === offerObj.productName || (offerObj.enquiryId && e.id === offerObj.enquiryId)) {
+        if (e.id === convId || e.id === offerObj.enquiryId || e.productName === offerObj.productName) {
           return {
             ...e,
             status: "Offer Received",
@@ -830,7 +898,7 @@ export default function App() {
         return e;
       });
       try {
-        localStorage.setItem('growlocal_enquiries', JSON.stringify(updated));
+        localStorage.setItem('growlocal_user_enquiries', JSON.stringify(updated));
       } catch (_) {}
       return updated;
     });
@@ -897,36 +965,23 @@ export default function App() {
   const handleAddProduct = async (newProd) => {
     const prodWithOwnership = {
       ...newProd,
-      merchantId: currentUser?.id || newProd.merchantId,
+      shopId: currentMerchantShop?.id || newProd.shopId,
+      merchantId: currentUser?.merchantId || newProd.merchantId,
       merchantEmail: currentUser?.email || newProd.merchantEmail
     };
-    try {
-      const { data: savedProd } = await productService.createProduct(prodWithOwnership);
-      const prodToUse = savedProd || prodWithOwnership;
-      setProducts(prev => [prodToUse, ...prev.filter(p => p.id !== prodToUse.id)]);
-      triggerToast(`🎉 "${prodToUse.name}" is now live on GrowLocal Customer Home!`);
-      return prodToUse;
-    } catch (e) {
-      console.warn('handleAddProduct error:', e);
-      productService.saveProductLocally(prodWithOwnership);
-      setProducts(prev => [prodWithOwnership, ...prev.filter(p => p.id !== prodWithOwnership.id)]);
-      triggerToast(`🎉 "${prodWithOwnership.name}" is live!`);
-      return prodWithOwnership;
-    }
+    const { data: savedProd, error } = await productService.createProduct(prodWithOwnership);
+    if (error || !savedProd) throw new Error(error?.message || 'Your product could not be published.');
+    setProducts(prev => [savedProd, ...prev.filter(p => p.id !== savedProd.id)]);
+    triggerToast(`🎉 "${savedProd.name}" is now live on GrowLocal Customer Home!`);
+    return savedProd;
   };
 
   const handleUpdateProduct = async (updatedProd) => {
-    try {
-      if (productService.updateProduct) {
-        await productService.updateProduct(updatedProd.id, updatedProd);
-      }
-    } catch (e) {
-      console.warn('handleUpdateProduct error:', e);
-    }
-    productService.saveProductLocally(updatedProd);
-    setProducts(prev => prev.map(p => p.id === updatedProd.id ? { ...p, ...updatedProd } : p));
-    triggerToast(`✓ "${updatedProd.name}" updated successfully!`);
-    return updatedProd;
+    const { data, error } = await productService.updateProduct(updatedProd.id, updatedProd);
+    if (error || !data) throw new Error(error?.message || 'Your product update could not be saved.');
+    setProducts(prev => prev.map(p => p.id === data.id ? data : p));
+    triggerToast(`✓ "${data.name}" updated successfully!`);
+    return data;
   };
 
   const handleSubmitDemand = (demandObj) => {
@@ -1058,26 +1113,14 @@ export default function App() {
   // When any user registers or logs into a merchant account, they start with a clean
   // slate from scratch: 0 products, 0 reservations, 0 enquiries, 0 dummy stats.
   const currentMerchantShop = shops.find(s => 
-    (currentUser?.id && (s.merchantId === currentUser.id || s.id === currentUser.id)) ||
-    (currentUser?.email && s.merchantEmail && s.merchantEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
-    (currentUser?.shopId && s.id === currentUser.shopId)
+    (currentUser?.merchantId && s.merchantId === currentUser.merchantId) ||
+    (currentUser?.id && s.merchantAuthUserId === currentUser.id)
   ) || null;
 
   const isItemOwnedByCurrentMerchant = (item) => {
     if (!currentUser || !item) return false;
-    const userEmail = currentUser.email?.toLowerCase().trim();
-    const userId = currentUser.id ? String(currentUser.id) : null;
-    const shopId = currentMerchantShop?.id ? String(currentMerchantShop.id) : (currentUser.shopId ? String(currentUser.shopId) : null);
-
-    if (userEmail && item.merchantEmail && item.merchantEmail.toLowerCase().trim() === userEmail) return true;
-    if (userId && item.merchantId && String(item.merchantId) === userId) return true;
-    if (shopId && item.shopId && String(item.shopId) === shopId) return true;
-
-    // Match if demo merchant explicitly logged in with matching shop name
-    const userShopName = currentMerchantShop?.name || currentUser.shopName;
-    if (userShopName && item.shopName && item.shopName.toLowerCase().trim() === userShopName.toLowerCase().trim()) return true;
-
-    return false;
+    const shopId = currentMerchantShop?.id ? String(currentMerchantShop.id) : null;
+    return Boolean(shopId && item.shopId && String(item.shopId) === shopId);
   };
 
   const merchantProducts = products.filter(isItemOwnedByCurrentMerchant);
@@ -1086,9 +1129,8 @@ export default function App() {
 
   const merchantMessages = messages.filter(m => {
     if (!currentUser) return false;
-    if (m.enquiryId) {
-      return merchantEnquiries.some(e => e.id === m.enquiryId);
-    }
+    if (m.enquiryId && merchantEnquiries.some(e => e.id === m.enquiryId)) return true;
+    if (currentMerchantShop?.id && m.shopId === currentMerchantShop.id) return true;
     return false;
   });
 
@@ -1119,25 +1161,6 @@ export default function App() {
       : "₹0"
   };
 
-  const merchantFallbackDraftShop = currentMerchantShop || {
-    id: currentUser?.shopId || (currentUser?.id ? `shop-${currentUser.id}` : `shop-${Date.now()}`),
-    name: currentUser?.shopName || (currentUser?.name ? `${currentUser.name}'s Store` : 'My Store'),
-    category: 'Local Retail',
-    address: 'Nagpur, Maharashtra',
-    city: 'Nagpur',
-    phone: currentUser?.phone || '',
-    verified: false,
-    rating: 0,
-    reviewsCount: 0,
-    openHours: '',
-    openDays: 'Mon – Sun',
-    about: '',
-    coverImage: '',
-    logoImage: '',
-    priceRange: '',
-    isDraft: true
-  };
-
   const isSuperAdminAuthenticated = Boolean(
     currentUser && 
     currentUser.email?.toLowerCase() === 'nikhileshmendhe07@gmail.com' &&
@@ -1158,47 +1181,24 @@ export default function App() {
           onLoginSuccess={async (userData) => {
             setCurrentUser(userData);
             const cleanEmail = (userData.email || '').toLowerCase().trim();
+            const merchantId = userData.merchantId;
 
-            if (cleanEmail && (userData.role === 'merchant' || !userData.role)) {
-              merchantService.registerMerchantInSupabase(userData);
-              setMerchants(merchantService.getStoredMerchants());
-            }
-
-            // 1. Check in loaded shops state
+            // A merchant profile is created during authentication. A shop is the
+            // only reliable onboarding completion signal.
             const inStateShop = shops.some(
-              s => (cleanEmail && s.merchantEmail?.toLowerCase() === cleanEmail) ||
-                   (cleanEmail && s.email?.toLowerCase() === cleanEmail) ||
-                   (userData.id && s.merchantId === userData.id) ||
-                   (userData.shopName && s.name?.toLowerCase() === userData.shopName.toLowerCase())
+              s => merchantId && s.merchantId === merchantId
             );
-
-            // 2. Check in Supabase & local storage for existing shop
-            const hasShop = inStateShop || await shopService.checkMerchantHasShop(cleanEmail, userData.id, userData.shopName);
-
-            // 3. Check in Supabase & local storage for existing merchant record
-            const hasMerchantRecord = await merchantService.checkMerchantExists(cleanEmail, userData.id);
-
-            // 4. Check if account already completed onboarding in local storage vault
-            let accountOnboardingNotRequired = false;
-            try {
-              const accounts = JSON.parse(localStorage.getItem('growlocal_registered_accounts') || '[]');
-              const acc = accounts.find(a => a.email?.toLowerCase() === cleanEmail);
-              if (acc && acc.onboardingRequired === false) accountOnboardingNotRequired = true;
-            } catch (_) {}
-
-            const isReturningMerchant = Boolean(hasShop || hasMerchantRecord || accountOnboardingNotRequired);
+            const hasShop = inStateShop || await shopService.checkMerchantHasShop(cleanEmail, userData.id);
 
             const target = pendingRedirect || {};
             setPendingRedirect(null);
             if (typeof window !== 'undefined') window.history.pushState({}, '', target.path || '/merchant');
 
-            if (isReturningMerchant) {
-              // Returning merchant — go straight to dashboard
+            if (hasShop) {
               triggerToast(`✓ Welcome back to your Merchant Dashboard, ${userData.name || cleanEmail}!`);
               setActivePlatform('merchant');
               setActiveTab(target.tab || 'merchantDashboard');
             } else {
-              // Truly new merchant with no shop & no database record — show shop registration wizard first
               triggerToast(`👋 Welcome, ${userData.name || cleanEmail}! Let's set up your shop.`);
               setActivePlatform('merchantOnboarding');
             }
@@ -1211,8 +1211,7 @@ export default function App() {
         <MerchantOnboardingWizard
           currentUser={currentUser}
           onSaveShop={async (newShop) => {
-            const stampedShop = { ...newShop, merchantEmail: currentUser?.email || '' };
-            await handleAddShop(stampedShop);
+            return handleAddShop(newShop);
           }}
           onComplete={(newShop) => {
             triggerToast(`🎉 "${newShop.name}" is live on GrowLocal! Here is Your Shop.`);
@@ -1617,6 +1616,7 @@ export default function App() {
             <MerchantChats
               enquiries={merchantEnquiries}
               messages={merchantMessages}
+              currentShop={currentMerchantShop}
               onSendMessage={handleSendMessage}
               onSendCustomOffer={handleSendCustomOffer}
               onShowToast={triggerToast}
@@ -1644,24 +1644,21 @@ export default function App() {
 
           {activeTab === "merchantShopProfile" && (
             <MerchantShopProfile
-              shop={merchantFallbackDraftShop}
+              shop={currentMerchantShop}
               products={merchantProducts}
               onPreviewPublic={() => {
-                setSelectedShopId(merchantFallbackDraftShop?.id);
+                if (!currentMerchantShop?.id) {
+                  triggerToast('Complete your shop setup before previewing it.');
+                  return;
+                }
+                setSelectedShopId(currentMerchantShop.id);
                 setActivePlatform("customer");
                 setActiveTab("shopProfile");
               }}
               onSaveShop={async (updatedShop) => {
-                const shopToSave = {
-                  ...updatedShop,
-                  merchantId: currentUser?.id || updatedShop.merchantId,
-                  merchantEmail: currentUser?.email || updatedShop.merchantEmail
-                };
-                try {
-                  await shopService.updateShop(shopToSave.id, shopToSave);
-                } catch (e) {
-                  shopService.saveShopLocally(shopToSave);
-                }
+                if (!currentMerchantShop?.id) throw new Error('Create a shop before editing its profile.');
+                const { data: shopToSave, error } = await shopService.updateShop(currentMerchantShop.id, updatedShop);
+                if (error || !shopToSave) throw new Error(error?.message || 'Shop changes could not be saved.');
                 setShops(prev => {
                   const exists = prev.some(s => s.id === shopToSave.id);
                   if (exists) {
@@ -1835,7 +1832,10 @@ export default function App() {
                     onBack={() => setActiveTab("home")}
                     onSelectProduct={handleSelectProduct}
                     onBuyNow={handleOpenBuyNow}
-                    onOpenChat={() => setActiveTab("chat")}
+                    onOpenChat={(targetShop) => {
+                      if (targetShop?.id) setSelectedShopId(targetShop.id);
+                      setActiveTab("chat");
+                    }}
                     onShowToast={triggerToast}
                   />
                 )}
@@ -1855,7 +1855,7 @@ export default function App() {
                 {activeTab === "chat" && (
                   <CustomerChat
                     shop={activeShop}
-                    messages={messages}
+                    messages={activeCustomerChatMessages}
                     onSendMessage={handleSendMessage}
                     onBack={() => setActiveTab("shopProfile")}
                     onReserveFromOffer={(offer) => handleReserveProduct(offer, offer.size)}
@@ -2081,15 +2081,9 @@ export default function App() {
             setCurrentUser(userData);
             triggerToast(`✓ Authenticated as ${userData.name || userData.email}!`);
 
-            // Save & sync newly registered customer or merchant to Admin management
-            if (userData.email && userData.role !== 'merchant' && userData.role !== 'admin') {
-              userService.registerCustomerLocally(userData);
-              setCustomers(userService.getStoredRegisteredCustomers());
-            } else if (userData.role === 'merchant') {
-              merchantService.registerMerchantLocally(userData);
-              setMerchants(merchantService.getStoredMerchants());
-              setPendingVerifications(merchantService.getStoredPendingVerifications());
-            }
+            // Refresh real administrative projections after a successful account change.
+            userService.getAllCustomers().then(({ data }) => data && setCustomers(data));
+            merchantService.getAllMerchants().then(({ data }) => data && setMerchants(data));
 
             // Resume intercepted action if user clicked reserve/save/enquiry while logged out
             if (pendingUserAction && typeof pendingUserAction.onProceed === 'function') {

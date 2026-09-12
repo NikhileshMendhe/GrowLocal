@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   ArrowLeft, SlidersHorizontal, MapPin, Clock, MessageSquare, 
   Check, Sparkles, Zap, Store, Filter, ArrowUpDown, CheckCircle2, 
-  ShoppingBag, ChevronDown, PackageCheck, AlertCircle
+  ShoppingBag, ChevronDown, PackageCheck, AlertCircle, ShieldCheck
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import Rating from '../components/Rating';

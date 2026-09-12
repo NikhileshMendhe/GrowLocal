@@ -42,14 +42,13 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       return;
     }
 
-    const displayName = fullName || data?.profile?.full_name || email.split('@')[0];
-    onLoginSuccess({
-      id: data?.user?.id,
-      role: 'merchant',
-      name: displayName,
-      email,
-      shopName: `${displayName}'s Store`
-    });
+    if (data?.requiresEmailConfirmation) {
+      setErrorMsg("Merchant account created. Confirm your email, then return here and log in to set up your shop.");
+      setIsSignUp(false);
+      return;
+    }
+
+    onLoginSuccess(data?.profile);
   };
 
   // Handle Merchant Log In
@@ -70,14 +69,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       return;
     }
 
-    const displayName = data?.profile?.full_name || data?.user?.user_metadata?.full_name || email.split('@')[0];
-    onLoginSuccess({
-      id: data?.user?.id,
-      role: 'merchant',
-      name: displayName,
-      email,
-      shopName: displayName
-    });
+    onLoginSuccess(data?.profile);
   };
 
   return (

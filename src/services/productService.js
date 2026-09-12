@@ -1,285 +1,126 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
-const isUuid = (val) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+const isUuid = (value) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
 
 export const productService = {
-  // Helper to format Supabase product row into unified frontend shape
-  formatProductRow(p) {
-    if (!p) return null;
+  formatProductRow(product) {
+    if (!product) return null;
+    return {
+      id: product.id,
+      shopId: product.shop_id,
+      shopName: product.shops?.name || '',
+      shopVerified: Boolean(product.shops?.is_verified),
+      shopDistance: '',
+      name: product.name,
+      category: product.categories?.name || '',
+      categoryId: product.category_id || null,
+      price: Number(product.price),
+      originalPrice: product.original_price == null ? null : Number(product.original_price),
+      sizes: (product.product_variants || []).map((variant) => variant.size).filter(Boolean),
+      availability: product.availability_status,
+      stockCount: Number(product.stock_quantity || 0),
+      description: product.description || '',
+      images: (product.product_images || []).map((image) => image.image_url).filter(Boolean),
+      is_featured: Boolean(product.is_featured),
+      approval_status: product.approval_status
+    };
+  },
 
-    const images = p.product_images && p.product_images.length > 0
-      ? p.product_images.map(i => i.image_url).filter(Boolean)
-      : (p.images && p.images.length > 0 ? p.images : ["https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80"]);
+  async getAllProducts() {
+    if (!isSupabaseConfigured) return { data: [], error: { message: 'Supabase is not configured.' } };
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, shops(id, name, is_verified, address), categories(name), product_variants(size, price, stock_quantity, is_available), product_images(image_url, display_order)')
+      .order('created_at', { ascending: false });
+    return { data: (data || []).map((product) => this.formatProductRow(product)), error };
+  },
 
-    const sizes = p.product_variants && p.product_variants.length > 0
-      ? p.product_variants.map(v => v.size).filter(Boolean)
-      : (p.sizes && p.sizes.length > 0 ? p.sizes : ["Standard"]);
+  async createProduct(productData) {
+    if (!isSupabaseConfigured) return { data: null, error: { message: 'Supabase is not configured.' } };
+    if (!isUuid(productData.shopId)) return { data: null, error: { message: 'Create your shop before adding products.' } };
+    if (!productData.name?.trim()) return { data: null, error: { message: 'Product name is required.' } };
+
+    let categoryId = isUuid(productData.categoryId) ? productData.categoryId : null;
+    if (!categoryId && productData.category) {
+      const { data: categories } = await supabase.from('categories').select('id').ilike('name', productData.category).limit(1);
+      categoryId = categories?.[0]?.id || null;
+    }
+
+    const price = Number(productData.price);
+    if (!Number.isFinite(price) || price < 0) return { data: null, error: { message: 'Enter a valid product price.' } };
+
+    const { data: created, error: createError } = await supabase
+      .from('products')
+      .insert({
+        shop_id: productData.shopId,
+        category_id: categoryId,
+        name: productData.name.trim(),
+        description: productData.description?.trim() || null,
+        price,
+        original_price: Number(productData.originalPrice) || null,
+        availability_status: productData.availability || 'In Stock',
+        stock_quantity: Number.parseInt(productData.stockCount, 10) || 0,
+        is_featured: Boolean(productData.is_featured),
+        approval_status: 'approved'
+      })
+      .select('*, shops(id, name, is_verified), categories(name)')
+      .single();
+    if (createError || !created) return { data: null, error: createError || { message: 'Product could not be created.' } };
+
+    const imageRows = (productData.images || []).filter(Boolean).map((image_url, display_order) => ({ product_id: created.id, image_url, display_order }));
+    const variantRows = (productData.sizes || []).filter(Boolean).map((size) => ({ product_id: created.id, size, price, stock_quantity: Number.parseInt(productData.stockCount, 10) || 0, is_available: true }));
+    if (imageRows.length) {
+      const { error } = await supabase.from('product_images').insert(imageRows);
+      if (error) return { data: null, error };
+    }
+    if (variantRows.length) {
+      const { error } = await supabase.from('product_variants').insert(variantRows);
+      if (error) return { data: null, error };
+    }
 
     return {
-      id: p.id,
-      shopId: p.shop_id || p.shopId || "shop-1",
-      shopName: p.shops?.name || p.shopName || "Local Store",
-      shopVerified: Boolean(p.shops?.is_verified || p.shopVerified),
-      shopDistance: "0.5 km away",
-      name: p.name || "Product Item",
-      category: p.categories?.name || p.category || "General",
-      categoryId: p.category_id,
-      price: Number(p.price) || 0,
-      originalPrice: p.original_price ? Number(p.original_price) : (Number(p.price) ? Math.round(Number(p.price) * 1.25) : 0),
-      sizes: sizes,
-      availability: p.availability_status || (p.stock_quantity > 0 ? "In Stock" : "Out of Stock"),
-      stockCount: p.stock_quantity !== undefined ? p.stock_quantity : (p.stockCount || 10),
-      enquiriesCount: p.enquiries_count || p.enquiriesCount || 0,
-      description: p.description || `Fresh ${p.name} from a verified local merchant.`,
-      images: images,
-      is_featured: Boolean(p.is_featured),
-      approval_status: p.approval_status || 'approved'
+      data: this.formatProductRow({ ...created, product_images: imageRows, product_variants: variantRows }),
+      error: null
     };
   },
 
-  // Fetch all products (returns real merchant-created products from Supabase + local cache)
-  async getAllProducts() {
-    let localProducts = [];
-    try {
-      localProducts = JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
-    } catch (_) {}
-
-    if (!isSupabaseConfigured) {
-      return { data: localProducts, error: null };
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, shops(id, name, is_verified, address), categories(name), product_variants(*), product_images(*)')
-        .order('created_at', { ascending: false });
-
-      if (error || !data || data.length === 0) {
-        return { data: localProducts, error: null };
-      }
-
-      const formatted = data.map(p => this.formatProductRow(p)).filter(Boolean);
-      const supabaseIds = new Set(formatted.map(p => p.id));
-      const uniqueLocal = localProducts.filter(p => !supabaseIds.has(p.id));
-
-      return { data: [...uniqueLocal, ...formatted], error: null };
-    } catch (err) {
-      console.warn('getAllProducts Supabase error:', err);
-      return { data: localProducts, error: null };
-    }
+  async updatePrice(productId, price) {
+    return this.updateProduct(productId, { price });
   },
 
-  // Create new product in Supabase & local storage
-  async createProduct(productData) {
-    let resolvedShopId = isUuid(productData.shopId) ? productData.shopId : null;
-    let resolvedCategoryId = isUuid(productData.categoryId) ? productData.categoryId : null;
-
-    if (isSupabaseConfigured) {
-      // 1. If shopId is not a valid UUID, lookup the shop's UUID from Supabase by shopName
-      if (!resolvedShopId && productData.shopName) {
-        try {
-          const { data: matchedShops } = await supabase
-            .from('shops')
-            .select('id, name')
-            .ilike('name', productData.shopName.trim())
-            .limit(1);
-          if (matchedShops && matchedShops[0]) {
-            resolvedShopId = matchedShops[0].id;
-          }
-        } catch (_) {}
-      }
-
-      // If still no resolvedShopId, get the first shop available in Supabase
-      if (!resolvedShopId) {
-        try {
-          const { data: firstShop } = await supabase
-            .from('shops')
-            .select('id, name')
-            .limit(1);
-          if (firstShop && firstShop[0]) {
-            resolvedShopId = firstShop[0].id;
-          }
-        } catch (_) {}
-      }
-
-      // 2. Lookup category UUID if category label provided
-      if (!resolvedCategoryId && productData.category) {
-        try {
-          const { data: catRows } = await supabase
-            .from('categories')
-            .select('id, name')
-            .ilike('name', `%${productData.category.split(' ')[0]}%`)
-            .limit(1);
-          if (catRows && catRows[0]) {
-            resolvedCategoryId = catRows[0].id;
-          }
-        } catch (_) {}
-      }
-    }
-
-    const priceNum = parseFloat(productData.price) || 0;
-    const mrpNum = parseFloat(productData.originalPrice) || Math.round(priceNum * 1.25) || priceNum;
-
-    const productRow = {
-      name: productData.name,
-      description: productData.description || `Fresh ${productData.name} from a verified local merchant.`,
-      price: priceNum,
-      original_price: mrpNum,
-      discount_percentage: mrpNum > priceNum ? Math.round(((mrpNum - priceNum) / mrpNum) * 100) : 0,
-      availability_status: productData.availability || 'In Stock',
-      stock_quantity: parseInt(productData.stockCount, 10) || 10,
-      is_featured: Boolean(productData.is_featured),
-      approval_status: 'approved',
-      ...(resolvedShopId ? { shop_id: resolvedShopId } : {}),
-      ...(resolvedCategoryId ? { category_id: resolvedCategoryId } : {})
-    };
-
-    let resultProduct = {
-      ...productData,
-      id: productData.id || `prod-${Date.now()}`,
-      price: priceNum,
-      originalPrice: mrpNum
-    };
-
-    if (isSupabaseConfigured) {
-      try {
-        const { data: insertedProduct, error } = await supabase
-          .from('products')
-          .insert([productRow])
-          .select('*, shops(id, name, is_verified), categories(name)')
-          .single();
-
-        if (!error && insertedProduct) {
-          // Insert product images
-          if (productData.images && productData.images.length > 0) {
-            const imageRows = productData.images.filter(Boolean).map((url, idx) => ({
-              product_id: insertedProduct.id,
-              image_url: url,
-              display_order: idx
-            }));
-            if (imageRows.length > 0) {
-              await supabase.from('product_images').insert(imageRows).catch(() => {});
-            }
-          }
-
-          // Insert product sizes/variants
-          if (productData.sizes && productData.sizes.length > 0) {
-            const variantRows = productData.sizes.filter(Boolean).map(sz => ({
-              product_id: insertedProduct.id,
-              size: sz,
-              price: priceNum,
-              stock_quantity: 5
-            }));
-            if (variantRows.length > 0) {
-              await supabase.from('product_variants').insert(variantRows).catch(() => {});
-            }
-          }
-
-          resultProduct = this.formatProductRow({
-            ...insertedProduct,
-            product_images: productData.images?.map(url => ({ image_url: url })),
-            product_variants: productData.sizes?.map(sz => ({ size: sz }))
-          });
-        } else if (error) {
-          console.warn('Supabase product insertion notice:', error);
-        }
-      } catch (err) {
-        console.warn('Supabase createProduct network notice:', err);
-      }
-    }
-
-    // Always update local storage cache
-    this.saveProductLocally(resultProduct);
-    return { data: resultProduct, error: null };
+  async updateStock(productId, stockCount, availability = 'In Stock') {
+    return this.updateProduct(productId, { stockCount, availability });
   },
 
-  // Save product to local storage cache
-  saveProductLocally(product) {
-    try {
-      const existing = JSON.parse(localStorage.getItem('growlocal_merchant_products') || '[]');
-      const updated = [product, ...existing.filter(p => p.id !== product.id)];
-      localStorage.setItem('growlocal_merchant_products', JSON.stringify(updated));
-    } catch (_) {}
-  },
-
-  // Update product price
-  async updatePrice(productId, newPrice) {
-    if (!isSupabaseConfigured || !isUuid(productId)) return { success: true };
-
-    const { data, error } = await supabase
-      .from('products')
-      .update({ price: newPrice, updated_at: new Date() })
-      .eq('id', productId);
-
-    return { data, error };
-  },
-
-  // Update product stock
-  async updateStock(productId, stockQuantity, status = 'In Stock') {
-    if (!isSupabaseConfigured || !isUuid(productId)) return { success: true };
-
-    const { data, error } = await supabase
-      .from('products')
-      .update({ stock_quantity: stockQuantity, availability_status: status, updated_at: new Date() })
-      .eq('id', productId);
-
-    return { data, error };
-  },
-
-  // Update entire product
   async updateProduct(productId, productData) {
-    const result = { ...productData, id: productId };
-    if (isSupabaseConfigured && isUuid(productId)) {
-      try {
-        await supabase
-          .from('products')
-          .update({
-            name: productData.name,
-            price: Number(productData.price) || 0,
-            original_price: Number(productData.originalPrice) || 0,
-            description: productData.description,
-            availability_status: productData.availability,
-            stock_quantity: Number(productData.stockCount) || 0,
-            updated_at: new Date()
-          })
-          .eq('id', productId);
-      } catch (err) {
-        console.warn('Supabase updateProduct error:', err);
-      }
-    }
-    this.saveProductLocally(result);
-    return { data: result, error: null };
-  },
-
-  // Delete product
-  async deleteProduct(productId) {
-    if (!isSupabaseConfigured || !isUuid(productId)) return { success: true };
-
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', productId);
-
-    return { error };
-  },
-
-  // Real-time subscription to products channel
-  subscribeToProducts(onProductChange) {
-    if (!isSupabaseConfigured) return () => {};
-
-    const channel = supabase
-      .channel('public:products')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'products'
-      }, (payload) => {
-        onProductChange(payload);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+    if (!isUuid(productId)) return { data: null, error: { message: 'Invalid product ID.' } };
+    const row = {
+      ...(productData.name !== undefined ? { name: productData.name } : {}),
+      ...(productData.price !== undefined ? { price: Number(productData.price) } : {}),
+      ...(productData.originalPrice !== undefined ? { original_price: Number(productData.originalPrice) || null } : {}),
+      ...(productData.description !== undefined ? { description: productData.description } : {}),
+      ...(productData.availability !== undefined ? { availability_status: productData.availability } : {}),
+      ...(productData.stockCount !== undefined ? { stock_quantity: Number.parseInt(productData.stockCount, 10) || 0 } : {})
     };
+    const { data, error } = await supabase
+      .from('products')
+      .update(row)
+      .eq('id', productId)
+      .select('*, shops(id, name, is_verified), categories(name), product_variants(size), product_images(image_url, display_order)')
+      .single();
+    return { data: data ? this.formatProductRow(data) : null, error };
+  },
+
+  async deleteProduct(productId) {
+    if (!isUuid(productId)) return { error: { message: 'Invalid product ID.' } };
+    return supabase.from('products').delete().eq('id', productId);
+  },
+
+  subscribeToProducts(onChange) {
+    if (!isSupabaseConfigured) return () => {};
+    const channel = supabase.channel('products-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, onChange)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
   }
 };

@@ -126,6 +126,8 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
 
   // Finish
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const selectedCat = SHOP_CATEGORIES.find(c => c.id === category);
   const finalHours = openHours === 'Custom Hours' ? (customHours || '10:00 AM – 9:00 PM') : openHours;
@@ -160,11 +162,11 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
     reader.readAsDataURL(file);
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    setSaveError('');
+    setSaving(true);
     const catLabel = selectedCat?.label || 'Local Business';
     const newShop = {
-      id: `shop-${Date.now()}`,
-      merchantId: currentUser?.id || `merchant-${Date.now()}`,
       name: shopName,
       category: catLabel,
       address: address || `${city}, Maharashtra`,
@@ -185,12 +187,14 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
       photos: coverImageUrl ? [coverImageUrl] : [],
     };
     try {
-      const existing = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
-      localStorage.setItem('growlocal_merchant_shops', JSON.stringify([newShop, ...existing]));
-    } catch (_) {}
-    setSaved(true);
-    if (onSaveShop) onSaveShop(newShop);
-    setTimeout(() => { if (onComplete) onComplete(newShop); }, 2400);
+      const savedShop = onSaveShop ? await onSaveShop(newShop) : newShop;
+      setSaved(true);
+      setTimeout(() => { if (onComplete) onComplete(savedShop); }, 2400);
+    } catch (error) {
+      setSaveError(error.message || 'Your shop could not be published. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100;
@@ -716,6 +720,11 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
                 </div>
               ))}
             </div>
+            {saveError && (
+              <p style={{ margin: 0, padding: '10px 12px', borderRadius: '12px', background: '#FEF2F2', color: '#B91C1C', fontSize: '12px', fontWeight: 700 }}>
+                {saveError}
+              </p>
+            )}
           </div>
         )}
 
@@ -772,17 +781,18 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
             ) : (
               <button
                 onClick={handleFinish}
+                disabled={saving}
                 style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                   padding: '14px',
                   background: 'linear-gradient(135deg, #138A36, #1aad44)',
                   color: '#fff', border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: 900,
-                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(19,138,54,0.4)',
+                  cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1, boxShadow: '0 6px 20px rgba(19,138,54,0.4)',
                   transition: 'all 0.2s',
                 }}
               >
                 <Sparkles style={{ width: '16px', height: '16px' }} />
-                <span>🚀 Go Live on GrowLocal!</span>
+                <span>{saving ? 'Publishing your shop…' : '🚀 Go Live on GrowLocal!'}</span>
               </button>
             )}
           </div>
