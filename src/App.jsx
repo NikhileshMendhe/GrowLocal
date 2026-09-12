@@ -1831,7 +1831,7 @@ export default function App() {
                   <CustomerShopProfile
                     shop={activeShop}
                     products={products}
-                    isSaved={savedShopIds.includes(activeShop.id)}
+                    isSaved={Boolean(activeShop && savedShopIds.includes(activeShop.id))}
                     onToggleSave={handleToggleSave}
                     onBack={() => setActiveTab("home")}
                     onSelectProduct={handleSelectProduct}
