@@ -4,6 +4,7 @@ import {
   Phone, User, ArrowRight, ShieldCheck, Zap, QrCode, Check, Copy, Sparkles
 } from 'lucide-react';
 import VerifiedBadge from './VerifiedBadge';
+import { orderNotificationService } from '../services/orderNotificationService';
 
 export default function BuyNowModal({
   product,
@@ -93,6 +94,13 @@ export default function BuyNowModal({
     setTimeout(() => {
       setIsSubmitting(false);
       setConfirmedOrder(newOrder);
+
+      // Trigger high-urgency siren notification to the merchant
+      try {
+        orderNotificationService.notifyNewOrder(newOrder);
+      } catch (e) {
+        console.warn('Failed to broadcast order notification:', e);
+      }
 
       if (onCompleteOrder) {
         onCompleteOrder(newOrder);

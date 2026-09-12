@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { INITIAL_OFFERS, INITIAL_REVIEWS } from '../data/adminMockData';
+import { orderNotificationService } from './orderNotificationService';
 
 const RESERVATIONS_STORAGE_KEY = 'growlocal_user_reservations';
 
@@ -109,6 +110,10 @@ export const reservationService = {
     const newResObj = { id: reservationCode, reservationCode, ...resData };
 
     this.saveReservationLocally(newResObj);
+
+    try {
+      orderNotificationService.notifyNewOrder(newResObj);
+    } catch (e) {}
 
     if (!isSupabaseConfigured) {
       return { data: newResObj, error: null };

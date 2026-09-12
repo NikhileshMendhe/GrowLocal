@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Package, MessageSquare, Inbox, ShoppingBag,
   TrendingUp, Sparkles, Tag, Store, CreditCard, LogOut, Eye,
-  Bell, ChevronDown, Menu, X, CheckCircle2, ShieldCheck, Plus, ArrowUpRight
+  Bell, ChevronDown, Menu, X, CheckCircle2, ShieldCheck, Plus, ArrowUpRight,
+  Volume2, VolumeX, ArrowRight
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { orderNotificationService } from '../services/orderNotificationService';
 
 export default function MerchantLayout({
   activeTab,
@@ -22,6 +24,55 @@ export default function MerchantLayout({
   children
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [incomingOrderAlert, setIncomingOrderAlert] = useState(null);
+  const [sirenActive, setSirenActive] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+  useEffect(() => {
+    // Listen for customer "Buy Now" orders
+    const unsubscribe = orderNotificationService.subscribe((order) => {
+      setIncomingOrderAlert(order);
+      setSirenActive(true);
+      orderNotificationService.playSiren(10);
+    });
+
+    return () => {
+      unsubscribe();
+      orderNotificationService.stopSiren();
+    };
+  }, []);
+
+  const handleDismissOrderAlert = () => {
+    orderNotificationService.stopSiren();
+    setSirenActive(false);
+    setIncomingOrderAlert(null);
+  };
+
+  const handleViewOrder = () => {
+    handleDismissOrderAlert();
+    setActiveTab('merchantReservations');
+  };
+
+  const handleTestSiren = (e) => {
+    e.stopPropagation();
+    orderNotificationService.initAudio();
+    setAudioUnlocked(true);
+    if (sirenActive) {
+      orderNotificationService.stopSiren();
+      setSirenActive(false);
+    } else {
+      setSirenActive(true);
+      orderNotificationService.playSiren(3);
+      setTimeout(() => setSirenActive(false), 3000);
+    }
+  };
+
+  const handlePortalClick = () => {
+    if (!audioUnlocked) {
+      orderNotificationService.initAudio();
+      setAudioUnlocked(true);
+    }
+  };
 
   const currentShop = shops?.find(s => 
     (currentUser?.id && (s.merchantId === currentUser.id || s.id === currentUser.id)) ||
@@ -52,31 +103,29 @@ export default function MerchantLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F7F9F7] flex flex-col font-sans selection:bg-[#EAF7EE] selection:text-[#138A36]">
+    <div onClick={handlePortalClick} className="min-h-screen bg-[#F7F9F7] flex flex-col font-sans selection:bg-[#EAF7EE] selection:text-[#138A36]">
       {/* ── Top Dedicated Merchant Portal Header ── */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E5E7E5] shadow-xs">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           
-          {/* Left: Branding */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* Left: Brand / Store Badge */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <button
               onClick={() => setMobileNavOpen(!mobileNavOpen)}
-              className="lg:hidden p-1.5 sm:p-2 rounded-xl text-gray-700 hover:bg-gray-100 shrink-0"
-              aria-label="Toggle Navigation"
+              className="lg:hidden p-2 text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors"
+              aria-label="Toggle navigation menu"
             >
               {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <div 
-              onClick={() => setActiveTab('merchantDashboard')}
-              className="flex items-center gap-2 cursor-pointer select-none min-w-0"
-            >
-              <img src="/growlocal-logo.png" alt="GrowLocal" className="h-7 sm:h-8 w-auto object-contain shrink-0" />
-              <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-[#138A36] to-[#0B6B2B] flex items-center justify-center text-white font-black text-sm sm:text-base shadow-sm shrink-0">
+                G
+              </div>
+              <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base sm:text-lg font-black tracking-tight text-[#111111] font-poppins">GrowLocal</span>
-                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-[#138A36] text-white px-1.5 sm:px-2 py-0.5 rounded-md shadow-xs shrink-0">
-                    <span className="inline sm:hidden">Hub</span>
+                  <span className="font-extrabold text-sm sm:text-base text-[#111111] leading-none tracking-tight">GrowLocal</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-[#138A36] px-1.5 py-0.5 rounded-md leading-none">
                     <span className="hidden sm:inline">Merchant Portal</span>
                   </span>
                 </div>
@@ -85,15 +134,32 @@ export default function MerchantLayout({
             </div>
           </div>
 
-          {/* Center: Live Realtime Status Pill (Desktop only) */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#EAF7EE] border border-[#CDEED5] rounded-full shrink-0">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-            </span>
-            <span className="text-xs font-bold text-[#138A36]">Realtime Sync Active</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-[11px] text-gray-600 font-medium">Nagpur</span>
+          {/* Center: Live Realtime Status Pill & Order Siren Status (Desktop only) */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#EAF7EE] border border-[#CDEED5] rounded-full shrink-0">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+              </span>
+              <span className="text-xs font-bold text-[#138A36]">Realtime Sync</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-[11px] text-gray-600 font-medium">Nagpur</span>
+            </div>
+
+            {/* Siren Status & Test Button */}
+            <button
+              onClick={handleTestSiren}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 ${
+                sirenActive
+                  ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/40 ring-2 ring-red-400'
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-[#138A36] border border-emerald-200'
+              }`}
+              title="Order Dispatch Siren: Plays audio alarm whenever a customer clicks Buy Now. Click to test or toggle siren."
+            >
+              <Volume2 className={`w-3.5 h-3.5 ${sirenActive ? 'animate-bounce text-white' : 'text-[#138A36]'}`} />
+              <span className="hidden sm:inline">{sirenActive ? 'Siren RRRINGING (Mute)' : 'Order Siren Ready'}</span>
+              <span className="sm:hidden">{sirenActive ? '🚨 Siren' : '🔊 Siren'}</span>
+            </button>
           </div>
 
           {/* Right: Store Pill & Controls */}
@@ -366,6 +432,84 @@ export default function MerchantLayout({
           </div>
         </div>
       </footer>
+
+      {/* =========================================================================
+          HIGH-URGENCY SIREN ORDER ALERT MODAL
+      ========================================================================= */}
+      {incomingOrderAlert && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border-4 border-red-500 animate-in zoom-in-95 duration-200 relative">
+            {/* Emergency Red Flasher Top Header */}
+            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white p-5 text-center relative overflow-hidden">
+              <div className="w-14 h-14 mx-auto bg-white/20 rounded-2xl flex items-center justify-center text-3xl mb-2 animate-bounce shadow-lg">
+                🚨
+              </div>
+              <div className="inline-block bg-white text-red-600 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shadow-sm mb-1">
+                Incoming Customer Order!
+              </div>
+              <h2 className="text-xl font-black tracking-tight">NEW ORDER RECEIVED!</h2>
+              <p className="text-xs text-red-100 font-semibold mt-0.5">
+                A customer just clicked "Buy Now" on GrowLocal
+              </p>
+            </div>
+
+            {/* Order Info Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-red-50 rounded-2xl p-4 border border-red-100 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-red-800">Item Ordered:</span>
+                  <span className="text-xs font-mono font-bold text-red-900 bg-red-100 px-2 py-0.5 rounded">
+                    {incomingOrderAlert.id || 'GL-ORDER'}
+                  </span>
+                </div>
+
+                <p className="font-black text-base text-gray-900 leading-snug">
+                  {incomingOrderAlert.productName || 'Store Item'}
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-red-200/60">
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Customer:</span>
+                    <span className="font-bold text-gray-800">{incomingOrderAlert.customerName || 'Local Customer'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Amount:</span>
+                    <span className="font-black text-[#138A36] text-sm">{incomingOrderAlert.price || `₹${incomingOrderAlert.totalAmount || 0}`}</span>
+                  </div>
+                </div>
+
+                {incomingOrderAlert.fulfillmentType && (
+                  <div className="text-xs font-semibold text-gray-700 pt-1">
+                    <span>Fulfillment: </span>
+                    <span className="font-bold uppercase text-red-700">
+                      {incomingOrderAlert.fulfillmentType === 'delivery' ? '🚚 Home Delivery' : '🏪 In-Store Pickup'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2 pt-2">
+                <button
+                  onClick={handleViewOrder}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#138A36] to-[#0E6828] hover:from-[#0B6B2B] hover:to-[#095020] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-[#138A36]/30 flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
+                >
+                  <span>Accept & View in Orders</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={handleDismissOrderAlert}
+                  className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <VolumeX className="w-4 h-4 text-gray-500" />
+                  <span>Mute Siren & Dismiss</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

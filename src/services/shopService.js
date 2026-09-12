@@ -3,32 +3,37 @@ import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 const isUuid = (value) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
 // Never load unbounded base64 images with every marketplace request. Images are
 // fetched from storage URLs when present; this keeps the live feed responsive.
-const SHOP_SELECT = 'id, merchant_id, name, description, category_id, phone, email, address, city, state, pincode, price_min, price_max, rating, review_count, is_verified, is_featured, status, created_at, updated_at, categories(name), shop_photos(image_url), merchants(id, email)';
+const SHOP_SELECT = 'id, merchant_id, name, description, category_id, logo_url, cover_image_url, phone, email, address, city, state, pincode, price_min, price_max, rating, review_count, is_verified, is_featured, status, created_at, updated_at, categories(name), shop_photos(image_url), merchants(id, email)';
 
 export const shopService = {
   formatShopRow(shop) {
     if (!shop) return null;
+    const defaultCover = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=80';
+    const defaultLogo = 'https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=200&auto=format&fit=crop&q=80';
+    const cover = shop.cover_image_url || shop.coverImage || defaultCover;
+    const logo = shop.logo_url || shop.logoImage || cover || defaultLogo;
+
     return {
       id: shop.id,
-      merchantId: shop.merchant_id,
-      merchantEmail: shop.merchants?.email || shop.email || '',
+      merchantId: shop.merchant_id || shop.merchantId,
+      merchantEmail: shop.merchants?.email || shop.email || shop.merchantEmail || '',
       email: shop.email || shop.merchants?.email || '',
       phone: shop.phone || '',
-      name: shop.name,
-      category: shop.categories?.name || '',
-      categoryId: shop.category_id || null,
-      verified: Boolean(shop.is_verified),
-      is_verified: Boolean(shop.is_verified),
-      rating: Number(shop.rating || 0),
-      reviewsCount: Number(shop.review_count || 0),
-      distance: shop.distance ? `${shop.distance} km away` : '',
-      address: shop.address || '',
-      city: shop.city || '',
-      status: shop.status === 'open' ? 'Open' : (shop.status || 'Closed'),
-      priceRange: shop.price_min != null && shop.price_max != null ? `₹${shop.price_min} – ₹${shop.price_max}` : '',
-      coverImage: shop.cover_image_url || '',
-      logoImage: shop.logo_url || shop.cover_image_url || '',
-      about: shop.description || '',
+      name: shop.name || 'Unnamed Shop',
+      category: shop.categories?.name || shop.category || 'General Store',
+      categoryId: shop.category_id || shop.categoryId || null,
+      verified: Boolean(shop.is_verified || shop.verified),
+      is_verified: Boolean(shop.is_verified || shop.verified),
+      rating: Number(shop.rating || 5.0),
+      reviewsCount: Number(shop.review_count || shop.reviewsCount || 0),
+      distance: shop.distance ? `${shop.distance} km away` : '0.8 km away',
+      address: shop.address || 'Nagpur, Maharashtra',
+      city: shop.city || 'Nagpur',
+      status: shop.status === 'open' || shop.status === 'Open' ? 'Open' : (shop.status || 'Closed'),
+      priceRange: shop.price_min != null && shop.price_max != null ? `₹${shop.price_min} – ₹${shop.price_max}` : (shop.priceRange || '₹100 – ₹5,000'),
+      coverImage: cover,
+      logoImage: logo,
+      about: shop.description || shop.about || 'Local store offering quality products in Nagpur.',
       photos: (shop.shop_photos || []).map((photo) => photo.image_url).filter(Boolean)
     };
   },

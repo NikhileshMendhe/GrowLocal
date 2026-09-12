@@ -10,3 +10,4 @@ export * from './enquiryService';
 export * from './chatService';
 export * from './reservationService';
 export * from './adminService';
+export * from './orderNotificationService';

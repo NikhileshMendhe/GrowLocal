@@ -26,6 +26,8 @@ export default function CustomerHome({
 }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [productSearch, setProductSearch] = useState('');
+  const [visibleProductCount, setVisibleProductCount] = useState(8);
+  const [visibleShopCount, setVisibleShopCount] = useState(6);
   const verifiedShopsCount = shops.filter(shop => shop.verified || shop.is_verified).length;
 
   const iconMap = {
@@ -50,6 +52,8 @@ export default function CustomerHome({
   const filteredProducts = advancedProductSearch(products || [], productSearch, {
     selectedCategory: selectedCategory
   });
+  const displayedProducts = filteredProducts.slice(0, visibleProductCount);
+  const displayedShops = (shops || []).slice(0, visibleShopCount);
 
   return (
     <div className="homepage-shell space-y-12 pb-20">
@@ -573,145 +577,147 @@ export default function CustomerHome({
               </div>
             </div>
           ) : (
-            <div className="homepage-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
-              {filteredProducts.map((prod, idx) => {
-                const discountPct = prod.originalPrice > prod.price
-                  ? Math.round(((prod.originalPrice - prod.price) / prod.originalPrice) * 100)
-                  : 0;
+            <div className="space-y-6">
+              <div className="homepage-product-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
+                {displayedProducts.map((prod, idx) => {
+                  const discountPct = prod.originalPrice > prod.price
+                    ? Math.round(((prod.originalPrice - prod.price) / prod.originalPrice) * 100)
+                    : 0;
 
-                return (
-                  <div
-                    key={prod.id}
-                    onClick={() => onSelectProduct(prod.id)}
-                    className="group cursor-pointer bg-white rounded-2xl sm:rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
-                  >
-                    <div>
-                      {/* Product Image Container */}
-                      <div className="relative h-38 sm:h-48 md:h-52 bg-[#F8FAF8] overflow-hidden">
-                        <img
-                          src={prod.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'}
-                          alt={prod.name}
-                          className="w-full h-full object-cover group-hover:scale-106 transition-transform duration-500 ease-out"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80';
-                          }}
-                        />
+                  return (
+                    <div
+                      key={prod.id}
+                      onClick={() => onSelectProduct(prod.id)}
+                      className="group cursor-pointer bg-white rounded-2xl sm:rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Product Image Container */}
+                        <div className="relative h-38 sm:h-48 md:h-52 bg-[#F8FAF8] overflow-hidden">
+                          <img
+                            src={prod.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'}
+                            alt={prod.name}
+                            className="w-full h-full object-cover group-hover:scale-106 transition-transform duration-500 ease-out"
+                            onError={(e) => {
+                              e.target.src = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80';
+                            }}
+                          />
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
-                        {/* Top Badges */}
-                        <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
-                          {idx === 0 && (
-                            <span className="bg-gradient-to-r from-[#138A36] to-emerald-400 text-white text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping inline-block" />
-                              JUST LISTED
-                            </span>
-                          )}
-                          {discountPct >= 5 && (
-                            <span className="bg-red-500 text-white text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">
-                              -{discountPct}% OFF
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Stock status pill */}
-                        <div className="absolute bottom-2 right-2 z-10">
-                          <span className={`text-[8px] sm:text-[9px] font-extrabold px-2 py-0.5 rounded-full shadow-md backdrop-blur-md ${
-                            prod.availability === 'In Stock' || (prod.stockCount && prod.stockCount > 0)
-                              ? 'bg-[#EAF7EE]/95 text-[#138A36] border border-[#BDE7C9]'
-                              : 'bg-amber-100/95 text-amber-800 border border-amber-300'
-                          }`}>
-                            {prod.availability === 'In Stock' || (prod.stockCount && prod.stockCount > 0)
-                              ? `✓ In Stock`
-                              : '⚠ Limited'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Card Content Body */}
-                      <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
-                        {/* Category */}
-                        <span className="text-[9px] sm:text-[10px] font-bold text-[#888888] uppercase tracking-wider block truncate">
-                          {prod.category || 'Local Retail'}
-                        </span>
-
-                        {/* Title */}
-                        <h3 className="font-extrabold text-xs sm:text-sm md:text-base text-[#111111] line-clamp-2 leading-snug group-hover:text-[#138A36] transition-colors">
-                          {prod.name}
-                        </h3>
-
-                        {/* Clickable Store Link */}
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (prod.shopId) onSelectShop(prod.shopId);
-                          }}
-                          className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-[#138A36] hover:underline bg-[#EAF7EE] px-2 py-0.5 rounded-lg transition-colors max-w-full"
-                          title="Click to view shop inventory"
-                        >
-                          <Store className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
-                          <span className="truncate max-w-[90px] sm:max-w-[140px]">{prod.shopName || 'Local Shop'}</span>
-                          <span>•</span>
-                          <span className="text-[9px] sm:text-[10px] text-[#666666] shrink-0">{prod.shopDistance || '0.5 km'}</span>
-                        </div>
-
-                        {/* Sizes if applicable */}
-                        {prod.sizes && prod.sizes.length > 0 && prod.sizes[0] !== 'Standard' && (
-                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                            {prod.sizes.slice(0, 3).map((sz, sIdx) => (
-                              <span key={sIdx} className="text-[8px] sm:text-[9px] font-bold bg-gray-100 text-[#555555] px-1 py-0.2 rounded">
-                                {sz}
+                          {/* Top Badges */}
+                          <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                            {idx === 0 && (
+                              <span className="bg-gradient-to-r from-[#138A36] to-emerald-400 text-white text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping inline-block" />
+                                JUST LISTED
                               </span>
-                            ))}
-                            {prod.sizes.length > 3 && (
-                              <span className="text-[8px] sm:text-[9px] text-[#888888]">+{prod.sizes.length - 3}</span>
+                            )}
+                            {discountPct >= 5 && (
+                              <span className="bg-red-500 text-white text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full shadow-md">
+                                -{discountPct}% OFF
+                              </span>
                             )}
                           </div>
-                        )}
 
-                        {/* Price Row */}
-                        <div className="flex items-baseline gap-1.5 pt-0.5">
-                          <span className="text-sm sm:text-base md:text-lg font-black text-[#111111]">
-                            ₹{prod.price?.toLocaleString()}
-                          </span>
-                          {prod.originalPrice > prod.price && (
-                            <span className="text-[10px] sm:text-xs text-[#aaaaaa] line-through font-semibold">
-                              ₹{prod.originalPrice?.toLocaleString()}
+                          {/* Stock status pill */}
+                          <div className="absolute bottom-2 right-2 z-10">
+                            <span className={`text-[8px] sm:text-[9px] font-extrabold px-2 py-0.5 rounded-full shadow-md backdrop-blur-md ${
+                              prod.availability === 'In Stock' || (prod.stockCount && prod.stockCount > 0)
+                                ? 'bg-white/95 text-[#138A36]'
+                                : 'bg-amber-500/90 text-white'
+                            }`}>
+                              {prod.availability || (prod.stockCount > 0 ? 'In Stock' : 'Limited')}
                             </span>
+                          </div>
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="p-3 sm:p-4 space-y-1.5">
+                          {/* Shop badge */}
+                          <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-[#138A36] truncate">
+                            <Store className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{prod.shopName || "Nagpur Store"}</span>
+                          </div>
+
+                          {/* Product title */}
+                          <h3 className="font-extrabold text-xs sm:text-sm text-[#111111] line-clamp-2 leading-snug group-hover:text-[#138A36] transition-colors">
+                            {prod.name}
+                          </h3>
+
+                          {/* Size badges if available */}
+                          {prod.sizes && prod.sizes.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                              {prod.sizes.slice(0, 3).map((sz, sIdx) => (
+                                <span key={sIdx} className="text-[8px] sm:text-[9px] font-bold bg-gray-100 text-[#555555] px-1 py-0.2 rounded">
+                                  {sz}
+                                </span>
+                              ))}
+                              {prod.sizes.length > 3 && (
+                                <span className="text-[8px] sm:text-[9px] text-[#888888]">+{prod.sizes.length - 3}</span>
+                              )}
+                            </div>
                           )}
+
+                          {/* Price Row */}
+                          <div className="flex items-baseline gap-1.5 pt-0.5">
+                            <span className="text-sm sm:text-base md:text-lg font-black text-[#111111]">
+                              ₹{prod.price?.toLocaleString()}
+                            </span>
+                            {prod.originalPrice > prod.price && (
+                              <span className="text-[10px] sm:text-xs text-[#aaaaaa] line-through font-semibold">
+                                ₹{prod.originalPrice?.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Action Buttons: High-Conversion Clean Bar */}
-                    <div className="p-2.5 sm:p-3.5 pt-0 flex items-center gap-1.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onBuyNow) onBuyNow(prod);
-                          else onSelectProduct(prod.id);
-                        }}
-                        className="flex-1 bg-gradient-to-r from-[#138A36] to-[#0E6828] hover:from-[#0B6B2B] hover:to-[#095020] active:scale-[0.97] text-white text-[11px] sm:text-xs font-black py-2.5 rounded-xl flex items-center justify-center gap-1 transition-all shadow-sm shadow-[#138A36]/25 cursor-pointer"
-                        title="Instant Buy Now"
-                      >
-                        <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300 shrink-0" />
-                        <span>Buy Now</span>
-                      </button>
+                      {/* Action Buttons: High-Conversion Clean Bar */}
+                      <div className="p-2.5 sm:p-3.5 pt-0 flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onBuyNow) onBuyNow(prod);
+                            else onSelectProduct(prod.id);
+                          }}
+                          className="flex-1 bg-gradient-to-r from-[#138A36] to-[#0E6828] hover:from-[#0B6B2B] hover:to-[#095020] active:scale-[0.97] text-white text-[11px] sm:text-xs font-black py-2.5 rounded-xl flex items-center justify-center gap-1 transition-all shadow-sm shadow-[#138A36]/25 cursor-pointer"
+                          title="Instant Buy Now"
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300 shrink-0" />
+                          <span>Buy Now</span>
+                        </button>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectProduct(prod.id);
-                        }}
-                        className="shrink-0 bg-[#EAF7EE] hover:bg-[#DDF3E3] active:scale-[0.97] text-[#138A36] p-2.5 rounded-xl transition-all flex items-center justify-center cursor-pointer"
-                        title="Chat with shop owner"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                      </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectProduct(prod.id);
+                          }}
+                          className="shrink-0 bg-[#EAF7EE] hover:bg-[#DDF3E3] active:scale-[0.97] text-[#138A36] p-2.5 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                          title="Chat with shop owner"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Load More Products Button */}
+              {filteredProducts.length > visibleProductCount && (
+                <div className="text-center pt-2 sm:pt-4">
+                  <button
+                    onClick={() => setVisibleProductCount(prev => prev + 8)}
+                    className="inline-flex items-center gap-2 bg-white hover:bg-[#F8FAF8] border border-[#E5E7E5] hover:border-[#138A36] text-[#111111] font-extrabold text-xs sm:text-sm px-6 py-3 rounded-2xl shadow-xs transition-all cursor-pointer hover:shadow-md active:scale-98"
+                  >
+                    <span>Load More Products</span>
+                    <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      Showing {displayedProducts.length} of {filteredProducts.length}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-[#138A36]" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -768,100 +774,166 @@ export default function CustomerHome({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {shops.map((shop) => {
-                const shopProductsCount = products.filter(p => 
-                  p.shopId === shop.id || 
-                  (p.shopName && shop.name && p.shopName.trim().toLowerCase() === shop.name.trim().toLowerCase())
-                ).length;
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {displayedShops.map((shop) => {
+                  const shopProducts = (products || []).filter(p => 
+                    p.shopId === shop.id || 
+                    (p.shopName && shop.name && p.shopName.trim().toLowerCase() === shop.name.trim().toLowerCase())
+                  );
+                  const shopProductsCount = shopProducts.length;
 
-                return (
-                  <div
-                    key={shop.id}
-                    onClick={() => onSelectShop(shop.id)}
-                    className="group cursor-pointer bg-white rounded-2xl sm:rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between"
-                  >
-                    <div>
-                      {/* Cover Photo */}
-                      <div className="relative h-32 sm:h-40 overflow-hidden bg-gray-100">
-                        <img
-                          src={shop.coverImage || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80'}
-                          alt={shop.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                        {/* Badges */}
-                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                          <span className="bg-white/95 backdrop-blur-md text-[#138A36] text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
-                            {shop.status || 'Open'}
-                          </span>
-                          {shop.verified && (
-                            <span className="bg-[#138A36] text-white text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
-                              <ShieldCheck className="w-3 h-3" />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Shop Logo Avatar */}
-                        <div className="absolute -bottom-4 left-4 sm:left-5 z-10">
+                  return (
+                    <div
+                      key={shop.id}
+                      onClick={() => onSelectShop(shop.id)}
+                      className="group cursor-pointer bg-white rounded-2xl sm:rounded-3xl border border-[#E5E7E5] overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Cover Photo */}
+                        <div className="relative h-32 sm:h-40 overflow-hidden bg-gray-100">
                           <img
-                            src={shop.logoImage || shop.coverImage}
-                            alt={shop.name}
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border-2 border-white shadow-lg object-cover bg-white"
+                            src={shop.coverImage || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80'}
+                            alt={shop.name || 'Shop'}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => {
+                              e.currentTarget.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80';
+                            }}
                           />
-                        </div>
-                      </div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                      {/* Card Details */}
-                      <div className="pt-6 sm:pt-8 px-4 sm:px-5 pb-3 sm:pb-4 space-y-2">
-                        <div>
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="font-extrabold text-sm sm:text-base text-[#111111] truncate group-hover:text-[#138A36] transition-colors">
-                              {shop.name}
-                            </h3>
-                            <span className="text-[11px] sm:text-xs font-black text-[#138A36] bg-[#EAF7EE] px-2 py-0.5 rounded-md shrink-0">
-                              ★ {shop.rating || '4.8'}
+                          {/* Badges */}
+                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                            <span className="bg-white/95 backdrop-blur-md text-[#138A36] text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                              {shop.status || 'Open'}
+                            </span>
+                            {(shop.verified || shop.is_verified) && (
+                              <span className="bg-[#138A36] text-white text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" />
+                                Verified
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Shop Logo Avatar */}
+                          <div className="absolute -bottom-4 left-4 sm:left-5 z-10">
+                            <img
+                              src={shop.logoImage || shop.coverImage || 'https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=200&auto=format&fit=crop&q=80'}
+                              alt={shop.name || 'Logo'}
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=200&auto=format&fit=crop&q=80';
+                              }}
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border-2 border-white shadow-lg object-cover bg-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Card Details */}
+                        <div className="pt-6 sm:pt-8 px-4 sm:px-5 pb-3 sm:pb-4 space-y-2.5">
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="font-extrabold text-sm sm:text-base text-[#111111] truncate group-hover:text-[#138A36] transition-colors">
+                                {shop.name || 'Unnamed Shop'}
+                              </h3>
+                              <span className="text-[11px] sm:text-xs font-black text-[#138A36] bg-[#EAF7EE] px-2 py-0.5 rounded-md shrink-0">
+                                ★ {shop.rating || '4.8'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] sm:text-xs text-[#777777] font-medium mt-0.5">
+                              {shop.category || 'Local Store'} • {shop.distance || '0.5 km away'}
+                            </p>
+                            <p className="text-[10px] sm:text-[11px] text-[#999999] truncate mt-1">
+                              {shop.address || 'Nagpur, Maharashtra'}
+                            </p>
+                          </div>
+
+                          {/* Inventory Count Indicator */}
+                          <div className="flex items-center justify-between text-[11px] sm:text-xs py-1.5 sm:py-2 px-2.5 sm:px-3 bg-[#F8FAF8] rounded-xl border border-[#E5E7E5]">
+                            <span className="font-bold text-[#555555] flex items-center gap-1.5">
+                              <span>📦</span>
+                              <span>In-Store Inventory:</span>
+                            </span>
+                            <span className={`font-black ${shopProductsCount > 0 ? 'text-[#138A36]' : 'text-[#888888]'}`}>
+                              {shopProductsCount > 0 ? `${shopProductsCount} Products Listed` : 'Catalog Pending'}
                             </span>
                           </div>
-                          <p className="text-[11px] sm:text-xs text-[#777777] font-medium mt-0.5">
-                            {shop.category} • {shop.distance || '0.5 km away'}
-                          </p>
-                          <p className="text-[10px] sm:text-[11px] text-[#999999] truncate mt-1">
-                            {shop.address}
-                          </p>
-                        </div>
 
-                        {/* Inventory Count Indicator */}
-                        <div className="flex items-center justify-between text-[11px] sm:text-xs py-1.5 sm:py-2 px-2.5 sm:px-3 bg-[#F8FAF8] rounded-xl border border-[#E5E7E5]">
-                          <span className="font-bold text-[#555555] flex items-center gap-1.5">
-                            <span>📦</span>
-                            <span>In-Store Inventory:</span>
-                          </span>
-                          <span className={`font-black ${shopProductsCount > 0 ? 'text-[#138A36]' : 'text-[#888888]'}`}>
-                            {shopProductsCount > 0 ? `${shopProductsCount} Products` : 'Catalog Pending'}
-                          </span>
+                          {/* Top Products Preview From This Shop */}
+                          {shopProductsCount > 0 && (
+                            <div className="pt-2 border-t border-dashed border-gray-200">
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                <span>Featured In Stock</span>
+                                <span className="text-[#138A36] text-[10px] font-bold">Catalog Preview</span>
+                              </p>
+                              <div className="space-y-1.5">
+                                {shopProducts.slice(0, 3).map((p) => (
+                                  <div 
+                                    key={p.id} 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onSelectProduct(p.id);
+                                    }}
+                                    className="flex items-center justify-between gap-2 p-1.5 bg-[#F8FAF8] hover:bg-[#EAF7EE] rounded-xl transition-colors border border-gray-100 cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <img 
+                                        src={p.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=100&auto=format&fit=crop&q=80'} 
+                                        alt={p.name} 
+                                        onError={(e) => {
+                                          e.currentTarget.src = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=100&auto=format&fit=crop&q=80';
+                                        }}
+                                        className="w-7 h-7 rounded-lg object-cover border border-gray-200 shrink-0" 
+                                      />
+                                      <span className="text-[11px] font-bold text-gray-800 truncate">{p.name}</span>
+                                    </div>
+                                    <span className="text-[11px] font-black text-[#138A36] shrink-0">₹{p.price?.toLocaleString()}</span>
+                                  </div>
+                                ))}
+                                {shopProductsCount > 3 && (
+                                  <p className="text-[10px] text-center font-bold text-[#138A36] pt-0.5 hover:underline">
+                                    +{shopProductsCount - 3} more products in store →
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Bottom Action */}
-                    <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectShop(shop.id);
-                        }}
-                        className="w-full bg-[#EAF7EE] group-hover:bg-[#138A36] text-[#138A36] group-hover:text-white font-extrabold text-xs py-2.5 sm:py-3 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
-                      >
-                        <span>Browse Shop Inventory</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
+                      {/* Bottom Action */}
+                      <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectShop(shop.id);
+                          }}
+                          className="w-full bg-[#EAF7EE] group-hover:bg-[#138A36] text-[#138A36] group-hover:text-white font-extrabold text-xs py-2.5 sm:py-3 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
+                        >
+                          <span>Browse Shop Inventory</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Load More Shops Button */}
+              {shops.length > visibleShopCount && (
+                <div className="text-center pt-2 sm:pt-4">
+                  <button
+                    onClick={() => setVisibleShopCount(prev => prev + 6)}
+                    className="inline-flex items-center gap-2 bg-white hover:bg-[#F8FAF8] border border-[#E5E7E5] hover:border-[#138A36] text-[#111111] font-extrabold text-xs sm:text-sm px-6 py-3 rounded-2xl shadow-xs transition-all cursor-pointer hover:shadow-md active:scale-98"
+                  >
+                    <Store className="w-4 h-4 text-[#138A36]" />
+                    <span>Load More Verified Shops</span>
+                    <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      Showing {displayedShops.length} of {shops.length}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-[#138A36]" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>

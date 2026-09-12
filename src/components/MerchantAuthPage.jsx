@@ -13,11 +13,13 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Handle Merchant Sign Up (Direct Email & Password - No OTP)
   const handleSignUp = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
 
     if (!email || !email.includes('@')) {
       setErrorMsg("Please enter a valid email address.");
@@ -41,6 +43,8 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       const msg = error.message || "";
       if (msg.toLowerCase().includes('failed to fetch')) {
         setErrorMsg("Unable to connect to the server. Please check your network connection and try again.");
+      } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('over_email_send_rate_limit')) {
+        setErrorMsg("Supabase email rate limit exceeded (max 3-4 emails/hr on default SMTP). Please wait a while before requesting another email, or confirm your user in the Supabase dashboard.");
       } else {
         setErrorMsg(msg || "Failed to create merchant account.");
       }
@@ -48,7 +52,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
     }
 
     if (data?.requiresEmailConfirmation) {
-      setErrorMsg("Merchant account created. Confirm your email, then return here and log in to set up your shop.");
+      setSuccessMsg(`Account created! A confirmation email has been sent to ${email}. Please click the link in the email to activate your account, then log in.`);
       setIsSignUp(false);
       return;
     }
@@ -109,6 +113,17 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
               : "Sign in with your merchant credentials to manage your store and inventory."}
           </p>
         </div>
+
+        {/* Success Alert */}
+        {successMsg && (
+          <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-medium leading-relaxed space-y-2 animate-in fade-in">
+            <div className="flex items-start gap-2">
+              <Mail className="w-4 h-4 text-[#138A36] shrink-0 mt-0.5" />
+              <p className="font-semibold">{successMsg}</p>
+            </div>
+            <p className="text-[11px] text-emerald-700">Once confirmed, enter your email and password below to access your Merchant Dashboard.</p>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMsg && (

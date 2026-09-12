@@ -90,6 +90,11 @@ export const authService = {
   async loadUser(sessionUser) {
     if (!sessionUser) return null;
 
+    // Reject unverified sessions (except super admin)
+    if (!sessionUser.email_confirmed_at && sessionUser.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()) {
+      return null;
+    }
+
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -147,10 +152,12 @@ export const authService = {
     // Attempt Supabase sign up if configured
     if (isSupabaseConfigured) {
       try {
+        const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
           options: {
+            emailRedirectTo: redirectUrl,
             data: {
               full_name: fullName?.trim() || normalizedEmail.split('@')[0],
               role: role === 'merchant' ? 'merchant' : 'customer'
@@ -159,13 +166,31 @@ export const authService = {
         });
 
         if (!error && data?.user) {
+          const isConfirmed = Boolean(data.user.email_confirmed_at);
+
+          // If email confirmation is required/pending, DO NOT log in or activate session
+          if (!isConfirmed) {
+            await supabase.auth.signOut().catch(() => {});
+            this.clearStoredSession();
+            this.saveAccountToVault({
+              id: data.user.id,
+              email: normalizedEmail,
+              password,
+              fullName: fullName?.trim() || normalizedEmail.split('@')[0],
+              role: role === 'merchant' ? 'merchant' : 'customer',
+              isVerified: false
+            });
+            return { data: { user: data.user, requiresEmailConfirmation: true }, error: null };
+          }
+
           // Save to local vault for seamless offline resilience
           this.saveAccountToVault({
             id: data.user.id,
             email: normalizedEmail,
             password,
             fullName: fullName?.trim() || normalizedEmail.split('@')[0],
-            role: role === 'merchant' ? 'merchant' : 'customer'
+            role: role === 'merchant' ? 'merchant' : 'customer',
+            isVerified: true
           });
 
           if (!data.session) {
@@ -174,7 +199,7 @@ export const authService = {
 
           try {
             const user = await this.loadUser(data.session.user);
-            return { data: { user: data.user, profile: user, onboardingRequired: user.onboardingRequired }, error: null };
+            return { data: { user: data.user, profile: user, onboardingRequired: user?.onboardingRequired }, error: null };
           } catch (_) {
             const localUser = {
               id: data.user.id,
@@ -213,7 +238,8 @@ export const authService = {
       email: normalizedEmail,
       password,
       fullName: localUser.name,
-      role: localUser.role
+      role: localUser.role,
+      isVerified: true
     });
 
     this.saveLocalSession(localUser);
@@ -254,32 +280,46 @@ export const authService = {
         });
 
         if (!authError && authData?.user) {
+          // Check email verification: unverified users cannot login
+          const isConfirmed = Boolean(authData.user.email_confirmed_at);
+          if (!isConfirmed && normalizedEmail !== SUPER_ADMIN_EMAIL.toLowerCase()) {
+            await supabase.auth.signOut().catch(() => {});
+            this.clearStoredSession();
+            return {
+              data: null,
+              error: {
+                message: 'Your email has not been verified yet. Please check your inbox and click the confirmation link before logging in.'
+              }
+            };
+          }
+
           // Update local accounts vault with verified credentials
           this.saveAccountToVault({
             id: authData.user.id,
             email: normalizedEmail,
             password,
             fullName: authData.user.user_metadata?.full_name || normalizedEmail.split('@')[0],
-            role: authData.user.user_metadata?.role || targetRole
+            role: authData.user.user_metadata?.role || targetRole,
+            isVerified: true
           });
 
           let user = await this.loadUser(authData.user);
 
           if (targetRole === 'admin' || targetRole === 'super_admin') {
-            if (!['admin', 'super_admin'].includes(user.role)) {
+            if (!['admin', 'super_admin'].includes(user?.role)) {
               await supabase.auth.signOut().catch(() => {});
               return { data: null, error: { message: 'This account does not have administrator access.' } };
             }
           }
 
-          if (targetRole === 'merchant' && user.role === 'customer') {
+          if (targetRole === 'merchant' && user?.role === 'customer') {
             try {
               await supabase.rpc('activate_merchant_account');
               user = await this.loadUser(authData.user);
             } catch (_) {}
           }
 
-          return { data: { user: authData.user, profile: user, onboardingRequired: user.onboardingRequired }, error: null };
+          return { data: { user: authData.user, profile: user, onboardingRequired: user?.onboardingRequired }, error: null };
         }
 
         // If credentials are explicitly invalid (400 / invalid_credentials), check local vault or return error
@@ -288,6 +328,14 @@ export const authService = {
           const accounts = this.getRegisteredAccounts();
           const localMatch = accounts.find(a => cleanEmail(a.email) === normalizedEmail && a.password === password);
           if (localMatch) {
+            if (localMatch.isVerified === false) {
+              return {
+                data: null,
+                error: {
+                  message: 'Your email has not been verified yet. Please check your inbox and click the confirmation link before logging in.'
+                }
+              };
+            }
             const localUser = {
               id: localMatch.id || `user-${Date.now()}`,
               name: localMatch.fullName || localMatch.name || normalizedEmail.split('@')[0],
@@ -298,7 +346,7 @@ export const authService = {
             this.saveLocalSession(localUser);
             return { data: { user: localUser, profile: localUser, onboardingRequired: localUser.onboardingRequired }, error: null };
           }
-          return { data: null, error: { message: 'Invalid email or password. Please verify your credentials.' } };
+          return { data: null, error: { message: authError.message || 'Invalid email or password. Please verify your credentials.' } };
         }
       } catch (err) {
         console.warn('Supabase Auth network exception:', err);
@@ -309,6 +357,14 @@ export const authService = {
     const accounts = this.getRegisteredAccounts();
     const localMatch = accounts.find(a => cleanEmail(a.email) === normalizedEmail && a.password === password);
     if (localMatch) {
+      if (localMatch.isVerified === false) {
+        return {
+          data: null,
+          error: {
+            message: 'Your email has not been verified yet. Please check your inbox and click the confirmation link before logging in.'
+          }
+        };
+      }
       const localUser = {
         id: localMatch.id || `user-${Date.now()}`,
         name: localMatch.fullName || localMatch.name || normalizedEmail.split('@')[0],

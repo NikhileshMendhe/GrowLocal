@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Store, MessageSquare, ShoppingBag, BarChart2, Package, Plus,
   ChevronRight, Zap, CheckCircle2, Clock, LogOut, Bell, Settings, Star,
-  PackagePlus, Inbox, Tag, Sparkles, ArrowRight
+  PackagePlus, Inbox, Tag, Sparkles, ArrowRight, Volume2
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { orderNotificationService } from '../services/orderNotificationService';
 
 // Animated number counter
 function AnimatedStat({ value, prefix = '', suffix = '' }) {
@@ -60,6 +61,17 @@ export default function MerchantDashboard({
   const recentEnquiries = (enquiries || []).slice(0, 3);
   const reservationsCount = reservations?.length !== undefined ? reservations.length : (stats?.reservations ?? 0);
   const todayEnquiriesCount = stats?.todayEnquiries !== undefined ? stats.todayEnquiries : (enquiries || []).filter(e => e.timestamp === 'Today' || e.date === 'Today' || e.submittedDate === 'Today').length;
+
+  const [testingSiren, setTestingSiren] = useState(false);
+
+  const handleTestSiren = () => {
+    orderNotificationService.initAudio();
+    setTestingSiren(true);
+    orderNotificationService.playSiren(3.5);
+    setTimeout(() => {
+      setTestingSiren(false);
+    }, 3500);
+  };
 
   const kpiItems = [
     {
@@ -256,6 +268,40 @@ export default function MerchantDashboard({
             <span>{merchantProfile?.rating || '4.8'}</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Express Order Siren Status Banner ─────────────── */}
+      <div className="mb-5 bg-gradient-to-r from-red-50 via-rose-50 to-orange-50 border border-red-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 transition-transform ${testingSiren ? 'bg-red-500 text-white animate-bounce' : 'bg-red-100 text-red-600'}`}>
+            🚨
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs sm:text-sm font-black text-gray-900">
+                Instant Order Siren Notification
+              </h4>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                ● Ready
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-600 font-medium mt-0.5">
+              Whenever a customer clicks <strong>"Buy Now"</strong> on any of your products, a loud siren dispatch tone alerts you immediately.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleTestSiren}
+          className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+            testingSiren
+              ? 'bg-red-600 text-white animate-pulse shadow-md'
+              : 'bg-white hover:bg-red-50 text-red-600 border border-red-200 shadow-2xs'
+          }`}
+        >
+          <Volume2 className="w-3.5 h-3.5" />
+          <span>{testingSiren ? 'Siren Ringing... (3.5s)' : 'Test Siren Sound'}</span>
+        </button>
       </div>
 
       {/* ── No Shop Prompt (hidden once shop is listed) ── */}

@@ -21,10 +21,12 @@ export default function AuthModal({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
 
     // Email & Password Auth via Supabase Service
@@ -41,6 +43,8 @@ export default function AuthModal({
         const msg = error.message || "";
         if (msg.toLowerCase().includes('failed to fetch')) {
           setErrorMsg("Unable to connect to the server. Please check your network connection and try again.");
+        } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('over_email_send_rate_limit')) {
+          setErrorMsg("Supabase email rate limit exceeded (max 3 emails/hr on default SMTP). Please wait a while before requesting another email, or confirm your user in the Supabase dashboard.");
         } else {
           setErrorMsg(msg || "Failed to create account.");
         }
@@ -48,7 +52,8 @@ export default function AuthModal({
       }
 
       if (data?.requiresEmailConfirmation) {
-        setErrorMsg("Account created. Check your email, confirm your address, then log in to continue.");
+        setSuccessMsg(`Account created! A confirmation email has been sent to ${email}. Please check your inbox and click the verification link before logging in.`);
+        setIsSignUp(false);
         return;
       }
 
@@ -96,6 +101,17 @@ export default function AuthModal({
             {customDescription ? customDescription : "Find local. Buy local. Grow local. Discover shops and reserve products near you."}
           </p>
         </div>
+
+        {/* Success Alert */}
+        {successMsg && (
+          <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-medium leading-relaxed space-y-2">
+            <div className="flex items-start gap-2">
+              <Mail className="w-4 h-4 text-[#138A36] shrink-0 mt-0.5" />
+              <p className="font-semibold">{successMsg}</p>
+            </div>
+            <p className="text-[11px] text-emerald-700">Once confirmed, enter your password below to log in.</p>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold leading-relaxed space-y-1">

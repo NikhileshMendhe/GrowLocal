@@ -15,10 +15,14 @@ export default function AdminShops({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedShop, setSelectedShop] = useState(null);
 
-  const filteredShops = shops.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.address.toLowerCase().includes(searchQuery.toLowerCase())
+  const fallbackLogo = "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=200&auto=format&fit=crop&q=80";
+
+  const safeShops = Array.isArray(shops) ? shops : [];
+
+  const filteredShops = safeShops.filter(s => 
+    (s?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (s?.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (s?.address || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -33,7 +37,7 @@ export default function AdminShops({
               activeTab === "allShops" ? "bg-[#138A36] text-white" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
-            All Registered Shops ({shops.length})
+            All Registered Shops ({safeShops.length})
           </button>
           <button
             onClick={() => setActiveTab("featuredShops")}
@@ -80,62 +84,81 @@ export default function AdminShops({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E7E5]">
-                  {filteredShops.map((shop) => {
-                    const isFeatured = featuredShops.some(fs => fs.shopId === shop.id);
-                    return (
-                      <tr key={shop.id} className="hover:bg-[#F7F8F7] transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-[#111111]">
-                          <div className="flex items-center gap-3">
-                            <img src={shop.logoImage} alt={shop.name} className="w-8 h-8 rounded-xl object-cover ring-1 ring-gray-200" />
-                            <div>
-                              <p className="font-bold text-sm text-[#111111] hover:text-[#138A36] cursor-pointer" onClick={() => setSelectedShop(shop)}>{shop.name}</p>
-                              <p className="text-[10px] text-gray-400">{shop.openDays}</p>
+                  {filteredShops.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="py-12 text-center text-gray-500">
+                        <ShoppingBag className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                        <p className="font-bold text-sm text-gray-700">No shops found</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {searchQuery ? "No shops matched your search filter." : "No registered shops in the database yet."}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredShops.map((shop) => {
+                      const isFeatured = featuredShops.some(fs => fs.shopId === shop.id);
+                      return (
+                        <tr key={shop.id} className="hover:bg-[#F7F8F7] transition-colors">
+                          <td className="py-3.5 px-4 font-bold text-[#111111]">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={shop.logoImage || shop.coverImage || fallbackLogo} 
+                                alt={shop.name || "Shop"} 
+                                onError={(e) => { e.currentTarget.src = fallbackLogo; }}
+                                className="w-8 h-8 rounded-xl object-cover ring-1 ring-gray-200" 
+                              />
+                              <div>
+                                <p className="font-bold text-sm text-[#111111] hover:text-[#138A36] cursor-pointer" onClick={() => setSelectedShop(shop)}>
+                                  {shop.name || "Unnamed Shop"}
+                                </p>
+                                <p className="text-[10px] text-gray-400">{shop.openDays || "Mon - Sat (10am - 8pm)"}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-gray-600 font-medium">{shop.category}</td>
-                        <td className="py-3.5 px-4 text-gray-600 truncate max-w-xs">{shop.address}</td>
-                        <td className="py-3.5 px-4 font-bold text-[#111111]">
-                          <span className="flex items-center gap-1 text-amber-600">
-                            <Star className="w-3.5 h-3.5 fill-amber-400" />
-                            {shop.rating} ({shop.reviewsCount})
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="bg-emerald-100 text-[#138A36] text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" /> Verified
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            shop.status === "Open" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}>
-                            {shop.status}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <button
-                            onClick={() => onToggleFeatureShop(shop.id)}
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors ${
-                              isFeatured ? "bg-amber-500 text-white shadow-xs" : "bg-gray-100 text-gray-500 hover:bg-amber-100"
-                            }`}
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            {isFeatured ? "Featured" : "+ Feature"}
-                          </button>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => setSelectedShop(shop)}
-                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#EAF7EE] hover:text-[#138A36] text-gray-700 transition-colors"
-                            title="View Detailed Profile"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="py-3.5 px-4 text-gray-600 font-medium">{shop.category || "General"}</td>
+                          <td className="py-3.5 px-4 text-gray-600 truncate max-w-xs">{shop.address || "Nagpur"}</td>
+                          <td className="py-3.5 px-4 font-bold text-[#111111]">
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <Star className="w-3.5 h-3.5 fill-amber-400" />
+                              {shop.rating || "5.0"} ({shop.reviewsCount || 0})
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="bg-emerald-100 text-[#138A36] text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" /> {shop.is_verified || shop.verified ? "Verified" : "Pending"}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              shop.status === "Open" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                            }`}>
+                              {shop.status || "Open"}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <button
+                              onClick={() => onToggleFeatureShop(shop.id)}
+                              className={`text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors ${
+                                isFeatured ? "bg-amber-500 text-white shadow-xs" : "bg-gray-100 text-gray-500 hover:bg-amber-100"
+                              }`}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              {isFeatured ? "Featured" : "+ Feature"}
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              onClick={() => setSelectedShop(shop)}
+                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#EAF7EE] hover:text-[#138A36] text-gray-700 transition-colors"
+                              title="View Detailed Profile"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

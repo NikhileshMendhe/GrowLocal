@@ -125,7 +125,8 @@ import {
   chatService, 
   offerService,
   reservationService, 
-  adminService 
+  adminService,
+  orderNotificationService
 } from './services';
 import { 
   LayoutDashboard, Package, MessageSquare, Inbox, ShoppingBag, 
@@ -289,6 +290,9 @@ export default function App() {
   const handleCompleteBuyNowOrder = (order) => {
     reservationService.saveReservationLocally(order);
     setReservations(reservationService.getStoredReservations());
+    try {
+      orderNotificationService.notifyNewOrder(order);
+    } catch (e) {}
     triggerToast(`🎉 Order Placed! Order ID: ${order.id}`);
   };
 
