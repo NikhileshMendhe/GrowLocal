@@ -38,7 +38,12 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
     setLoading(false);
 
     if (error) {
-      setErrorMsg(error.message || "Failed to create merchant account.");
+      const msg = error.message || "";
+      if (msg.toLowerCase().includes('failed to fetch')) {
+        setErrorMsg("Unable to connect to the server. Please check your network connection and try again.");
+      } else {
+        setErrorMsg(msg || "Failed to create merchant account.");
+      }
       return;
     }
 
@@ -65,7 +70,12 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
 
     setLoading(false);
     if (error) {
-      setErrorMsg(error.message || "Invalid email or password.");
+      const msg = error.message || "";
+      if (msg.toLowerCase().includes('failed to fetch')) {
+        setErrorMsg("Unable to connect to the server. Please check your network connection and try again.");
+      } else {
+        setErrorMsg(msg || "Invalid email or password.");
+      }
       return;
     }
 

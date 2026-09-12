@@ -338,52 +338,7 @@ export const INITIAL_ENQUIRIES = [
   }
 ];
 
-export const INITIAL_CHAT_MESSAGES = [
-  {
-    id: "msg-1",
-    sender: "customer",
-    text: "Hi, do you have this in size L?",
-    time: "10:28 AM"
-  },
-  {
-    id: "msg-2",
-    sender: "shop",
-    text: "Yes! We have it available. What is your budget?",
-    time: "10:29 AM"
-  },
-  {
-    id: "msg-3",
-    sender: "customer",
-    text: "My budget is ₹700.",
-    time: "10:30 AM"
-  },
-  {
-    id: "msg-4",
-    sender: "shop",
-    text: "Great! We can offer it for ₹699. Size L is available in stock right now.",
-    time: "10:31 AM",
-    offer: {
-      productName: "Black Oversized T-Shirt",
-      size: "L",
-      price: 699,
-      originalPrice: 899,
-      validUntil: "Valid Today",
-      shopName: "Trendy Wear"
-    }
-  },
-  {
-    id: "msg-5",
-    sender: "customer",
-    text: "That's perfect. I will visit your store by evening.",
-    time: "10:32 AM"
-  },
-  {
-    id: "msg-6",
-    sender: "shop",
-    text: "Sure! We look forward to seeing you. You can reserve it so we keep it held for you.",
-    time: "10:33 AM"
-  }
-];
+export const INITIAL_CHAT_MESSAGES = [];
 
 export const INITIAL_RESERVATIONS = [
   {
