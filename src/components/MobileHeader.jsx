@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Search, MapPin, Store, X, LayoutDashboard, Home, Bookmark, MessageSquare, User, Sparkles, Tag, Package, ChevronRight, Grid, LogOut } from 'lucide-react';
+import { Menu, Search, MapPin, Store, X, LayoutDashboard, Home, Bookmark, MessageSquare, User, Sparkles, Tag, Package, ChevronRight, Grid, LogOut, ShoppingBag } from 'lucide-react';
 
 export default function MobileHeader({ 
   currentLocation, 
@@ -17,6 +17,7 @@ export default function MobileHeader({
   onLogout
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showDualAuthSheet, setShowDualAuthSheet] = useState(false);
 
   const handleNav = (path, platform, tab, adminTab) => {
     if (onNavigatePath) {
@@ -79,12 +80,11 @@ export default function MobileHeader({
               </button>
             ) : (
               <button
-                onClick={() => onOpenAuthModal("customer")}
-                className="bg-[#138A36] hover:bg-[#0B6B2B] text-white px-3 py-1 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
-                title="Sign In"
+                onClick={() => setShowDualAuthSheet(true)}
+                className="bg-[#138A36] hover:bg-[#0B6B2B] text-white px-3 py-1 rounded-xl text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                title="Get Started"
               >
-                <User className="w-3.5 h-3.5" />
-                <span>Sign In</span>
+                <span>Get Started</span>
               </button>
             )}
           </div>
@@ -114,60 +114,52 @@ export default function MobileHeader({
                 </button>
               </div>
 
-              {/* Platform Selector Tabs */}
-              <div className="bg-[#F7F8F7] p-1 rounded-xl border border-[#E5E7E5] space-y-1">
-                <p className="text-[10px] font-extrabold text-[#666666] uppercase px-2 pt-1">Select Experience</p>
-                <div className="grid grid-cols-2 gap-1">
-                  <button
-                    onClick={() => { setActivePlatform("customer"); setActiveTab("home"); setDrawerOpen(false); }}
-                    className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 ${
-                      activePlatform === "customer" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
-                    }`}
-                  >
-                    <User className="w-3.5 h-3.5" />
-                    <span>Customer</span>
-                  </button>
+              {/* Platform Selector Tabs (Logged-out visitors only) */}
+              {!currentUser && (
+                <>
+                  <div className="bg-[#F7F8F7] p-1 rounded-xl border border-[#E5E7E5] space-y-1">
+                    <p className="text-[10px] font-extrabold text-[#666666] uppercase px-2 pt-1">Select Experience</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        onClick={() => { setActivePlatform("customer"); setActiveTab("home"); setDrawerOpen(false); }}
+                        className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 ${
+                          activePlatform === "customer" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
+                        }`}
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span>Customer</span>
+                      </button>
 
+                      <button
+                        onClick={() => { 
+                          if (onOpenMerchantMarketing) onOpenMerchantMarketing();
+                          else if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+                          setDrawerOpen(false); 
+                        }}
+                        className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 ${
+                          activePlatform === "merchantMarketing" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
+                        }`}
+                      >
+                        <Store className="w-3.5 h-3.5" />
+                        <span>For Merchants</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Primary CTA */}
                   <button
                     onClick={() => { 
-                      if (onOpenMerchantMarketing) onOpenMerchantMarketing();
-                      else if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
+                      if (onOpenMerchantMarketing) onOpenMerchantMarketing(); 
+                      else onOpenAuthModal("merchant"); 
                       setDrawerOpen(false); 
                     }}
-                    className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 ${
-                      activePlatform === "merchantMarketing" ? "bg-[#138A36] text-white shadow-xs" : "text-[#666666]"
-                    }`}
+                    className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs py-3 rounded-xl shadow-md flex items-center justify-center gap-2"
                   >
-                    <Store className="w-3.5 h-3.5" />
-                    <span>For Merchants</span>
+                    <Store className="w-4 h-4" />
+                    <span>Why Sell on GrowLocal? →</span>
                   </button>
-                </div>
-              </div>
-
-              {/* Location Selector Pill */}
-              <button
-                onClick={() => { onOpenLocationModal(); setDrawerOpen(false); }}
-                className="w-full bg-[#EAF7EE] border border-[#DDF3E3] p-3 rounded-xl flex items-center justify-between text-xs font-bold text-[#138A36]"
-              >
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>{currentLocation.area} ({currentLocation.radius})</span>
-                </div>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              {/* Primary CTA */}
-              <button
-                onClick={() => { 
-                  if (onOpenMerchantMarketing) onOpenMerchantMarketing(); 
-                  else onOpenAuthModal("merchant"); 
-                  setDrawerOpen(false); 
-                }}
-                className="w-full bg-[#138A36] hover:bg-[#0F752C] text-white font-bold text-xs py-3 rounded-xl shadow-md flex items-center justify-center gap-2"
-              >
-                <Store className="w-4 h-4" />
-                <span>Why Sell on GrowLocal? →</span>
-              </button>
+                </>
+              )}
 
               {/* Customer Links */}
               {activePlatform === "customer" && (
@@ -255,34 +247,97 @@ export default function MobileHeader({
                         </button>
                       </div>
 
+                      {/* Customer Navigation Links */}
+                      <div className="space-y-1 py-1">
+                        <button
+                          onClick={() => {
+                            setActivePlatform('customer');
+                            setActiveTab('enquiries');
+                            setDrawerOpen(false);
+                          }}
+                          className="w-full p-2.5 rounded-xl hover:bg-[#EAF7EE] text-gray-800 hover:text-[#138A36] flex items-center gap-3 text-xs font-bold transition-colors"
+                        >
+                          <MessageSquare className="w-4 h-4 text-[#138A36]" />
+                          <span>My Enquiries</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActivePlatform('customer');
+                            setActiveTab('reservations');
+                            setDrawerOpen(false);
+                          }}
+                          className="w-full p-2.5 rounded-xl hover:bg-[#EAF7EE] text-gray-800 hover:text-[#138A36] flex items-center gap-3 text-xs font-bold transition-colors"
+                        >
+                          <ShoppingBag className="w-4 h-4 text-[#138A36]" />
+                          <span>My Reservations</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActivePlatform('customer');
+                            setActiveTab('profile');
+                            setDrawerOpen(false);
+                          }}
+                          className="w-full p-2.5 rounded-xl hover:bg-[#EAF7EE] text-gray-800 hover:text-[#138A36] flex items-center gap-3 text-xs font-bold transition-colors"
+                        >
+                          <User className="w-4 h-4 text-[#138A36]" />
+                          <span>Account Settings</span>
+                        </button>
+                      </div>
+
                       {onLogout && (
                         <button
                           onClick={() => {
                             setDrawerOpen(false);
                             onLogout();
                           }}
-                          className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
                         >
-                          <LogOut className="w-4 h-4" />
-                          <span>Sign Out</span>
+                          <LogOut className="w-4 h-4 text-gray-500" />
+                          <span>Log Out</span>
                         </button>
                       )}
                     </div>
                   ) : (
                     <div className="pt-2 border-t border-gray-100 space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-[#777777] px-1">
+                        Get Started
+                      </p>
                       <button
                         onClick={() => { onOpenAuthModal("customer"); setDrawerOpen(false); }}
-                        className="w-full bg-white hover:bg-gray-50 text-[#111111] border border-[#E5E7E5] font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                        className="w-full text-left p-3 rounded-2xl bg-[#EAF7EE] border border-[#DDF3E3] flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer"
                       >
-                        <User className="w-4 h-4 text-[#138A36]" />
-                        <span>User Login</span>
+                        <div className="w-9 h-9 rounded-xl bg-[#138A36] text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <ShoppingBag className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-[#111111] flex items-center gap-1">
+                            <span>I'm shopping</span>
+                            <span className="text-[#138A36]">→</span>
+                          </p>
+                          <p className="text-[10px] text-[#666666] leading-tight mt-0.5">
+                            Reserve stock & pay in-store
+                          </p>
+                        </div>
                       </button>
+
                       <button
                         onClick={() => { onOpenAuthModal("merchant"); setDrawerOpen(false); }}
-                        className="w-full bg-[#138A36] text-white font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                        className="w-full text-left p-3 rounded-2xl bg-[#111111] text-white flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer"
                       >
-                        <Store className="w-4 h-4" />
-                        <span>Merchant Login</span>
+                        <div className="w-9 h-9 rounded-xl bg-white/10 text-yellow-300 flex items-center justify-center shrink-0 border border-white/10">
+                          <Store className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-white flex items-center gap-1">
+                            <span>I own a shop</span>
+                            <span className="text-[9px] bg-yellow-400 text-black font-extrabold px-1.5 py-0.2 rounded">0% Comm</span>
+                          </p>
+                          <p className="text-[10px] text-gray-300 leading-tight mt-0.5">
+                            List free & get local leads
+                          </p>
+                        </div>
                       </button>
                     </div>
                   )}
@@ -329,6 +384,80 @@ export default function MobileHeader({
           </div>
 
           <div className="flex-1" onClick={() => setDrawerOpen(false)}></div>
+        </div>
+      )}
+
+      {/* Mobile Dual-Identity "Get Started" Bottom Sheet Modal */}
+      {showDualAuthSheet && (
+        <div className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200">
+          <div 
+            className="bg-white rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <div>
+                <h3 className="font-poppins font-black text-base text-[#111111]">Get Started on GrowLocal</h3>
+                <p className="text-xs text-[#666666]">Choose your experience to begin</p>
+              </div>
+              <button
+                onClick={() => setShowDualAuthSheet(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Dual Cards */}
+            <div className="space-y-2.5">
+              <button
+                onClick={() => {
+                  setShowDualAuthSheet(false);
+                  onOpenAuthModal('customer');
+                }}
+                className="w-full text-left p-3.5 rounded-2xl bg-[#EAF7EE] border border-[#DDF3E3] flex items-center gap-3.5 active:scale-98 transition-transform cursor-pointer"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-[#138A36] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-black text-[#111111]">I'm shopping</p>
+                    <span className="text-xs font-bold text-[#138A36]">Continue →</span>
+                  </div>
+                  <p className="text-xs text-[#555555] leading-snug mt-0.5">
+                    Search real store stock, reserve items & pay on pickup in Nagpur.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowDualAuthSheet(false);
+                  onOpenAuthModal('merchant');
+                }}
+                className="w-full text-left p-3.5 rounded-2xl bg-[#111111] text-white flex items-center gap-3.5 active:scale-98 transition-transform cursor-pointer shadow-lg"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-white/10 text-yellow-300 flex items-center justify-center shrink-0 border border-white/10">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-black text-white flex items-center gap-1.5">
+                      <span>I own a shop</span>
+                      <span className="text-[9px] bg-yellow-400 text-[#111111] font-black px-1.5 py-0.5 rounded-full">
+                        0% Commission
+                      </span>
+                    </p>
+                    <span className="text-xs font-bold text-yellow-300">Join Free →</span>
+                  </div>
+                  <p className="text-xs text-gray-300 leading-snug mt-0.5">
+                    List products free, get local demand leads & bring shoppers to your counter.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
+import { authService } from './authService.js';
 
 const CUSTOMERS_STORAGE_KEY = 'growlocal_registered_customers';
 
@@ -22,8 +23,8 @@ export const userService = {
           id: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
           name: userObj.name || userObj.fullName || userObj.email?.split('@')[0] || "Customer",
           email: userObj.email,
-          phone: userObj.phone || "+91 98765 43210",
-          location: "Butibori, Nagpur",
+          phone: userObj.phone || "",
+          location: "Nagpur, Maharashtra",
           registeredDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           enquiriesCount: 0,
           reservationsCount: 0,
@@ -62,12 +63,12 @@ export const userService = {
 
     const formatted = data.map(p => ({
       id: p.id || `CUST-${p.auth_user_id?.substring(0, 5)}`,
-      auth_user_id: p.auth_user_id || `7f2c8d91-3a4b-5c6d-7e8f-${Math.floor(1000 + Math.random() * 9000)}`,
+      auth_user_id: p.auth_user_id || '',
       name: p.full_name || p.email?.split('@')[0] || "Customer User",
       email: p.email || "",
-      phone: p.phone || "+91 98765 43210",
+      phone: p.phone || "",
       city: p.city || "Nagpur",
-      location: p.city ? `${p.city}, Maharashtra` : "Butibori, Nagpur",
+      location: p.city ? `${p.city}, Maharashtra` : "Nagpur, Maharashtra",
       registeredDate: p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "Today",
       lastActive: p.last_active_at ? new Date(p.last_active_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Recently",
       enquiriesCount: p.enquiries_count || 0,
@@ -81,6 +82,39 @@ export const userService = {
     }));
 
     return { data: formatted, error: null };
+  },
+
+  // Permanently delete customer from auth.users and public tables
+  async deleteCustomer(id, authUserId, email) {
+    try {
+      // 1. Remove from local storage cache
+      const currentList = this.getStoredRegisteredCustomers();
+      const updated = currentList.filter(c => c.id !== id && c.email?.toLowerCase() !== email?.toLowerCase());
+      localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(updated));
+
+      // 2. Remove credentials from offline account vault
+      authService.removeAccountFromVault(email || authUserId || id);
+
+      if (!isSupabaseConfigured) return { success: true };
+
+      // 3. Call database SECURITY DEFINER RPC function to delete from auth.users
+      const targetIdentifier = authUserId || id || email;
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user', {
+        target_identifier: targetIdentifier
+      });
+
+      if (rpcError) {
+        console.warn('RPC admin_delete_user fallback to direct delete:', rpcError);
+        // Fallback: delete directly from public.profiles
+        if (id) await supabase.from('profiles').delete().eq('id', id);
+        if (email) await supabase.from('profiles').delete().eq('email', email);
+      }
+
+      return { success: true, data: rpcData };
+    } catch (e) {
+      console.error('Error in deleteCustomer:', e);
+      return { success: false, error: e };
+    }
   },
 
   // Update customer status (Active, Suspended, Blocked)

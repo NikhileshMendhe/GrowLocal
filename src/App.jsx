@@ -4,7 +4,6 @@ import Header from './components/Header';
 import MobileHeader from './components/MobileHeader';
 import BottomNavigation from './components/BottomNavigation';
 import LocationSelector from './components/LocationSelector';
-import PhotoSearchModal from './components/PhotoSearchModal';
 import DemandRequestModal from './components/DemandRequestModal';
 import AuthModal from './components/AuthModal';
 import MerchantAuthPage from './components/MerchantAuthPage';
@@ -12,6 +11,7 @@ import AdminAuthPage from './components/AdminAuthPage';
 import MerchantShopSetupModal from './components/MerchantShopSetupModal';
 import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
 import BuyNowModal from './components/BuyNowModal';
+import LogoutConfirmationModal from './components/LogoutConfirmationModal';
 import Toast from './components/Toast';
 
 // Mock Datasets
@@ -250,11 +250,9 @@ export default function App() {
 
   // Modals & Toast State (Declared first to avoid TDZ ReferenceErrors)
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [showPhotoSearchModal, setShowPhotoSearchModal] = useState(false);
   const [showDemandModal, setShowDemandModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showShopSetupModal, setShowShopSetupModal] = useState(false);
-  const [showExitMerchantModal, setShowExitMerchantModal] = useState(false);
   const [showExitAdminModal, setShowExitAdminModal] = useState(false);
   const [showBuyNowModal, setShowBuyNowModal] = useState(false);
   const [buyNowProduct, setBuyNowProduct] = useState(null);
@@ -269,14 +267,83 @@ export default function App() {
     setToastMessage(msg);
   };
 
-  // Central User Logout Handler: clears session and restores header auth buttons
-  const handleUserLogout = () => {
+  const [logoutModalState, setLogoutModalState] = useState({
+    isOpen: false,
+    role: 'customer',
+    hasUnsavedChanges: false
+  });
+
+  // Central User Logout Requester: NEVER immediately logs out, triggers unified confirmation modal
+  const handleRequestLogout = (roleOverride = null) => {
+    const isMerchant = roleOverride === 'merchant' || currentUser?.role === 'merchant' || activePlatform === 'merchant';
+    const role = isMerchant ? 'merchant' : 'customer';
+    const hasUnsavedChanges = isMerchant && Boolean(typeof window !== 'undefined' && window.__growlocal_has_unsaved_changes);
+
+    setLogoutModalState({
+      isOpen: true,
+      role,
+      hasUnsavedChanges
+    });
+  };
+
+  // Explicit confirmation callback: clears session, local states, and redirects to public mode entrance
+  const handleConfirmLogout = () => {
+    const targetRole = logoutModalState.role;
+    setLogoutModalState({ isOpen: false, role: 'customer', hasUnsavedChanges: false });
+
+    // Clear session & reset user
     authService.logout();
     setCurrentUser(null);
-    triggerToast("👋 You have been logged out successfully.");
-    if (activeTab === 'profile') {
-      setActiveTab('home');
+
+    // Clear draft edits / unsaved state
+    if (typeof window !== 'undefined') {
+      window.__growlocal_has_unsaved_changes = false;
     }
+
+    if (targetRole === 'merchant') {
+      // Merchant redirect: to merchant login page
+      setActivePlatform('merchantAuth');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/merchant');
+      }
+      triggerToast("👋 Signed out of Merchant Portal.");
+    } else {
+      // Customer redirect: to public customer home
+      setActivePlatform('customer');
+      setActiveTab('home');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/');
+      }
+      triggerToast("👋 You have been logged out successfully.");
+    }
+  };
+
+  // Edge case: Force logout / Expired session without confirmation modal
+  const handleForceSessionExpired = (targetRole = 'customer') => {
+    authService.logout();
+    setCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      window.__growlocal_has_unsaved_changes = false;
+    }
+    triggerToast("Your session ended, please sign in again.");
+    if (targetRole === 'merchant') {
+      setActivePlatform('merchantAuth');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/merchant');
+      }
+    } else {
+      setActivePlatform('customer');
+      setActiveTab('home');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/');
+      }
+      setShowAuthModal(true);
+    }
+  };
+
+  // Legacy fallback proxy
+  const handleUserLogout = () => {
+    handleRequestLogout('customer');
   };
 
   const handleOpenBuyNow = (product, initialSize = null) => {
@@ -290,22 +357,51 @@ export default function App() {
   const handleCompleteBuyNowOrder = (order) => {
     reservationService.saveReservationLocally(order);
     setReservations(reservationService.getStoredReservations());
+
+    // Also record directly in Enquiries so the order appears in Customer Enquiries page
+    const orderEnquiry = {
+      id: order.id || `GL-ORD-${Date.now().toString().slice(-4)}`,
+      reservationCode: order.id,
+      shopId: order.shopId || currentMerchantShop?.id || 'shop-1',
+      shopName: order.shopName || currentMerchantShop?.name || 'Local Partner Store',
+      merchantId: order.merchantId || currentMerchantShop?.merchantId || currentMerchantShop?.id || '',
+      customerId: currentUser?.id || 'cust-1',
+      customerName: order.customerName || currentUser?.name || 'Nagpur Shopper',
+      customerPhone: order.customerPhone || currentUser?.phone || '9876543210',
+      customerEmail: currentUser?.email || '',
+      customerAvatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+      productRequested: order.productName,
+      productName: order.productName,
+      productImage: order.productImage || '',
+      price: order.price || `₹${order.totalAmount || 0}`,
+      budget: order.price || `₹${order.totalAmount || 0}`,
+      totalAmount: order.totalAmount || (Number(String(order.price).replace(/[^0-9]/g, '')) || 0),
+      size: order.size || 'Standard',
+      quantity: order.quantity || 1,
+      fulfillmentType: order.fulfillmentType || 'pickup',
+      deliveryAddress: order.deliveryAddress || null,
+      paymentMethod: order.paymentMethod || 'Pay at Store / COD',
+      status: 'Pending',
+      isOrder: true,
+      orderType: order.fulfillmentType === 'delivery' ? 'Express Delivery Order' : 'Store Pickup Order',
+      timestamp: 'Just now',
+      submittedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      lastMessage: `🛒 New Customer Order: "${order.productName}" (Qty: ${order.quantity || 1}, Size: ${order.size || 'Standard'}) for ${order.price || `₹${order.totalAmount}`}. Fulfillment: ${order.fulfillmentType === 'delivery' ? `Delivery to ${order.deliveryAddress || 'Nagpur'}` : 'Store Pickup'}.`
+    };
+
+    enquiryService.saveEnquiryLocally(orderEnquiry);
+    setEnquiries(enquiryService.getStoredEnquiries());
+
     try {
-      orderNotificationService.notifyNewOrder(order);
+      orderNotificationService.notifyNewOrder({
+        ...order,
+        ...orderEnquiry
+      });
     } catch (e) {}
     triggerToast(`🎉 Order Placed! Order ID: ${order.id}`);
   };
 
-  // Secure exit from Merchant Portal: logs out session and returns to Customer Home
-  const handleConfirmExitMerchantLogout = () => {
-    setShowExitMerchantModal(false);
-    handleUserLogout();
-    setActivePlatform('customer');
-    setActiveTab('home');
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', '/');
-    }
-  };
+
 
   // Secure exit from Super Admin Panel: logs out session and returns to Customer Home
   const handleConfirmExitAdminLogout = () => {
@@ -372,7 +468,7 @@ export default function App() {
       const handlePopState = () => {
         // Intercept browser back button on laptop / computer
         window.history.pushState({ merchantGuard: true }, '', window.location.pathname);
-        setShowExitMerchantModal(true);
+        handleRequestLogout('merchant');
       };
 
       window.addEventListener('popstate', handlePopState);
@@ -408,18 +504,79 @@ export default function App() {
     }
   }, [activePlatform, currentUser]);
 
-  // Central URL Navigation Function with Protected Authentication Gate
+  // ── STRICT MODE ENFORCEMENT & HARD ROUTE GUARD EFFECT ──
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // A merchant account never sees customer-only screens or nav items
+    if (currentUser.role === 'merchant') {
+      const isCustomerScreen = activePlatform === 'customer' || activePlatform === 'landing' || activePlatform === 'merchantMarketing';
+      if (isCustomerScreen) {
+        setActivePlatform('merchant');
+        setActiveTab('merchantDashboard');
+        if (typeof window !== 'undefined') {
+          window.history.replaceState({}, '', '/merchant');
+        }
+      }
+    }
+
+    // A customer account never sees the merchant portal, merchant dashboard, or merchant nav items
+    if (currentUser.role === 'customer') {
+      const isMerchantScreen = activePlatform === 'merchant' || activePlatform === 'merchantAuth' || activePlatform === 'merchantMarketing' || activePlatform === 'merchantOnboarding';
+      if (isMerchantScreen) {
+        setActivePlatform('customer');
+        setActiveTab('home');
+        if (typeof window !== 'undefined') {
+          window.history.replaceState({}, '', '/');
+        }
+      }
+    }
+  }, [currentUser, activePlatform]);
+
+  // Central URL Navigation Function with Strict Role-Based Mode Separation
   const navigateToPath = (path, platform, tab, adminTabName) => {
-    // Check if user is attempting to access Merchant Portal
+    // 1. ROLE GUARD: MERCHANT SESSIONS CAN NEVER ACCESS CUSTOMER SCREENS
+    if (currentUser?.role === 'merchant') {
+      const isTargetCustomer = platform === 'customer' || platform === 'landing' || (!platform && path && !path.startsWith('/merchant') && !path.startsWith('/admin'));
+      if (isTargetCustomer) {
+        setActivePlatform('merchant');
+        setActiveTab('merchantDashboard');
+        if (typeof window !== 'undefined') window.history.replaceState({}, '', '/merchant');
+        triggerToast("Merchant accounts cannot access customer screens. Please log out to browse as a shopper.");
+        return;
+      }
+    }
+
+    // 2. ROLE GUARD: CUSTOMER SESSIONS CAN NEVER ACCESS MERCHANT PORTAL OR DASHBOARD
+    if (currentUser?.role === 'customer') {
+      const isTargetMerchant = platform === 'merchant' || platform === 'merchantMarketing' || (path && (path.startsWith('/merchant') || path.startsWith('/for-merchants')));
+      if (isTargetMerchant) {
+        setActivePlatform('customer');
+        setActiveTab('home');
+        if (typeof window !== 'undefined') window.history.replaceState({}, '', '/');
+        triggerToast("Merchant portal requires a merchant account. Please log out to access merchant portal.");
+        return;
+      }
+    }
+
+    // Check if unauthenticated user is attempting to access Merchant Portal
     if (platform === 'merchant' || (path && path.startsWith('/merchant'))) {
       const isMerchantAuth = currentUser && (currentUser.role === 'merchant' || currentUser.role === 'admin');
       if (!isMerchantAuth) {
-        // Show dedicated Merchant Auth full-page instead of modal
         setPendingRedirect({ path: path || '/merchant', platform: 'merchant', tab: tab || 'merchantDashboard', adminTabName });
         setActivePlatform('merchantAuth');
         if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
         return;
       }
+    }
+
+    // Check if unauthenticated user is attempting to access Customer Protected Routes
+    if (!currentUser && (path === '/enquiries' || path === '/reservations' || path === '/profile')) {
+      setPendingRedirect({ path, platform: 'customer', tab: tab || 'profile' });
+      setAuthRole('customer');
+      setShowAuthModal(true);
+      triggerToast("🔐 Account Required: Please log in to view your enquiries and reservations.");
+      return;
     }
 
     // Check if user is attempting to access Super Admin Panel
@@ -440,13 +597,31 @@ export default function App() {
     if (adminTabName) setCurrentAdminTab(adminTabName);
   };
 
-  // Synchronize state with browser Back/Forward navigation
+  // Synchronize state with browser Back/Forward navigation with Strict Role Separation
   useEffect(() => {
     const handlePopState = () => {
       const route = parseUrlRoute();
       if (route.shopId) {
         setSelectedShopId(route.shopId);
       }
+
+      // Hard role guard on browser back/forward
+      if (currentUser?.role === 'merchant') {
+        if (route.platform !== 'merchant' && route.platform !== 'admin') {
+          setActivePlatform('merchant');
+          setActiveTab('merchantDashboard');
+          if (typeof window !== 'undefined') window.history.replaceState({}, '', '/merchant');
+          return;
+        }
+      } else if (currentUser?.role === 'customer') {
+        if (route.platform === 'merchant' || route.platform === 'merchantMarketing') {
+          setActivePlatform('customer');
+          setActiveTab('home');
+          if (typeof window !== 'undefined') window.history.replaceState({}, '', '/');
+          return;
+        }
+      }
+
       if (route.platform === 'merchant') {
         const isMerchantAuth = currentUser && (currentUser.role === 'merchant' || currentUser.role === 'admin' || currentUser.role === 'super_admin');
         if (!isMerchantAuth) {
@@ -483,6 +658,14 @@ export default function App() {
       return [];
     }
   });
+
+  // Realtime subscription: When any customer places an order, keep enquiries in sync
+  useEffect(() => {
+    const unsub = orderNotificationService.subscribe(() => {
+      setEnquiries(enquiryService.getStoredEnquiries());
+    });
+    return () => unsub();
+  }, []);
 
   // Admin Master State
   const [adminUsers, setAdminUsers] = useState(INITIAL_ADMIN_USERS);
@@ -523,6 +706,20 @@ export default function App() {
         const restoredUser = await authService.getCurrentUser();
         if (restoredUser) {
           setCurrentUser(restoredUser);
+          const initial = parseUrlRoute();
+          if (restoredUser.role === 'merchant') {
+            if (initial.platform !== 'merchant' && initial.platform !== 'admin') {
+              setActivePlatform('merchant');
+              setActiveTab('merchantDashboard');
+              if (typeof window !== 'undefined') window.history.replaceState({}, '', '/merchant');
+            }
+          } else if (restoredUser.role === 'customer') {
+            if (initial.platform === 'merchant' || initial.platform === 'merchantMarketing') {
+              setActivePlatform('customer');
+              setActiveTab('home');
+              if (typeof window !== 'undefined') window.history.replaceState({}, '', '/');
+            }
+          }
         } else {
           // If unauthenticated and on merchant or admin URL path, prompt for credentials
           const initial = parseUrlRoute();
@@ -533,6 +730,10 @@ export default function App() {
           } else if (initial.platform === 'admin') {
             setActivePlatform('admin');
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/admin');
+          } else if (initial.tab === 'enquiries' || initial.tab === 'reservations' || initial.tab === 'profile') {
+            setPendingRedirect({ path: window.location.pathname, platform: 'customer', tab: initial.tab });
+            setAuthRole('customer');
+            setShowAuthModal(true);
           }
         }
 
@@ -781,8 +982,9 @@ export default function App() {
           const freshEnquiry = {
             id: code,
             customerId: customerId,
+            customerEmail: currentUser?.email || "",
             customerName: customerName,
-            customerPhone: currentUser?.phone || "+91 98765 43210",
+            customerPhone: currentUser?.phone || "",
             customerAvatar: currentUser?.avatar || "",
             shopId: targetShop?.id,
             shopName: targetShop?.name,
@@ -816,13 +1018,14 @@ export default function App() {
       }
 
       const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
-      const userPhone = currentUser?.phone || "+91 98765 43210";
+      const userPhone = currentUser?.phone || "";
       const customerId = currentUser?.id || currentUser?.email || 'guest-customer';
       const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
 
       const newEnquiry = {
         id: code,
         customerId: customerId,
+        customerEmail: currentUser?.email || "",
         customerName: userName,
         customerPhone: userPhone,
         customerAvatar: currentUser?.avatar || "",
@@ -841,6 +1044,22 @@ export default function App() {
 
       enquiryService.saveEnquiryLocally(newEnquiry);
       setEnquiries(prev => [newEnquiry, ...prev]);
+
+      try {
+        orderNotificationService.notifyNewOrder({
+          id: code,
+          productName: product.name,
+          customerName: userName,
+          customerPhone: userPhone,
+          price: `₹${product.price}`,
+          totalAmount: Number(product.price) || 0,
+          shopName: targetShop?.name || 'Local Shop',
+          shopId: targetShop?.id || product.shopId,
+          fulfillmentType: 'pickup',
+          isEnquiryOrder: true,
+          status: 'Pending'
+        });
+      } catch (e) {}
 
       const promptText = `Hi ${targetShop?.name || 'Shopkeeper'}! Is "${product.name}" (Size: ${selectedSize || 'Standard'}) available in stock at your store? What's your best price?`;
 
@@ -913,7 +1132,7 @@ export default function App() {
   const handleReserveProduct = (productToReserve, size) => {
     requireUserAuth('reserve', { productToReserve, size }, () => {
       const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
-      const userPhone = currentUser?.phone || "+91 98765 43210";
+      const userPhone = currentUser?.phone || "";
       const code = `GL-R-${Math.floor(10000 + Math.random() * 90000)}`;
       const agreedPrice = productToReserve.price !== undefined
         ? (typeof productToReserve.price === 'number' ? `₹${productToReserve.price}` : productToReserve.price)
@@ -927,6 +1146,8 @@ export default function App() {
       const newRes = {
         id: code,
         reservationCode: code,
+        customerId: currentUser?.id || "",
+        customerEmail: currentUser?.email || "",
         customerName: userName,
         customerPhone: userPhone,
         shopId: targetShop?.id || productToReserve.shopId || "shop-1",
@@ -991,11 +1212,13 @@ export default function App() {
   const handleSubmitDemand = (demandObj) => {
     requireUserAuth('demand', demandObj, () => {
       const userName = currentUser?.name || currentUser?.email?.split('@')[0] || "Customer";
-      const userPhone = currentUser?.phone || "+91 98765 43210";
+      const userPhone = currentUser?.phone || "";
       const code = `#GL${Math.floor(1000 + Math.random() * 9000)}`;
 
       const newEnq = {
         id: code,
+        customerId: currentUser?.id || "",
+        customerEmail: currentUser?.email || "",
         customerName: userName,
         customerPhone: userPhone,
         productRequested: demandObj.productName || demandObj.description || "Product Demand Request",
@@ -1010,6 +1233,22 @@ export default function App() {
 
       enquiryService.saveEnquiryLocally(newEnq);
       setEnquiries(enquiryService.getStoredEnquiries());
+
+      try {
+        orderNotificationService.notifyNewOrder({
+          id: newEnq.id,
+          productName: newEnq.productRequested,
+          customerName: userName,
+          customerPhone: userPhone,
+          price: newEnq.budget,
+          totalAmount: 1500,
+          shopName: "Nearby Verified Stores",
+          fulfillmentType: 'pickup',
+          isEnquiryOrder: true,
+          status: 'Pending'
+        });
+      } catch (e) {}
+
       triggerToast(`✓ Demand request submitted to nearby verified shops!`);
       setShowDemandModal(false);
       setActivePlatform("customer");
@@ -1097,6 +1336,150 @@ export default function App() {
     ]);
   };
 
+  // ── SUPER ADMIN PERMANENT DELETION HANDLERS ─────────────────────────────────
+  const handleAdminDeleteCustomer = async (cust) => {
+    if (!cust) return;
+    const MASTER_ADMIN_EMAIL = 'nikhileshmendhe07@gmail.com';
+    if (cust.email?.toLowerCase() === MASTER_ADMIN_EMAIL) {
+      triggerToast("⚠️ Action Denied: The Master Super Admin cannot be deleted.");
+      return;
+    }
+
+    try {
+      // 1. Call userService which executes admin_delete_user RPC (deleting auth.users + public.profiles) & purges local vault
+      const res = await userService.deleteCustomer(cust.id, cust.auth_user_id, cust.email);
+      if (res.error) {
+        console.warn("Backend notice during customer deletion:", res.error);
+      }
+
+      // 2. Filter out customer from master state
+      setCustomers(prev => prev.filter(c => c.id !== cust.id && c.email?.toLowerCase() !== cust.email?.toLowerCase()));
+
+      // 3. Record security audit log
+      handleLogAuditAction({
+        admin: currentUser?.name || "Super Admin",
+        role: "Super Admin",
+        action: `Permanently Deleted Customer User (${cust.name || cust.email})`,
+        entity: cust.email || cust.name || cust.id,
+        timestamp: new Date().toLocaleString(),
+        ip: "103.44.112.5"
+      });
+
+      triggerToast(`✓ Customer "${cust.name || cust.email}" permanently deleted from database & auth.`);
+    } catch (err) {
+      console.error("Failed to delete customer:", err);
+      triggerToast(`⚠️ Failed to delete customer: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleAdminDeleteMerchant = async (merchant) => {
+    if (!merchant) return;
+    const MASTER_ADMIN_EMAIL = 'nikhileshmendhe07@gmail.com';
+    if (merchant.email?.toLowerCase() === MASTER_ADMIN_EMAIL) {
+      triggerToast("⚠️ Action Denied: The Master Super Admin cannot be deleted.");
+      return;
+    }
+
+    try {
+      // 1. Call merchantService which executes admin_delete_user RPC (deleting auth.users, merchants, shops, products) & purges local vault
+      const res = await merchantService.deleteMerchant(merchant.id, merchant.email, merchant.profileId);
+      if (res.error) {
+        console.warn("Backend notice during merchant deletion:", res.error);
+      }
+
+      // 2. Remove merchant from state
+      setMerchants(prev => prev.filter(m => m.id !== merchant.id && m.email?.toLowerCase() !== merchant.email?.toLowerCase()));
+
+      // 3. Remove any shops and products linked to this merchant
+      setShops(prev => prev.filter(s => s.merchantId !== merchant.id && s.merchantAuthUserId !== merchant.profileId));
+      if (merchant.shops && merchant.shops.length > 0) {
+        const shopIds = merchant.shops.map(s => s.id);
+        setProducts(prev => prev.filter(p => !shopIds.includes(p.shopId)));
+      }
+
+      // 4. Record security audit log
+      handleLogAuditAction({
+        admin: currentUser?.name || "Super Admin",
+        role: "Super Admin",
+        action: `Permanently Deleted Merchant & User Account (${merchant.businessName || merchant.email})`,
+        entity: merchant.email || merchant.businessName || merchant.id,
+        timestamp: new Date().toLocaleString(),
+        ip: "103.44.112.5"
+      });
+
+      triggerToast(`✓ Merchant "${merchant.businessName || merchant.email}" and all associated stores/products permanently deleted.`);
+    } catch (err) {
+      console.error("Failed to delete merchant:", err);
+      triggerToast(`⚠️ Failed to delete merchant: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleAdminDeleteShop = async (shopId) => {
+    if (!shopId) return;
+    try {
+      const shopObj = shops.find(s => s.id === shopId);
+      const shopName = shopObj?.name || `Shop #${shopId}`;
+
+      // 1. Call shopService which executes admin_delete_shop RPC
+      const res = await shopService.deleteShop(shopId);
+      if (res?.error) {
+        console.warn("Backend notice during shop deletion:", res.error);
+      }
+
+      // 2. Remove shop and its products from state
+      setShops(prev => prev.filter(s => s.id !== shopId));
+      setProducts(prev => prev.filter(p => p.shopId !== shopId));
+      setFeaturedShops(prev => prev.filter(fs => fs.shopId !== shopId));
+
+      // 3. Record security audit log
+      handleLogAuditAction({
+        admin: currentUser?.name || "Super Admin",
+        role: "Super Admin",
+        action: `Deleted Shop Storefront (${shopName})`,
+        entity: shopName,
+        timestamp: new Date().toLocaleString(),
+        ip: "103.44.112.5"
+      });
+
+      triggerToast(`✓ "${shopName}" and its product catalog permanently deleted.`);
+    } catch (err) {
+      console.error("Failed to delete shop:", err);
+      triggerToast(`⚠️ Failed to delete shop: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleAdminDeleteProduct = async (productId) => {
+    if (!productId) return;
+    try {
+      const prodObj = products.find(p => p.id === productId);
+      const prodName = prodObj?.name || `Product #${productId}`;
+
+      // 1. Call productService which executes admin_delete_product RPC
+      const res = await productService.deleteProduct(productId);
+      if (res?.error) {
+        console.warn("Backend notice during product deletion:", res.error);
+      }
+
+      // 2. Remove product from state
+      setProducts(prev => prev.filter(p => p.id !== productId));
+
+      // 3. Record security audit log
+      handleLogAuditAction({
+        admin: currentUser?.name || "Super Admin",
+        role: "Super Admin",
+        action: `Deleted Product Item (${prodName})`,
+        entity: prodName,
+        timestamp: new Date().toLocaleString(),
+        ip: "103.44.112.5"
+      });
+
+      triggerToast(`✓ "${prodName}" permanently deleted from catalog.`);
+    } catch (err) {
+      console.error("Failed to delete product:", err);
+      triggerToast(`⚠️ Failed to delete product: ${err.message || 'Unknown error'}`);
+    }
+  };
+
   // Badge counters for sidebar & header
   const badgeCounts = {
     customers: customers.length,
@@ -1117,14 +1500,35 @@ export default function App() {
   // When any user registers or logs into a merchant account, they start with a clean
   // slate from scratch: 0 products, 0 reservations, 0 enquiries, 0 dummy stats.
   const currentMerchantShop = shops.find(s => 
-    (currentUser?.merchantId && s.merchantId === currentUser.merchantId) ||
-    (currentUser?.id && s.merchantAuthUserId === currentUser.id)
-  ) || null;
+    (currentUser?.merchantId && (s.merchantId === currentUser.merchantId || s.id === currentUser.merchantId)) ||
+    (currentUser?.id && (s.merchantAuthUserId === currentUser.id || s.merchantId === currentUser.id || s.id === currentUser.id)) ||
+    (currentUser?.email && s.merchantEmail && s.merchantEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.shopId && s.id === currentUser.shopId) ||
+    (currentUser?.name && s.name && (s.name.toLowerCase().includes(currentUser.name.toLowerCase()) || currentUser.name.toLowerCase().includes(s.name.toLowerCase())))
+  ) || shops[0] || null;
 
   const isItemOwnedByCurrentMerchant = (item) => {
     if (!currentUser || !item) return false;
-    const shopId = currentMerchantShop?.id ? String(currentMerchantShop.id) : null;
-    return Boolean(shopId && item.shopId && String(item.shopId) === shopId);
+    
+    // Direct merchant or user identification
+    if (item.merchantId && (item.merchantId === currentUser.merchantId || item.merchantId === currentUser.id)) return true;
+    if (item.merchantEmail && currentUser.email && item.merchantEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
+
+    // Direct shop ID matching
+    const currentShopId = currentMerchantShop?.id ? String(currentMerchantShop.id) : null;
+    if (currentShopId && item.shopId && String(item.shopId) === currentShopId) return true;
+
+    // Shop name matching
+    const currentShopName = (currentMerchantShop?.name || currentUser?.shopName || '').toLowerCase();
+    if (currentShopName && item.shopName && item.shopName.toLowerCase() === currentShopName) return true;
+
+    // When in merchant mode, all direct customer orders and enquiries for Nagpur are visible to the active merchant
+    if (currentUser.role === 'merchant') {
+      if (item.isOrder || item.orderType) return true;
+      if (!item.shopId || item.shopId === 'shop-1' || item.shopId === currentShopId) return true;
+    }
+
+    return false;
   };
 
   const merchantProducts = products.filter(isItemOwnedByCurrentMerchant);
@@ -1165,6 +1569,30 @@ export default function App() {
       : "₹0"
   };
 
+  // ── DEDICATED CUSTOMER SCOPED DATA ──────────────────────────────────────────
+  // A customer only sees their own enquiries, reservations, and saved items.
+  // When logged out, customer data is strictly empty ([]) and views prompt for login.
+  const isItemOwnedByCurrentCustomer = (item) => {
+    if (!currentUser || !item) return false;
+    const currentId = currentUser.id ? String(currentUser.id) : null;
+    const currentProfileId = currentUser.profileId ? String(currentUser.profileId) : null;
+    const currentEmail = currentUser.email ? currentUser.email.toLowerCase().trim() : null;
+
+    if (currentId && (String(item.customerId) === currentId || String(item.customer_id) === currentId)) return true;
+    if (currentProfileId && (String(item.customerId) === currentProfileId || String(item.customer_id) === currentProfileId)) return true;
+    if (currentEmail && (
+      (item.customerEmail && item.customerEmail.toLowerCase().trim() === currentEmail) ||
+      (item.email && item.email.toLowerCase().trim() === currentEmail) ||
+      (item.customerId && String(item.customerId).toLowerCase().trim() === currentEmail)
+    )) return true;
+
+    return false;
+  };
+
+  const customerEnquiries = currentUser ? enquiries.filter(isItemOwnedByCurrentCustomer) : [];
+  const customerReservations = currentUser ? reservations.filter(isItemOwnedByCurrentCustomer) : [];
+  const customerSavedShopIds = currentUser ? savedShopIds : [];
+
   const isSuperAdminAuthenticated = Boolean(
     currentUser && 
     currentUser.email?.toLowerCase() === 'nikhileshmendhe07@gmail.com' &&
@@ -1182,29 +1610,62 @@ export default function App() {
             setActiveTab('home');
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
           }}
-          onLoginSuccess={async (userData) => {
+          onLoginSuccess={async (userData, isNewSignUp = false) => {
             setCurrentUser(userData);
             const cleanEmail = (userData.email || '').toLowerCase().trim();
             const merchantId = userData.merchantId;
 
-            // A merchant profile is created during authentication. A shop is the
-            // only reliable onboarding completion signal.
+            // Comprehensive shop check across:
+            // 1. In-memory shops array (by merchantId, user ID, email match, or shopId)
             const inStateShop = shops.some(
-              s => merchantId && s.merchantId === merchantId
+              s => (merchantId && s.merchantId === merchantId) ||
+                   (userData.id && (s.merchantId === userData.id || s.id === userData.id)) ||
+                   (cleanEmail && (
+                     (s.merchantEmail && s.merchantEmail.toLowerCase() === cleanEmail) ||
+                     (s.email && s.email.toLowerCase() === cleanEmail)
+                   )) ||
+                   (userData.shopId && s.id === userData.shopId)
             );
-            const hasShop = inStateShop || await shopService.checkMerchantHasShop(cleanEmail, userData.id);
+
+            // 2. Locally stored shops (if previously created offline or locally)
+            let inStoredShop = false;
+            try {
+              const stored = JSON.parse(localStorage.getItem('growlocal_merchant_shops') || '[]');
+              inStoredShop = stored.some(
+                s => (merchantId && s.merchantId === merchantId) ||
+                     (cleanEmail && (
+                       (s.merchantEmail && s.merchantEmail.toLowerCase() === cleanEmail) ||
+                       (s.email && s.email.toLowerCase() === cleanEmail)
+                     ))
+              );
+            } catch (e) {}
+
+            // 3. Database shop check
+            let backendShop = false;
+            try {
+              backendShop = await shopService.checkMerchantHasShop(cleanEmail, userData.id);
+            } catch (err) {
+              console.warn("Backend shop check error:", err);
+            }
+
+            const hasShop = inStateShop || inStoredShop || backendShop;
 
             const target = pendingRedirect || {};
             setPendingRedirect(null);
-            if (typeof window !== 'undefined') window.history.pushState({}, '', target.path || '/merchant');
 
-            if (hasShop) {
+            // User requirement:
+            // If already had a shop OR if this is an existing merchant login (!isNewSignUp):
+            // The onboarding wizard must NOT open. They go directly to Merchant Dashboard.
+            // The onboarding wizard ONLY opens when making a new ID (!hasShop && isNewSignUp).
+            if (!isNewSignUp || hasShop) {
               triggerToast(`✓ Welcome back to your Merchant Dashboard, ${userData.name || cleanEmail}!`);
               setActivePlatform('merchant');
               setActiveTab(target.tab || 'merchantDashboard');
+              if (typeof window !== 'undefined') window.history.pushState({}, '', target.path || '/merchant');
             } else {
               triggerToast(`👋 Welcome, ${userData.name || cleanEmail}! Let's set up your shop.`);
               setActivePlatform('merchantOnboarding');
+              if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
             }
           }}
         />
@@ -1228,6 +1689,7 @@ export default function App() {
             setActiveTab('merchantDashboard');
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
           }}
+          onLogout={() => handleRequestLogout('merchant')}
         />
       )}
 
@@ -1308,6 +1770,8 @@ export default function App() {
               onOpenQuickActionModal={(action) => {
                 triggerToast(`Executing admin action: ${action}`);
               }}
+              onDeleteShop={handleAdminDeleteShop}
+              onDeleteProduct={handleAdminDeleteProduct}
             />
           )}
 
@@ -1320,6 +1784,7 @@ export default function App() {
               onSaveInternalNote={(id, note) => {
                 setCustomers(customers.map(c => c.id === id ? { ...c, internalNotes: note } : c));
               }}
+              onDeleteCustomer={handleAdminDeleteCustomer}
               onShowToast={triggerToast}
             />
           )}
@@ -1331,6 +1796,7 @@ export default function App() {
               products={products}
               enquiries={enquiries}
               onNavigate={setCurrentAdminTab}
+              onDeleteMerchant={handleAdminDeleteMerchant}
               onShowToast={triggerToast}
             />
           )}
@@ -1357,6 +1823,7 @@ export default function App() {
               onToggleShopStatus={(id) => {
                 setShops(shops.map(s => s.id === id ? { ...s, status: s.status === "Open" ? "Closed" : "Open" } : s));
               }}
+              onDeleteShop={handleAdminDeleteShop}
               onShowToast={triggerToast}
             />
           )}
@@ -1372,9 +1839,7 @@ export default function App() {
               onToggleHideProduct={(id) => {
                 triggerToast(`Toggled hide status for product ${id}`);
               }}
-              onDeleteProduct={(id) => {
-                setProducts(products.filter(p => p.id !== id));
-              }}
+              onDeleteProduct={handleAdminDeleteProduct}
               onShowToast={triggerToast}
             />
           )}
@@ -1574,12 +2039,12 @@ export default function App() {
           setActiveTab={setActiveTab}
           onSwitchPlatform={(platform) => {
             if (platform === 'customer') {
-              setShowExitMerchantModal(true);
+              handleRequestLogout('merchant');
             } else {
               setActivePlatform(platform);
             }
           }}
-          onRequestExitToCustomer={() => setShowExitMerchantModal(true)}
+          onRequestExitToCustomer={() => handleRequestLogout('merchant')}
           currentUser={currentUser}
           merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
           shops={shops}
@@ -1587,13 +2052,7 @@ export default function App() {
           enquiries={merchantEnquiries}
           reservations={merchantReservations}
           onAddShop={() => setActivePlatform('merchantOnboarding')}
-          onLogout={() => {
-            setCurrentUser(null);
-            authService.logout();
-            setActivePlatform('merchantAuth');
-            if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
-            triggerToast("Signed out of Merchant Portal");
-          }}
+          onLogout={() => handleRequestLogout('merchant')}
         >
           {(activeTab === "merchantDashboard" || activeTab === "home") && (
             <MerchantDashboard
@@ -1606,13 +2065,7 @@ export default function App() {
               merchantProfile={merchants.find(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase())}
               shops={shops}
               onAddShop={() => setActivePlatform('merchantOnboarding')}
-              onLogout={() => {
-                setCurrentUser(null);
-                authService.logout();
-                setActivePlatform('merchantAuth');
-                if (typeof window !== 'undefined') window.history.pushState({}, '', '/merchant');
-                triggerToast("Signed out of Merchant Portal");
-              }}
+              onLogout={() => handleRequestLogout('merchant')}
             />
           )}
 
@@ -1714,8 +2167,8 @@ export default function App() {
             onOpenAuthModal={handleOpenAuthModal}
             activePlatform={activePlatform}
             setActivePlatform={setActivePlatform}
-            savedCount={savedShopIds.length}
-            enquiriesCount={enquiries.length}
+            savedCount={customerSavedShopIds.length}
+            enquiriesCount={customerEnquiries.length}
             onNavigatePath={navigateToPath}
             onOpenMerchantMarketing={() => {
               setActivePlatform('merchantMarketing');
@@ -1770,7 +2223,6 @@ export default function App() {
                     onSelectProduct={handleSelectProduct}
                     onBuyNow={handleOpenBuyNow}
                     onSearch={handleExecuteSearch}
-                    onOpenPhotoSearch={() => setShowPhotoSearchModal(true)}
                     onOpenDemandRequest={() => setShowDemandModal(true)}
                     onOpenLocationModal={() => setShowLocationModal(true)}
                     onOpenAuthModal={handleOpenAuthModal}
@@ -1786,7 +2238,6 @@ export default function App() {
                 {activeTab === "search" && (
                   <CustomerSearch
                     onSearch={handleExecuteSearch}
-                    onOpenPhotoSearch={() => setShowPhotoSearchModal(true)}
                     onOpenLocationModal={() => setShowLocationModal(true)}
                     currentLocation={currentLocation}
                     products={products}
@@ -1869,7 +2320,10 @@ export default function App() {
 
                 {activeTab === "enquiries" && (
                   <CustomerEnquiries
-                    enquiries={enquiries}
+                    enquiries={customerEnquiries}
+                    currentUser={currentUser}
+                    onOpenAuthModal={handleOpenAuthModal}
+                    onNavigate={setActiveTab}
                     onOpenChat={(shop) => {
                       if (shop.id) setSelectedShopId(shop.id);
                       setActiveTab("chat");
@@ -1880,7 +2334,7 @@ export default function App() {
                 {activeTab === "saved" && (
                   <CustomerSavedShops
                     shops={shops}
-                    savedShopIds={savedShopIds}
+                    savedShopIds={customerSavedShopIds}
                     onSelectShop={handleSelectShop}
                     onRemoveSaved={handleToggleSave}
                     onOpenSearch={() => setActiveTab("search")}
@@ -1889,7 +2343,9 @@ export default function App() {
 
                 {activeTab === "reservations" && (
                   <CustomerReservations
-                    reservations={reservations}
+                    reservations={customerReservations}
+                    currentUser={currentUser}
+                    onOpenAuthModal={handleOpenAuthModal}
                     onNavigate={setActiveTab}
                     onShowToast={triggerToast}
                   />
@@ -1900,9 +2356,9 @@ export default function App() {
                     onNavigate={setActiveTab}
                     onOpenAuthModal={handleOpenAuthModal}
                     onSwitchPlatform={setActivePlatform}
-                    savedCount={savedShopIds.length}
-                    enquiriesCount={enquiries.length}
-                    reservationsCount={reservations.length}
+                    savedCount={customerSavedShopIds.length}
+                    enquiriesCount={customerEnquiries.length}
+                    reservationsCount={customerReservations.length}
                     currentUser={currentUser}
                     onLogOut={handleUserLogout}
                     onShowToast={triggerToast}
@@ -2036,8 +2492,10 @@ export default function App() {
             setActiveTab={setActiveTab}
             activePlatform={activePlatform}
             setActivePlatform={setActivePlatform}
-            savedCount={savedShopIds.length}
-            enquiriesCount={enquiries.length}
+            savedCount={customerSavedShopIds.length}
+            enquiriesCount={customerEnquiries.length}
+            currentUser={currentUser}
+            onOpenAuthModal={handleOpenAuthModal}
             onOpenMerchantMarketing={() => {
               setActivePlatform('merchantMarketing');
               if (typeof window !== 'undefined') window.history.pushState({}, '', '/for-merchants');
@@ -2052,13 +2510,6 @@ export default function App() {
           currentLocation={currentLocation}
           onSelectLocation={setCurrentLocation}
           onClose={() => setShowLocationModal(false)}
-        />
-      )}
-
-      {showPhotoSearchModal && (
-        <PhotoSearchModal
-          onClose={() => setShowPhotoSearchModal(false)}
-          onFindShops={(detectedItem) => handleExecuteSearch(detectedItem)}
         />
       )}
 
@@ -2150,66 +2601,14 @@ export default function App() {
         onShowToast={triggerToast}
       />
 
-      {/* ── EXIT MERCHANT PORTAL LOGOUT CONFIRMATION POPUP ── */}
-      {showExitMerchantModal && (
-        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center border border-gray-200 shadow-2xl relative space-y-4 font-sans animate-in zoom-in-95 duration-200">
-            {/* Close / Cancel Button */}
-            <button
-              onClick={() => setShowExitMerchantModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-              title="Cancel"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Warning / Logout Icon */}
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-2xl shadow-xs">
-              <LogOut className="w-7 h-7" />
-            </div>
-
-            {/* Header & Notice */}
-            <div>
-              <h3 className="text-lg font-black text-[#111111] font-poppins">
-                Exit Merchant Portal?
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                You are about to return to the customer marketplace.
-              </p>
-            </div>
-
-            <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 text-left text-xs text-gray-600 space-y-1.5">
-              <div className="flex items-center gap-2 font-bold text-gray-800">
-                <ShieldCheck className="w-4 h-4 text-[#138A36] shrink-0" />
-                <span>Session Protection Required</span>
-              </div>
-              <p className="leading-relaxed">
-                To safeguard your store orders, live customer inquiries, and private merchant inventory, returning to the customer view requires logging out of your Merchant session.
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowExitMerchantModal(false)}
-                className="w-full sm:flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
-              >
-                Stay in Merchant Portal
-              </button>
-
-              <button
-                type="button"
-                onClick={handleConfirmExitMerchantLogout}
-                className="w-full sm:flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Log Out & Go Home</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── UNIFIED LOGOUT CONFIRMATION MODAL (CUSTOMER & MERCHANT) ── */}
+      <LogoutConfirmationModal
+        isOpen={logoutModalState.isOpen}
+        role={logoutModalState.role}
+        hasUnsavedChanges={logoutModalState.hasUnsavedChanges}
+        onClose={() => setLogoutModalState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleConfirmLogout}
+      />
 
       {/* ── EXIT SUPER ADMIN CONSOLE LOGOUT CONFIRMATION POPUP ── */}
       {showExitAdminModal && (

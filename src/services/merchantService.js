@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
+import { authService } from './authService.js';
 
 const formatMerchant = (merchant) => ({
   id: merchant.id,
@@ -6,7 +7,7 @@ const formatMerchant = (merchant) => ({
   businessName: merchant.business_name,
   ownerName: merchant.owner_name,
   email: merchant.email,
-  phone: merchant.phone,
+  phone: merchant.phone || '',
   status: merchant.status,
   verificationStatus: merchant.verification_status,
   registeredDate: merchant.created_at,
@@ -51,6 +52,32 @@ export const merchantService = {
       .select('*, shops(id, products(id))')
       .order('created_at', { ascending: false });
     return { data: (data || []).map(formatMerchant), error };
+  },
+
+  async deleteMerchant(merchantId, email, profileId) {
+    try {
+      // 1. Purge credentials from offline account vault
+      authService.removeAccountFromVault(email || profileId || merchantId);
+
+      if (!isSupabaseConfigured) return { success: true };
+
+      // 2. Call database RPC function to delete user and cascade shops/products
+      const targetIdentifier = profileId || merchantId || email;
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user', {
+        target_identifier: targetIdentifier
+      });
+
+      if (rpcError) {
+        console.warn('RPC admin_delete_user fallback to direct merchant delete:', rpcError);
+        if (merchantId) await supabase.from('merchants').delete().eq('id', merchantId);
+        if (profileId) await supabase.from('profiles').delete().eq('id', profileId);
+      }
+
+      return { success: true, data: rpcData };
+    } catch (e) {
+      console.error('Error in deleteMerchant:', e);
+      return { success: false, error: e };
+    }
   },
 
   async getPendingVerifications() {

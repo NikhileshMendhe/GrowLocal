@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   Users, Store, ShieldCheck, Package, MessageSquare, ShoppingBag, 
   Tag, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, Clock, 
-  CheckCircle2, AlertCircle, Plus, Eye, Sparkles, Filter, ChevronRight 
+  CheckCircle2, AlertCircle, Plus, Eye, Sparkles, Filter, ChevronRight,
+  Trash2, Search, AlertTriangle, Star, MapPin, X
 } from 'lucide-react';
 
 export default function AdminDashboard({
@@ -18,9 +19,66 @@ export default function AdminDashboard({
   offers = [],
   auditLogs = [],
   onNavigate,
-  onOpenQuickActionModal
+  onOpenQuickActionModal,
+  onDeleteShop,
+  onDeleteProduct
 }) {
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState("30 Days");
+  const [catalogTab, setCatalogTab] = useState("shops"); // 'shops' | 'products'
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [selectedShopPreview, setSelectedShopPreview] = useState(null);
+  const [selectedProductPreview, setSelectedProductPreview] = useState(null);
+  const [deleteShopModal, setDeleteShopModal] = useState(null); // { shop }
+  const [deleteProductModal, setDeleteProductModal] = useState(null); // { product }
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Filtered live shops & products for catalog showcase
+  const filteredCatalogShops = (Array.isArray(shops) ? shops : []).filter(s => {
+    if (!catalogSearch.trim()) return true;
+    const q = catalogSearch.toLowerCase();
+    return (s.name || '').toLowerCase().includes(q) ||
+           (s.category || '').toLowerCase().includes(q) ||
+           (s.address || '').toLowerCase().includes(q) ||
+           (s.city || '').toLowerCase().includes(q);
+  });
+
+  const filteredCatalogProducts = (Array.isArray(products) ? products : []).filter(p => {
+    if (!catalogSearch.trim()) return true;
+    const q = catalogSearch.toLowerCase();
+    return (p.name || '').toLowerCase().includes(q) ||
+           (p.shopName || '').toLowerCase().includes(q) ||
+           (p.category || '').toLowerCase().includes(q);
+  });
+
+  const handleConfirmDeleteShop = async () => {
+    if (!deleteShopModal?.shop) return;
+    setIsDeleting(true);
+    try {
+      if (onDeleteShop) {
+        await onDeleteShop(deleteShopModal.shop.id);
+      }
+      setDeleteShopModal(null);
+    } catch (err) {
+      console.error("Failed to delete shop:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!deleteProductModal?.product) return;
+    setIsDeleting(true);
+    try {
+      if (onDeleteProduct) {
+        await onDeleteProduct(deleteProductModal.product.id);
+      }
+      setDeleteProductModal(null);
+    } catch (err) {
+      console.error("Failed to delete product:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Real-Time Activity Feed Data from live audit logs or recent events
   const recentActivities = auditLogs.length > 0 ? auditLogs.slice(0, 6).map((log, index) => ({
@@ -394,6 +452,488 @@ export default function AdminDashboard({
           </table>
         </div>
       </div>
+      {/* PLATFORM LIVE CATALOG: SHOPS & PRODUCTS SHOWCASE */}
+      <div className="bg-white border border-[#E5E7E5] rounded-3xl p-5 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-emerald-50 text-[#138A36]">
+                <Store className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-extrabold text-base text-[#111111] font-poppins flex items-center gap-2">
+                  Live Catalog: Shops & Products
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-[#0B6B2B]">
+                    Active Marketplace
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Direct management, inspection, and deletion controls for live verified shops and catalog inventory
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Tabs Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder={catalogTab === 'shops' ? "Search shops..." : "Search products..."}
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl focus:outline-none focus:border-[#138A36] w-full sm:w-52 font-medium"
+              />
+              {catalogSearch && (
+                <button
+                  onClick={() => setCatalogSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Tab switch buttons */}
+            <div className="flex items-center bg-[#F7F8F7] p-1 rounded-xl border border-[#E5E7E5]">
+              <button
+                onClick={() => { setCatalogTab("shops"); setCatalogSearch(""); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  catalogTab === "shops"
+                    ? "bg-[#138A36] text-white shadow-xs"
+                    : "text-gray-600 hover:text-[#111111]"
+                }`}
+              >
+                <Store className="w-3.5 h-3.5" />
+                Shops ({filteredCatalogShops.length})
+              </button>
+              <button
+                onClick={() => { setCatalogTab("products"); setCatalogSearch(""); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  catalogTab === "products"
+                    ? "bg-[#138A36] text-white shadow-xs"
+                    : "text-gray-600 hover:text-[#111111]"
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                Products ({filteredCatalogProducts.length})
+              </button>
+            </div>
+
+            <button
+              onClick={() => onNavigate(catalogTab)}
+              className="text-xs font-bold text-[#138A36] hover:underline flex items-center gap-1 px-1 cursor-pointer whitespace-nowrap"
+            >
+              Open Full {catalogTab === 'shops' ? 'Shops' : 'Products'} View <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* SHOPS TAB CONTENT */}
+        {catalogTab === "shops" && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-[#F7F8F7] text-gray-500 uppercase tracking-wider text-[10px] font-bold border-b border-[#E5E7E5]">
+                  <th className="py-3 px-4 rounded-l-xl">Shop Details</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Location</th>
+                  <th className="py-3 px-4">Rating & Products</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right rounded-r-xl">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E5E7E5]">
+                {filteredCatalogShops.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                      No shops found matching your search.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCatalogShops.slice(0, 8).map((shop) => {
+                    const shopProductCount = products.filter(p => p.shopId === shop.id).length;
+                    return (
+                      <tr key={shop.id} className="hover:bg-[#F7F8F7] transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={shop.logoImage || shop.coverImage || "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=100&auto=format&fit=crop&q=80"}
+                              alt={shop.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-[#E5E7E5] shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-extrabold text-[#111111] truncate">{shop.name}</span>
+                                {(shop.verified || shop.is_verified) && (
+                                  <ShieldCheck className="w-3.5 h-3.5 text-[#138A36] shrink-0" title="Verified Shop" />
+                                )}
+                              </div>
+                              <span className="text-[10px] text-gray-400 block font-mono truncate">{shop.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 font-medium">
+                          {shop.category || "Retail"}
+                        </td>
+                        <td className="py-3 px-4 text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate max-w-[130px]">{shop.address || shop.city || "Nagpur"}</span>
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                              {shop.rating || "4.5"}
+                            </span>
+                            <span className="text-[11px] text-gray-500 font-medium">
+                              {shopProductCount} {shopProductCount === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
+                            shop.status === "Open" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                          }`}>
+                            {shop.status || "Open"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setSelectedShopPreview(shop)}
+                              className="p-1.5 text-gray-500 hover:text-[#138A36] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                              title="Preview Shop"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteShopModal({ shop })}
+                              className="p-1.5 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Shop"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* PRODUCTS TAB CONTENT */}
+        {catalogTab === "products" && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-[#F7F8F7] text-gray-500 uppercase tracking-wider text-[10px] font-bold border-b border-[#E5E7E5]">
+                  <th className="py-3 px-4 rounded-l-xl">Product Item</th>
+                  <th className="py-3 px-4">Storefront</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Price</th>
+                  <th className="py-3 px-4">Stock Status</th>
+                  <th className="py-3 px-4 text-right rounded-r-xl">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E5E7E5]">
+                {filteredCatalogProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                      No products found matching your search.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCatalogProducts.slice(0, 8).map((product) => {
+                    const isOutOfStock = product.stockCount === 0 || product.inStock === false;
+                    return (
+                      <tr key={product.id} className="hover:bg-[#F7F8F7] transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={product.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&auto=format&fit=crop&q=80"}
+                              alt={product.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-[#E5E7E5] shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-[#111111] truncate block">{product.name}</span>
+                              <span className="text-[10px] text-gray-400 font-mono truncate">{product.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-700 font-medium">
+                          {product.shopName || "Local Store"}
+                        </td>
+                        <td className="py-3 px-4 text-gray-500">
+                          {product.category || "General"}
+                        </td>
+                        <td className="py-3 px-4 font-black text-[#111111]">
+                          {product.price || "₹0"}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
+                            isOutOfStock
+                              ? "bg-red-100 text-red-700"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}>
+                            {isOutOfStock ? "Out of Stock" : `In Stock (${product.stockCount ?? 10})`}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setSelectedProductPreview(product)}
+                              className="p-1.5 text-gray-500 hover:text-[#138A36] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                              title="Preview Product"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteProductModal({ product })}
+                              className="p-1.5 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Product"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* SHOP PREVIEW MODAL */}
+      {selectedShopPreview && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E5E7E5] relative animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setSelectedShopPreview(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#F7F8F7] hover:bg-gray-200 flex items-center justify-center text-gray-500 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-4 mb-4">
+              <img
+                src={selectedShopPreview.logoImage || selectedShopPreview.coverImage || "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=200&auto=format&fit=crop&q=80"}
+                alt={selectedShopPreview.name}
+                className="w-16 h-16 rounded-2xl object-cover border border-[#E5E7E5]"
+              />
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h4 className="font-extrabold text-lg text-[#111111]">{selectedShopPreview.name}</h4>
+                  {(selectedShopPreview.verified || selectedShopPreview.is_verified) && (
+                    <ShieldCheck className="w-4 h-4 text-[#138A36]" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 font-medium">{selectedShopPreview.category} • {selectedShopPreview.city || 'Nagpur'}</p>
+                <p className="text-xs text-gray-400 mt-1">{selectedShopPreview.address}</p>
+              </div>
+            </div>
+
+            <div className="bg-[#F7F8F7] rounded-2xl p-3 mb-5 grid grid-cols-3 gap-2 text-center text-xs">
+              <div>
+                <span className="text-gray-400 block text-[10px] font-bold">RATING</span>
+                <span className="font-extrabold text-[#111111]">{selectedShopPreview.rating || '4.8'} ★</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block text-[10px] font-bold">HOURS</span>
+                <span className="font-extrabold text-[#111111]">{selectedShopPreview.openHours || '10AM - 9PM'}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block text-[10px] font-bold">STATUS</span>
+                <span className="font-extrabold text-emerald-700">{selectedShopPreview.status || 'Open'}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const shopToDelete = selectedShopPreview;
+                  setSelectedShopPreview(null);
+                  setDeleteShopModal({ shop: shopToDelete });
+                }}
+                className="flex-1 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Shop
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedShopPreview(null);
+                  onNavigate("shops");
+                }}
+                className="flex-1 py-2.5 bg-[#138A36] text-white hover:bg-[#0B6B2B] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                Manage in Shops View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCT PREVIEW MODAL */}
+      {selectedProductPreview && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5E7E5] relative animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setSelectedProductPreview(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#F7F8F7] hover:bg-gray-200 flex items-center justify-center text-gray-500 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <img
+              src={selectedProductPreview.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80"}
+              alt={selectedProductPreview.name}
+              className="w-full h-44 rounded-2xl object-cover border border-[#E5E7E5] mb-4"
+            />
+
+            <div className="mb-4">
+              <span className="text-[10px] font-extrabold uppercase text-[#138A36] bg-emerald-50 px-2 py-0.5 rounded-md">
+                {selectedProductPreview.category || "General"}
+              </span>
+              <h4 className="font-extrabold text-base text-[#111111] mt-1">{selectedProductPreview.name}</h4>
+              <p className="text-xs text-gray-500 mt-0.5">Sold by: <span className="font-bold text-gray-700">{selectedProductPreview.shopName || "Local Store"}</span></p>
+              <p className="text-lg font-black text-[#111111] mt-2">{selectedProductPreview.price || "₹0"}</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const prodToDelete = selectedProductPreview;
+                  setSelectedProductPreview(null);
+                  setDeleteProductModal({ product: prodToDelete });
+                }}
+                className="flex-1 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Product
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedProductPreview(null);
+                  onNavigate("products");
+                }}
+                className="flex-1 py-2.5 bg-[#138A36] text-white hover:bg-[#0B6B2B] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                Manage in Products View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE SHOP MODAL */}
+      {deleteShopModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-red-200 animate-in fade-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4 mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-black text-center text-[#111111] mb-2 font-poppins">
+              Permanently Delete Shop?
+            </h3>
+            <p className="text-xs text-center text-gray-500 mb-4 leading-relaxed">
+              Are you sure you want to delete <strong className="text-[#111111]">{deleteShopModal.shop.name}</strong>?
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-5 text-[11px] text-amber-800 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Immediate Consequences:
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-gray-600 text-[10px]">
+                <li>Shop profile will be removed from customer discovery feeds.</li>
+                <li>All products, offers, and enquiries linked to this shop will be deleted.</li>
+                <li>Action cannot be reversed.</li>
+              </ul>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteShopModal(null)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-[#F7F8F7] hover:bg-gray-200 text-[#111111] font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteShop}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-red-200 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" /> Confirm Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE PRODUCT MODAL */}
+      {deleteProductModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-red-200 animate-in fade-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4 mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-black text-center text-[#111111] mb-2 font-poppins">
+              Permanently Delete Product?
+            </h3>
+            <p className="text-xs text-center text-gray-500 mb-4 leading-relaxed">
+              Are you sure you want to delete <strong className="text-[#111111]">{deleteProductModal.product.name}</strong> from <span className="text-gray-700 font-medium">{deleteProductModal.product.shopName || "catalog"}</span>?
+            </p>
+            <div className="bg-red-50 border border-red-100 rounded-2xl p-3 mb-5 text-[11px] text-red-700">
+              This product item will be removed immediately from the live customer catalogue and database.
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteProductModal(null)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-[#F7F8F7] hover:bg-gray-200 text-[#111111] font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteProduct}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-red-200 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" /> Confirm Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

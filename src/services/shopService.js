@@ -150,6 +150,21 @@ export const shopService = {
     return { data: data ? this.formatShopRow(data) : null, error };
   },
 
+  async deleteShop(shopId) {
+    if (!isUuid(shopId)) return { error: { message: 'Invalid shop ID.' } };
+    if (!isSupabaseConfigured) return { success: true };
+
+    const { data, error } = await supabase.rpc('admin_delete_shop', {
+      target_shop_id: shopId
+    });
+
+    if (error) {
+      console.warn('RPC admin_delete_shop fallback to direct delete:', error);
+      return supabase.from('shops').delete().eq('id', shopId);
+    }
+    return { data, error: null };
+  },
+
   subscribeToShops(onChange) {
     if (!isSupabaseConfigured) return () => {};
     const channel = supabase.channel('shops-live')

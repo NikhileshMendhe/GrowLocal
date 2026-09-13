@@ -1,8 +1,46 @@
 import React from 'react';
-import { ShoppingBag, MapPin, Clock, CheckCircle2, Navigation, QrCode, ArrowRight, Sparkles } from 'lucide-react';
+import { ShoppingBag, MapPin, Clock, CheckCircle2, Navigation, QrCode, ArrowRight, Sparkles, User } from 'lucide-react';
 import MapPlaceholder from '../components/MapPlaceholder';
 
-export default function CustomerReservations({ reservations = [], onNavigate, onShowToast }) {
+export default function CustomerReservations({ 
+  reservations = [], 
+  currentUser = null,
+  onOpenAuthModal,
+  onNavigate, 
+  onShowToast 
+}) {
+  if (!currentUser) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12 space-y-6">
+        <div className="bg-white rounded-3xl border border-[#E5E7E5] p-8 md:p-12 text-center space-y-5 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center mx-auto shadow-xs">
+            <ShoppingBag className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-[#111111] font-poppins">Sign In to View Your Reservations</h2>
+            <p className="text-xs text-[#666666] max-w-md mx-auto mt-2 leading-relaxed">
+              You are currently logged out. Sign in to view your reserved items, store pickup passes, and counter verification codes.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => onOpenAuthModal ? onOpenAuthModal("customer") : null}
+              className="w-full sm:w-auto bg-[#138A36] hover:bg-[#0B6B2B] text-white font-bold text-xs px-6 py-3 rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              <span>Sign In to Your Account</span>
+            </button>
+            <button
+              onClick={() => onNavigate ? onNavigate("searchResults") : null}
+              className="w-full sm:w-auto bg-[#F7F8F7] hover:bg-gray-200 text-[#111111] font-bold text-xs px-5 py-3 rounded-xl transition-colors cursor-pointer"
+            >
+              Discover Products Nearby
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">

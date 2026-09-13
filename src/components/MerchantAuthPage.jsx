@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, ArrowRight, Eye, EyeOff, Store, ShieldCheck } from 'lucide-react';
+import { X, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, Store, ShieldCheck } from 'lucide-react';
 import { authService } from '../services/authService';
 
 export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer }) {
@@ -7,6 +7,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
 
   // Form fields
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +26,10 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       setErrorMsg("Please enter a valid email address.");
       return;
     }
+    if (!phone || phone.trim().length < 10) {
+      setErrorMsg("Please enter a valid 10-digit mobile phone number.");
+      return;
+    }
     if (!password || password.length < 6) {
       setErrorMsg("Password must be at least 6 characters long.");
       return;
@@ -35,6 +40,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       email,
       password,
       fullName: fullName || email.split('@')[0],
+      phone: phone.trim(),
       role: 'merchant'
     });
     setLoading(false);
@@ -57,7 +63,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       return;
     }
 
-    onLoginSuccess(data?.profile);
+    onLoginSuccess(data?.profile, true);
   };
 
   // Handle Merchant Log In
@@ -83,7 +89,7 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       return;
     }
 
-    onLoginSuccess(data?.profile);
+    onLoginSuccess(data?.profile, false);
   };
 
   return (
@@ -153,23 +159,43 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
         {/* Form (Sign Up or Log In) */}
         <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-4">
           {isSignUp && (
-            <div>
-              <label className="block text-xs font-bold text-[#111111] mb-1.5">
-                Full Name / Business Owner *
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  required
-                  autoComplete="name"
-                  placeholder="e.g. Aman Verma"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl text-xs sm:text-sm text-[#111111] focus:outline-none focus:border-[#138A36] focus:bg-white font-medium transition-all"
-                />
+            <>
+              <div>
+                <label className="block text-xs font-bold text-[#111111] mb-1.5">
+                  Full Name / Business Owner *
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    autoComplete="name"
+                    placeholder="e.g. Aman Verma"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl text-xs sm:text-sm text-[#111111] focus:outline-none focus:border-[#138A36] focus:bg-white font-medium transition-all"
+                  />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#111111] mb-1.5">
+                  Phone / Mobile Number *
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="tel"
+                    required
+                    autoComplete="tel"
+                    placeholder="e.g. 9823011223"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl text-xs sm:text-sm text-[#111111] focus:outline-none focus:border-[#138A36] focus:bg-white font-medium transition-all"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div>

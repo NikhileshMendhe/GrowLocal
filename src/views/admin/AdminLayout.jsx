@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Store, ShieldCheck, ShoppingBag, Package, Grid, 
   MapPin, MessageSquare, MessagesSquare, BookmarkCheck, Tag, Star, Sparkles, 
   TrendingUp, Compass, Flame, CreditCard, DollarSign, PieChart, Layout, 
   FileText, Image, Megaphone, AlertTriangle, MessageCircle, Bell, UserCheck, 
-  Lock, History, Activity, Settings, Search, HelpCircle, ChevronDown, Menu, X, LogOut, ExternalLink, HardDrive 
+  Lock, History, Activity, Settings, Search, HelpCircle, ChevronDown, Menu, X, LogOut, ExternalLink, HardDrive,
+  Volume2, VolumeX, BellRing
 } from 'lucide-react';
 import AdminGlobalSearchModal from './AdminGlobalSearchModal';
+import { orderNotificationService } from '../../services/orderNotificationService';
+import IncomingOrderAlertModal from '../../components/IncomingOrderAlertModal';
 
 export default function AdminLayout({
   currentAdminTab,
@@ -30,6 +33,52 @@ export default function AdminLayout({
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [incomingOrderAlert, setIncomingOrderAlert] = useState(() => orderNotificationService.getActiveOrder());
+
+  useEffect(() => {
+    // Listen for customer purchase orders and enquiries
+    const unsub = orderNotificationService.subscribe((order) => {
+      setIncomingOrderAlert(order);
+    });
+    const unsubDismiss = orderNotificationService.onDismiss(() => {
+      setIncomingOrderAlert(null);
+    });
+    return () => {
+      unsub();
+      unsubDismiss();
+      orderNotificationService.stopRingtone();
+    };
+  }, []);
+
+  const handleDismissOrderAlert = () => {
+    orderNotificationService.stopRingtone();
+    setIncomingOrderAlert(null);
+  };
+
+  const handleViewOrder = () => {
+    handleDismissOrderAlert();
+    setCurrentAdminTab('enquiries');
+  };
+
+  const handleTestRingtone = () => {
+    orderNotificationService.initAudio();
+    if (incomingOrderAlert || orderNotificationService.isRinging()) {
+      orderNotificationService.stopRingtone();
+      setIncomingOrderAlert(null);
+    } else {
+      orderNotificationService.notifyNewOrder({
+        id: 'GL-' + Math.floor(10000 + Math.random() * 90000),
+        productName: 'Sample Product (Test Order)',
+        customerName: 'Aman Verma',
+        customerPhone: '+91 98230 12345',
+        price: '₹1,499',
+        totalAmount: 1499,
+        shopName: 'Nagpur Trends',
+        fulfillmentType: 'delivery',
+        deliveryAddress: 'Dharampeth, Nagpur - 440010'
+      });
+    }
+  };
 
   // Exact 55 Sidebar Navigation Hierarchy
   const sidebarNavGroups = [
@@ -277,6 +326,20 @@ export default function AdminLayout({
               )}
             </div>
 
+            {/* Live Order Ringtone Test / Status Button */}
+            <button
+              onClick={handleTestRingtone}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer hidden sm:flex items-center gap-1.5 ${
+                incomingOrderAlert ? 'bg-emerald-600 text-white border-emerald-600 animate-pulse shadow-md' : 'border-[#E5E7E5] hover:bg-[#EAF7EE] text-gray-700'
+              }`}
+              title="Test Live Order Ringtone & Siren"
+            >
+              <BellRing className={`w-4 h-4 ${incomingOrderAlert ? 'animate-bounce text-amber-300' : 'text-[#138A36]'}`} />
+              <span className="text-[11px] font-bold hidden md:inline">
+                {incomingOrderAlert ? 'Ringing...' : 'Test Siren'}
+              </span>
+            </button>
+
             {/* Help Modal Button */}
             <button
               onClick={() => setShowHelpModal(true)}
@@ -520,6 +583,16 @@ export default function AdminLayout({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Realtime Incoming Order Alert Modal with Smooth Lovely Ringtone */}
+      {incomingOrderAlert && (
+        <IncomingOrderAlertModal
+          order={incomingOrderAlert}
+          onDismiss={handleDismissOrderAlert}
+          onAccept={handleViewOrder}
+          targetPortal="admin"
+        />
       )}
     </div>
   );

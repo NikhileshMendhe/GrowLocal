@@ -9,15 +9,36 @@ export default function AdminShops({
   featuredShops,
   onToggleFeatureShop,
   onToggleShopStatus,
+  onDeleteShop,
   onShowToast
 }) {
   const [activeTab, setActiveTab] = useState("allShops"); // 'allShops' or 'featuredShops'
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedShop, setSelectedShop] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // { shop }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fallbackLogo = "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=200&auto=format&fit=crop&q=80";
 
   const safeShops = Array.isArray(shops) ? shops : [];
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal?.shop) return;
+    setIsDeleting(true);
+    try {
+      if (onDeleteShop) {
+        await onDeleteShop(deleteModal.shop.id);
+      }
+      if (selectedShop?.id === deleteModal.shop.id) {
+        setSelectedShop(null);
+      }
+      setDeleteModal(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filteredShops = safeShops.filter(s => 
     (s?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -147,13 +168,22 @@ export default function AdminShops({
                             </button>
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <button
-                              onClick={() => setSelectedShop(shop)}
-                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#EAF7EE] hover:text-[#138A36] text-gray-700 transition-colors"
-                              title="View Detailed Profile"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setSelectedShop(shop)}
+                                className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#EAF7EE] hover:text-[#138A36] text-gray-700 transition-colors"
+                                title="View Detailed Profile"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteModal({ shop })}
+                                className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
+                                title="Delete Shop from Database"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -241,14 +271,68 @@ export default function AdminShops({
               <p className="text-gray-700 leading-relaxed">{selectedShop.about}</p>
               <div className="bg-[#F7F8F7] p-3 rounded-2xl border border-[#E5E7E5] space-y-1 text-gray-600 mt-2">
                 <p><strong>Address:</strong> {selectedShop.address}</p>
-                <p><strong>Open Hours:</strong> {selectedShop.openHours} ({selectedShop.openDays})</p>
+                <p><strong>Open Hours:</strong> {selectedShop.openHours || "10:00 AM - 9:00 PM"} ({selectedShop.openDays || "Mon - Sat"})</p>
                 <p><strong>Price Range:</strong> {selectedShop.priceRange}</p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
-              <button onClick={() => setSelectedShop(null)} className="py-2 px-4 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs">
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+              <button
+                onClick={() => setDeleteModal({ shop: selectedShop })}
+                className="py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Shop
+              </button>
+              <button onClick={() => setSelectedShop(null)} className="py-2 px-4 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-200 transition-colors cursor-pointer">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE SHOP CONFIRMATION MODAL */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
+                Permanently Delete Shop?
+              </h3>
+              <p className="text-xs text-gray-500">
+                You are deleting <strong className="text-gray-800">{deleteModal.shop.name}</strong>
+              </p>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 text-xs text-red-800 space-y-1.5 leading-relaxed">
+              <p className="font-bold flex items-center gap-1.5 text-red-900">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> Cascade Warning
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-[11px] text-red-700">
+                <li>This shop will be permanently removed from the Supabase database.</li>
+                <li>All products, images, photos, and verifications belonging to this shop will also be deleted.</li>
+                <li>This action cannot be undone.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                disabled={isDeleting}
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-red-200"
+              >
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
               </button>
             </div>
           </div>

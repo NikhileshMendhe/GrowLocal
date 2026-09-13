@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Search, Camera, Mic, MicOff, X, ArrowRight, Sparkles, 
+  Search, Mic, MicOff, X, ArrowRight, Sparkles, 
   Store, Tag, ArrowUpRight, Zap 
 } from 'lucide-react';
 import { getSearchSuggestions } from '../utils/searchHelper';
@@ -8,7 +8,6 @@ import { getSearchSuggestions } from '../utils/searchHelper';
 export default function AdvanceSearchBar({
   initialQuery = '',
   onSearch,
-  onOpenPhotoSearch,
   onSelectProduct,
   onBuyNow,
   products = [],
@@ -180,19 +179,6 @@ export default function AdvanceSearchBar({
               title={isListening ? "Listening... speak now" : "Search by Voice"}
             >
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
-          )}
-
-          {/* Photo Search Button */}
-          {onOpenPhotoSearch && (
-            <button
-              type="button"
-              onClick={onOpenPhotoSearch}
-              className="flex items-center gap-1.5 rounded-xl p-2 sm:px-3 sm:py-2 text-xs font-bold text-[#138A36] hover:bg-[#EAF7EE] transition-colors cursor-pointer"
-              title="Search by Photo"
-            >
-              <Camera className="w-4 h-4" />
-              <span className="hidden md:inline">Photo</span>
             </button>
           )}
 

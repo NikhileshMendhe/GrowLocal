@@ -87,6 +87,31 @@ export const authService = {
     } catch (_) {}
   },
 
+  // Completely purge deleted user credentials from local vault and active session
+  removeAccountFromVault(identifier) {
+    if (!identifier) return;
+    try {
+      const cleanId = String(identifier).trim().toLowerCase();
+      const accounts = this.getRegisteredAccounts();
+      const updated = accounts.filter(a => {
+        const aEmail = cleanEmail(a.email);
+        const aId = String(a.id || '').toLowerCase();
+        return aEmail !== cleanId && aId !== cleanId;
+      });
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updated));
+
+      // Clear active session if it matches the removed account
+      const session = this.getStoredSession();
+      if (session) {
+        const sEmail = cleanEmail(session.email);
+        const sId = String(session.id || '').toLowerCase();
+        if (sEmail === cleanId || sId === cleanId) {
+          this.clearStoredSession();
+        }
+      }
+    } catch (_) {}
+  },
+
   async loadUser(sessionUser) {
     if (!sessionUser) return null;
 
@@ -98,7 +123,7 @@ export const authService = {
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, auth_user_id, full_name, email, role, status')
+        .select('id, auth_user_id, full_name, email, phone, role, status')
         .eq('auth_user_id', sessionUser.id)
         .maybeSingle();
 
@@ -108,7 +133,7 @@ export const authService = {
           try {
             const { data } = await supabase
               .from('merchants')
-              .select('id, user_id, business_name, email, verification_status')
+              .select('id, user_id, business_name, email, phone, verification_status')
               .eq('user_id', profile.id)
               .maybeSingle();
             merchant = data;
@@ -131,6 +156,7 @@ export const authService = {
       merchantId: null,
       name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'GrowLocal member',
       email: sessionUser.email,
+      phone: sessionUser.user_metadata?.phone || null,
       role: userRole,
       onboardingRequired: userRole === 'merchant'
     };
@@ -139,8 +165,9 @@ export const authService = {
     return fallbackUser;
   },
 
-  async signUp({ email, password, fullName, role = 'customer' }) {
+  async signUp({ email, password, fullName, phone = null, role = 'customer' }) {
     const normalizedEmail = cleanEmail(email);
+    const cleanPhone = phone?.trim() || null;
     if (!normalizedEmail || !password || password.length < 6) {
       return { data: null, error: { message: 'Enter a valid email address and a password of at least 6 characters.' } };
     }
@@ -160,6 +187,7 @@ export const authService = {
             emailRedirectTo: redirectUrl,
             data: {
               full_name: fullName?.trim() || normalizedEmail.split('@')[0],
+              phone: cleanPhone,
               role: role === 'merchant' ? 'merchant' : 'customer'
             }
           }
@@ -177,6 +205,7 @@ export const authService = {
               email: normalizedEmail,
               password,
               fullName: fullName?.trim() || normalizedEmail.split('@')[0],
+              phone: cleanPhone,
               role: role === 'merchant' ? 'merchant' : 'customer',
               isVerified: false
             });
@@ -189,6 +218,7 @@ export const authService = {
             email: normalizedEmail,
             password,
             fullName: fullName?.trim() || normalizedEmail.split('@')[0],
+            phone: cleanPhone,
             role: role === 'merchant' ? 'merchant' : 'customer',
             isVerified: true
           });
@@ -205,6 +235,7 @@ export const authService = {
               id: data.user.id,
               name: fullName?.trim() || normalizedEmail.split('@')[0],
               email: normalizedEmail,
+              phone: cleanPhone,
               role: role === 'merchant' ? 'merchant' : 'customer',
               onboardingRequired: role === 'merchant'
             };
@@ -229,6 +260,7 @@ export const authService = {
       profileId: localId,
       name: fullName?.trim() || normalizedEmail.split('@')[0],
       email: normalizedEmail,
+      phone: cleanPhone,
       role: role === 'merchant' ? 'merchant' : 'customer',
       onboardingRequired: role === 'merchant'
     };
@@ -238,6 +270,7 @@ export const authService = {
       email: normalizedEmail,
       password,
       fullName: localUser.name,
+      phone: cleanPhone,
       role: localUser.role,
       isVerified: true
     });

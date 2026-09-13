@@ -3,7 +3,7 @@ import {
   Store, MapPin, Clock, Image as ImageIcon, CheckCircle2,
   ArrowRight, ArrowLeft, Sparkles, Upload, Camera, Trash2,
   RefreshCw, Check, Star, Zap, Package, Users, TrendingUp,
-  ShieldCheck, PartyPopper, Rocket
+  ShieldCheck, PartyPopper, Rocket, LogOut
 } from 'lucide-react';
 
 // ─── Shop Categories ──────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ function ConfettiBurst() {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function MerchantOnboardingWizard({ currentUser, onComplete, onSaveShop, onClose }) {
+export default function MerchantOnboardingWizard({ currentUser, onComplete, onSaveShop, onClose, onLogout }) {
   const [step, setStep] = useState(1);
 
   // Step 2 — Category
@@ -227,6 +227,23 @@ export default function MerchantOnboardingWizard({ currentUser, onComplete, onSa
             <Zap style={{ width: '13px', height: '13px', color: '#FFD700' }} />
             <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff' }}>Setup in 2 min</span>
           </div>
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                background: 'rgba(255,255,255,0.18)', border: 'none',
+                color: '#fff', borderRadius: '20px', padding: '6px 12px',
+                fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+              title="Log Out"
+            >
+              <LogOut style={{ width: '13px', height: '13px' }} />
+              <span>Log Out</span>
+            </button>
+          )}
           {onClose && (
             <button
               onClick={onClose}

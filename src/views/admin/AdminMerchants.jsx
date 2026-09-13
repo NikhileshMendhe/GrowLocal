@@ -10,20 +10,41 @@ export default function AdminMerchants({
   products,
   enquiries,
   onNavigate,
+  onDeleteMerchant,
   onShowToast
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState("All");
   const [selectedMerchant, setSelectedMerchant] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // { merchant }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredMerchants = merchants.filter(m => {
-    const matchesSearch = m.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          m.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          m.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          m.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPlan = planFilter === "All" || m.plan.toLowerCase().includes(planFilter.toLowerCase());
+    const matchesSearch = (m.businessName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (m.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (m.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (m.city || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPlan = planFilter === "All" || (m.plan || '').toLowerCase().includes(planFilter.toLowerCase());
     return matchesSearch && matchesPlan;
   });
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal?.merchant) return;
+    setIsDeleting(true);
+    try {
+      if (onDeleteMerchant) {
+        await onDeleteMerchant(deleteModal.merchant);
+      }
+      if (selectedMerchant?.id === deleteModal.merchant.id) {
+        setSelectedMerchant(null);
+      }
+      setDeleteModal(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -121,13 +142,22 @@ export default function AdminMerchants({
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedMerchant(m)}
-                        className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#EAF7EE] hover:text-[#138A36] text-gray-700 transition-colors"
-                        title="View Detailed Profile"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setSelectedMerchant(m)}
+                          className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#EAF7EE] hover:text-[#138A36] text-gray-700 transition-colors"
+                          title="View Detailed Profile"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteModal({ merchant: m })}
+                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
+                          title="Delete Merchant & User Account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -147,7 +177,7 @@ export default function AdminMerchants({
                   ✓ {selectedMerchant.verificationStatus} Shop
                 </span>
                 <h3 className="font-extrabold text-xl text-[#111111] mt-1 font-poppins">{selectedMerchant.businessName}</h3>
-                <p className="text-xs text-gray-500">Owner: {selectedMerchant.ownerName} • Joined: {selectedMerchant.joinedDate}</p>
+                <p className="text-xs text-gray-500">Owner: {selectedMerchant.ownerName} • Joined: {selectedMerchant.registeredDate ? new Date(selectedMerchant.registeredDate).toLocaleDateString('en-GB') : "Recently"}</p>
               </div>
               <button onClick={() => setSelectedMerchant(null)} className="p-2 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -157,19 +187,19 @@ export default function AdminMerchants({
             {/* Performance Overview Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl p-3">
-                <span className="text-xl font-black text-[#111111] block font-poppins">{selectedMerchant.productsCount}</span>
+                <span className="text-xl font-black text-[#111111] block font-poppins">{selectedMerchant.productsCount || 0}</span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase">Products</span>
               </div>
               <div className="bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl p-3">
-                <span className="text-xl font-black text-amber-700 block font-poppins">{selectedMerchant.enquiriesCount}</span>
+                <span className="text-xl font-black text-amber-700 block font-poppins">{selectedMerchant.enquiriesCount || 0}</span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase">Enquiries</span>
               </div>
               <div className="bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl p-3">
-                <span className="text-xl font-black text-[#138A36] block font-poppins font-mono">{selectedMerchant.revenue}</span>
+                <span className="text-xl font-black text-[#138A36] block font-poppins font-mono">{selectedMerchant.revenue || "₹0"}</span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase">Revenue</span>
               </div>
               <div className="bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl p-3">
-                <span className="text-xl font-black text-blue-700 block font-poppins">{selectedMerchant.plan}</span>
+                <span className="text-xl font-black text-blue-700 block font-poppins">{selectedMerchant.plan || "Free"}</span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase">Plan Tier</span>
               </div>
             </div>
@@ -178,24 +208,82 @@ export default function AdminMerchants({
             <div className="space-y-2 text-xs">
               <h4 className="font-extrabold uppercase tracking-wider text-gray-500">Business & Legal Credentials</h4>
               <div className="bg-[#F7F8F7] p-4 rounded-2xl border border-[#E5E7E5] space-y-2">
-                <p><strong>Store Address:</strong> {selectedMerchant.address}</p>
-                <p><strong>GSTIN Number:</strong> <span className="font-mono text-[#138A36] font-bold">{selectedMerchant.gstin}</span></p>
-                <p><strong>Owner Contact:</strong> {selectedMerchant.phone} | {selectedMerchant.email}</p>
+                <p><strong>Store Address:</strong> {selectedMerchant.address || "Nagpur, Maharashtra"}</p>
+                <p><strong>GSTIN Number:</strong> <span className="font-mono text-[#138A36] font-bold">{selectedMerchant.gstin || "Not provided"}</span></p>
+                <p><strong>Owner Contact:</strong> {selectedMerchant.phone || "No phone"} | {selectedMerchant.email}</p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+            <div className="pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
               <button
                 onClick={() => { setSelectedMerchant(null); onNavigate("shops"); }}
-                className="py-2 px-4 bg-[#EAF7EE] text-[#138A36] font-bold rounded-xl text-xs hover:bg-[#DDF3E3]"
+                className="py-2.5 px-4 bg-[#EAF7EE] text-[#138A36] font-bold rounded-xl text-xs hover:bg-[#DDF3E3] transition-colors cursor-pointer"
               >
                 Manage Shop Profile & Products
               </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDeleteModal({ merchant: selectedMerchant })}
+                  className="py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Merchant & User
+                </button>
+                <button
+                  onClick={() => setSelectedMerchant(null)}
+                  className="py-2.5 px-4 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  Close View
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE MERCHANT CONFIRMATION MODAL */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
+                Delete Merchant Account?
+              </h3>
+              <p className="text-xs text-gray-500">
+                You are deleting <strong className="text-gray-800">{deleteModal.merchant.businessName}</strong> ({deleteModal.merchant.email})
+              </p>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 text-xs text-red-800 space-y-1.5 leading-relaxed">
+              <p className="font-bold flex items-center gap-1.5 text-red-900">
+                ⚠️ Permanent Supabase Auth & Shop Cascade
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-[11px] text-red-700">
+                <li>The user account will be completely removed from Supabase <code>auth.users</code>.</li>
+                <li>All linked shops, products, photos, and verifications will be deleted.</li>
+                <li>The merchant will <strong>NOT</strong> be able to log in with this ID anymore.</li>
+                <li>To use the portal again, they must create a new merchant account.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
               <button
-                onClick={() => setSelectedMerchant(null)}
-                className="py-2 px-4 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs"
+                disabled={isDeleting}
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close View
+                Cancel
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-red-200"
+              >
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
               </button>
             </div>
           </div>

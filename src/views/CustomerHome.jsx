@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Search, Camera, Mic, ArrowRight, ShieldCheck, MessageSquare,
+  Search, Mic, ArrowRight, ShieldCheck, MessageSquare,
   MapPin, Heart, Sparkles, ChevronRight, Shirt, Footprints, Glasses,
   Watch, Smartphone, ShoppingBag, Home as HomeIcon, Dumbbell, Gem, Store,
   User, CheckCircle2, Lock, Clock, TrendingUp, Users, Compass, Eye, CornerDownRight, Zap
@@ -16,7 +16,6 @@ export default function CustomerHome({
   onSelectProduct,
   onBuyNow,
   onSearch,
-  onOpenPhotoSearch,
   onOpenDemandRequest,
   onOpenLocationModal,
   onOpenAuthModal,
@@ -59,18 +58,15 @@ export default function CustomerHome({
     <div className="homepage-shell space-y-12 pb-20">
 
       {/* =========================================================
-          1. HERO SECTION
+          1. HERO SECTION — Demand-Driven Hyperlocal Retail
       ========================================================= */}
       <section className="homepage-hero relative overflow-hidden bg-white border-b border-[#E5E7E5] rounded-b-[2.5rem] shadow-sm">
 
         {/* Soft decorative background */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-32 -right-24 h-80 w-80 rounded-full bg-[#EAF7EE] blur-3xl opacity-80" />
-
           <div className="absolute top-40 -left-32 h-72 w-72 rounded-full bg-emerald-50 blur-3xl opacity-70" />
-
           <div className="absolute right-[18%] top-24 h-2 w-2 rounded-full bg-[#138A36] opacity-50 animate-pulse" />
-
           <div className="absolute right-[8%] top-52 h-3 w-3 rounded-full bg-emerald-200 opacity-70 animate-pulse" />
         </div>
 
@@ -82,12 +78,10 @@ export default function CustomerHome({
             <span className="hero-ornament-line" />
           </div>
 
-
           {/* =====================================================
               MAIN HERO GRID
           ===================================================== */}
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] items-center gap-8 lg:gap-12">
-
 
             {/* ===================================================
                 LEFT CONTENT
@@ -96,20 +90,17 @@ export default function CustomerHome({
 
               {/* Mini label */}
               <div className="mb-4 flex flex-wrap items-center gap-2">
-
-                <span className="rounded-full bg-[#111111] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
-                  Shop smarter. Shop local.
+                <span className="rounded-full bg-[#138A36] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                  Nagpur Hyperlocal Commerce
                 </span>
-
-                <span className="text-[11px] font-bold text-[#777777]">
-                  Trusted neighborhood discovery
+                <span className="text-[11px] font-bold text-[#555555] flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#138A36]" />
+                  Reserve Online • Pay In-Store
                 </span>
-
               </div>
 
-
               {/* Main heading */}
-              <h1 className="homepage-title font-poppins text-3xl sm:text-4xl lg:text-[4rem] font-black leading-[1.04] tracking-tight text-[#111111]">
+              <h1 className="homepage-title font-poppins text-3xl sm:text-4xl lg:text-[3.85rem] font-black leading-[1.05] tracking-tight text-[#111111]">
                 {cmsContent?.heroHeadline || (
                   <>
                     Support local.
@@ -124,9 +115,9 @@ export default function CustomerHome({
               </h1>
 
               {/* Description */}
-              <p className="mt-4 sm:mt-5 max-w-xl text-xs sm:text-sm md:text-base leading-relaxed font-medium text-[#666666]">
+              <p className="mt-4 sm:mt-5 max-w-xl text-xs sm:text-sm md:text-base leading-relaxed font-medium text-[#555555]">
                 {cmsContent?.heroSubtitle ||
-                  "Discover verified local shops, find products nearby, check availability and connect directly with shop owners — all before you leave home."
+                  "Search real stock at shops near you, reserve it with zero prepayment, and inspect & pay when you pick it up in-store. No couriers. No prepaid risk."
                 }
               </p>
 
@@ -136,269 +127,298 @@ export default function CustomerHome({
               <div className="mt-5 sm:mt-7">
                 <AdvanceSearchBar
                   onSearch={onSearch}
-                  onOpenPhotoSearch={onOpenPhotoSearch}
                   onSelectProduct={onSelectProduct}
                   onBuyNow={onBuyNow}
                   products={products}
                   categories={categories}
-                  placeholder="Search shirts, sneakers, headphones, or local shops..."
+                  placeholder="Search shirts, sneakers, headphones, or local shops in Nagpur..."
                   size="large"
                 />
 
                 {/* Search benefits */}
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-[11px] font-bold text-[#888888]">
-                  <span className="flex items-center gap-1.5">
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-[11px] font-bold text-[#666666]">
+                  <span className="flex items-center gap-1.5 text-[#111111]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#138A36]" />
-                    Verified local shops
+                    Real In-Store Inventory
                   </span>
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 text-[#111111]">
                     <MapPin className="w-3.5 h-3.5 text-[#138A36]" />
-                    Nearby discovery
+                    Sitabuldi, Sadar, Dharampeth
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-[#138A36]" />
-                    Direct enquiries
+                  <span className="flex items-center gap-1.5 text-[#111111]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#138A36]" />
+                    0% Prepayment Risk
                   </span>
                 </div>
               </div>
 
-              <div className="homepage-social-proof mt-5 sm:mt-6 flex flex-wrap items-center gap-3">
-                <div className="flex -space-x-2">
-                  {['#0B6B2B', '#F5A524', '#164E63', '#7C3AED'].map((color, index) => (
-                    <span key={color} className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-black text-white shadow-xs" style={{ backgroundColor: color }}>
-                      {['N', 'A', 'P', 'R'][index]}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-[11px] font-bold text-[#555555]">
-                  <span className="text-[#138A36]">Trusted by local shoppers</span> across Nagpur
-                </p>
+              {/* Quick Action Buttons */}
+              <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                <button
+                  onClick={onOpenDemandRequest}
+                  className="group flex items-center gap-2 rounded-xl border border-[#BDE7C9] bg-[#EAF7EE] px-4 py-2.5 text-xs font-extrabold text-[#138A36] hover:bg-[#DDF3E3] transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+                  <span>Tell Shops What You Need</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+
+                <a
+                  href="#products-section"
+                  className="flex items-center gap-1.5 rounded-xl border border-transparent bg-gray-100 hover:bg-gray-200 px-3.5 py-2.5 text-xs font-bold text-[#333333] transition-all cursor-pointer active:scale-95"
+                >
+                  <span>Explore Catalog ({products.length})</span>
+                  <ChevronRight className="w-3 h-3 text-gray-500" />
+                </a>
               </div>
 
-              {/* ===================================================
-                  MOBILE QUICK PERKS & DISCOVERY BANNER (Compact & Delightful on Mobile)
-              =================================================== */}
-              <div className="block lg:hidden mt-6 bg-gradient-to-br from-[#EAF7EE] via-white to-[#DDF3E3] rounded-3xl border border-[#DDF3E3] p-4 sm:p-5 shadow-xs relative overflow-hidden">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-1.5 max-w-[65%]">
-                    <div className="inline-flex items-center gap-1 bg-[#138A36] text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                      <Sparkles className="w-2.5 h-2.5 text-amber-300" />
-                      <span>Nagpur Local First</span>
+              {/* Mobile Storefront Summary Card (No Scooter) */}
+              <div className="block lg:hidden mt-6 bg-gradient-to-br from-[#EAF7EE] via-white to-[#DDF3E3] rounded-3xl border border-[#DDF3E3] p-4 shadow-xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1 bg-[#138A36] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                      <Store className="w-3 h-3" />
+                      <span>Nagpur Neighborhood Commerce</span>
                     </div>
-                    <h3 className="font-poppins font-black text-base sm:text-lg text-[#111111] leading-tight">
-                      Zero wait courier. Direct local stores.
+                    <h3 className="font-poppins font-black text-sm text-[#111111]">
+                      Real Stores. Real Stock. Pay in-store.
                     </h3>
-                    <p className="text-[11px] font-semibold text-[#555555] leading-relaxed">
-                      Check live in-store stock, ask owners directly, and pick up today.
+                    <p className="text-[11px] text-[#555555] leading-relaxed">
+                      Reserve items at verified shops in Sitabuldi, Sadar, or Dharampeth and inspect in-person today.
                     </p>
                   </div>
-
-                  {/* Scooter Mascot Thumbnail */}
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 flex items-center justify-center">
-                    <div className="absolute inset-2 rounded-full bg-white/80 shadow-md" />
-                    <img
-                      src="/growlocal.png"
-                      alt="GrowLocal"
-                      className="relative w-full h-full object-contain drop-shadow-md hover:scale-105 transition-transform"
-                    />
+                  <div className="w-12 h-12 rounded-2xl bg-white border border-[#DDF3E3] flex items-center justify-center text-[#138A36] shrink-0 shadow-xs">
+                    <ShieldCheck className="w-7 h-7" />
                   </div>
                 </div>
-
-                {/* Quick Action Chips on Mobile */}
-                <div className="mt-3 pt-3 border-t border-[#DDF3E3] flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  <button
-                    onClick={onOpenDemandRequest}
-                    className="flex items-center gap-1 bg-white text-[#138A36] border border-[#BDE7C9] px-3 py-1.5 rounded-xl text-[11px] font-extrabold shrink-0 shadow-2xs hover:bg-[#EAF7EE] transition-all cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3 text-[#138A36]" />
-                    <span>Tell Shops What You Need</span>
-                  </button>
-
-                  <button
-                    onClick={onOpenPhotoSearch}
-                    className="flex items-center gap-1 bg-white text-[#333333] border border-[#E5E7E5] px-3 py-1.5 rounded-xl text-[11px] font-extrabold shrink-0 shadow-2xs hover:border-[#138A36] hover:text-[#138A36] transition-all cursor-pointer"
-                  >
-                    <Camera className="w-3 h-3 text-[#138A36]" />
-                    <span>Photo Search</span>
-                  </button>
-
-                  <a
-                    href="#products-section"
-                    className="flex items-center gap-1 bg-[#138A36] text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold shrink-0 shadow-2xs transition-all cursor-pointer"
-                  >
-                    <span>Browse Catalog ({products.length})</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </a>
+                <div className="mt-3 pt-2.5 border-t border-[#DDF3E3] flex items-center justify-between text-[10px] font-bold text-[#138A36]">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Sitabuldi • Sadar • Dharampeth
+                  </span>
+                  <span>100% In-Store Pickup</span>
                 </div>
               </div>
             </div>
 
             {/* ===================================================
-                RIGHT VISUAL (Desktop/Large Screens)
+                RIGHT VISUAL: NAGPUR STOREFRONT & NEIGHBORHOOD PIN CLUSTER
             =================================================== */}
-            <div className="homepage-visual relative min-h-[420px] lg:min-h-[500px] hidden lg:flex items-center justify-center">
-              {/* Main visual background */}
-              <div className="absolute inset-4 sm:inset-8 rounded-[2.75rem] bg-gradient-to-br from-[#EAF7EE] via-white to-[#DDF3E3] border border-[#DDF3E3] shadow-[0_25px_70px_rgba(19,138,54,0.10)]" />
+            <div className="homepage-visual relative min-h-[440px] lg:min-h-[500px] hidden lg:flex items-center justify-center">
+              {/* Background Glow */}
+              <div className="absolute inset-4 rounded-[2.75rem] bg-gradient-to-br from-[#EAF7EE] via-white to-[#DDF3E3] border border-[#DDF3E3] shadow-[0_25px_70px_rgba(19,138,54,0.10)]" />
 
-              <div className="homepage-visual-label absolute top-11 right-9 sm:right-14 z-20 rounded-full px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#0B6B2B]">
-                Made for Nagpur
+              <div className="absolute top-8 right-8 z-20 rounded-full bg-white/90 border border-[#DDF3E3] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#0B6B2B] shadow-xs backdrop-blur">
+                Nagpur Retail Hub
               </div>
 
-              {/* Large rotating ring */}
-              <div className="absolute h-[270px] w-[270px] sm:h-[350px] sm:w-[350px] rounded-full border border-[#BDE7C9]/70 animate-[spin_24s_linear_infinite]" />
+              {/* Decorative Concentric Map Radius Rings */}
+              <div className="absolute h-[340px] w-[340px] rounded-full border border-[#BDE7C9]/60 animate-[spin_30s_linear_infinite]" />
+              <div className="absolute h-[240px] w-[240px] rounded-full border border-dashed border-[#138A36]/25 animate-[spin_20s_linear_infinite_reverse]" />
 
-              {/* Dashed rotating ring */}
-              <div className="absolute h-[205px] w-[205px] sm:h-[270px] sm:w-[270px] rounded-full border border-dashed border-[#138A36]/20 animate-[spin_18s_linear_infinite_reverse]" />
-
-              {/* FLOATING CARD 1 */}
-              <div className="absolute left-2 sm:left-4 top-16 z-20 rounded-2xl border border-white bg-white/95 px-3.5 py-3 shadow-xl backdrop-blur animate-[bounce_4s_ease-in-out_infinite]">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EAF7EE] text-[#138A36]">
-                    <Store className="w-4.5 h-4.5" />
+              {/* CENTRAL VERIFIED STOREFRONT SHOWCASE CARD */}
+              <div className="relative z-10 w-[84%] max-w-[390px] bg-white rounded-3xl border-2 border-[#DDF3E3] p-5 shadow-2xl space-y-4">
+                {/* Store Header */}
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center shadow-xs">
+                      <Store className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-black text-[#111111]">Sitabuldi Retail Store</p>
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#138A36]" />
+                      </div>
+                      <p className="text-[10px] font-bold text-[#777777]">
+                        Verified Nagpur Merchant • ★ 4.9
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-[#EAF7EE] text-[#138A36] text-[9px] font-black px-2 py-0.5 rounded-full">
+                    OPEN NOW
                   </span>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-wider text-[#999999]">Nearby</p>
-                    <p className="text-xs font-extrabold text-[#111111]">Verified Shops</p>
+                </div>
+
+                {/* Interactive Product & Stock Preview */}
+                <div className="bg-[#F8FAF8] rounded-2xl p-3 border border-[#E5E7E5] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-extrabold text-[#111111]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#138A36] animate-ping" />
+                      Live In-Store Stock
+                    </span>
+                    <span className="text-[#138A36] font-mono">Ready in 15 mins</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[#555555]">
+                    <span>Reserve Online:</span>
+                    <span className="font-bold text-[#111111]">₹0 Prepayment Required</span>
+                  </div>
+                </div>
+
+                {/* Inspection & Trust Strip */}
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-[#EAF7EE] p-2 rounded-xl">
+                    <p className="text-[9px] font-black uppercase text-[#138A36]">Inspection</p>
+                    <p className="text-[11px] font-extrabold text-[#111111]">Touch Before Buying</p>
+                  </div>
+                  <div className="bg-[#111111] p-2 rounded-xl text-white">
+                    <p className="text-[9px] font-black uppercase text-yellow-300">Payment</p>
+                    <p className="text-[11px] font-extrabold">Pay at Store Counter</p>
                   </div>
                 </div>
               </div>
 
-              {/* FLOATING CARD 2 */}
-              <div className="absolute right-1 sm:right-3 bottom-16 z-20 rounded-2xl border border-white bg-[#111111]/95 px-3.5 py-3 text-white shadow-xl backdrop-blur animate-[bounce_5s_ease-in-out_infinite]">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#138A36]">
-                    <ShoppingBag className="w-4 h-4" />
-                  </span>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-wider text-emerald-300">Local first</p>
-                    <p className="text-xs font-extrabold">Find. Ask. Reserve.</p>
-                  </div>
+              {/* FLOATING NEIGHBORHOOD PIN 1: Sitabuldi */}
+              <div className="absolute left-2 top-12 z-20 rounded-2xl border border-white bg-white/95 px-3 py-2.5 shadow-xl backdrop-blur animate-[bounce_4s_ease-in-out_infinite] flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#EAF7EE] text-[#138A36]">
+                  <MapPin className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-[#999999]">Hub</p>
+                  <p className="text-xs font-extrabold text-[#111111]">Sitabuldi Main</p>
                 </div>
               </div>
 
-              <div className="homepage-delivery-card absolute bottom-6 left-6 sm:left-10 z-20 rounded-2xl px-3.5 py-3 shadow-xl">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#138A36]">Discover today</p>
-                <p className="mt-0.5 text-xs font-extrabold text-[#111111]">Real stores. Real stock.</p>
+              {/* FLOATING NEIGHBORHOOD PIN 2: Dharampeth */}
+              <div className="absolute right-2 bottom-20 z-20 rounded-2xl border border-white bg-[#111111]/95 px-3 py-2.5 text-white shadow-xl backdrop-blur animate-[bounce_5s_ease-in-out_infinite] flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#138A36]">
+                  <ShoppingBag className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-300">Boutiques</p>
+                  <p className="text-xs font-extrabold">Dharampeth</p>
+                </div>
               </div>
 
-              {/* MAIN IMAGE */}
-              <div className="relative z-10 w-[78%] max-w-[470px] aspect-square flex items-center justify-center">
-                <div className="absolute inset-[8%] rounded-full bg-white/75 shadow-[0_25px_60px_rgba(17,17,17,0.12)]" />
-                <img
-                  src="/growlocal.png"
-                  alt="GrowLocal"
-                  className="homepage-scooter relative w-full h-full object-contain drop-shadow-[0_28px_28px_rgba(17,17,17,0.18)] transition-transform duration-700 hover:scale-[1.035]"
-                />
+              {/* FLOATING NEIGHBORHOOD PIN 3: Sadar */}
+              <div className="absolute left-6 bottom-8 z-20 rounded-2xl border border-white bg-white/95 px-3 py-2.5 shadow-xl backdrop-blur flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <Store className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-[#999999]">Electronics</p>
+                  <p className="text-xs font-extrabold text-[#111111]">Sadar Market</p>
+                </div>
               </div>
-
-              <span className="absolute top-[18%] right-[18%] h-3 w-3 rounded-full bg-[#138A36] shadow-[0_0_0_8px_rgba(19,138,54,0.08)] animate-pulse" />
-              <span className="absolute bottom-[20%] left-[19%] h-2.5 w-2.5 rounded-full bg-[#8BCB9D] shadow-[0_0_0_7px_rgba(139,203,157,0.12)] animate-pulse" />
             </div>
 
           </div>
 
-
           {/* =====================================================
-              TRUST METRICS (Genuine Verified Launch Numbers)
+              MOMENTUM STRIP (Replaces the old 4+/5+ stat strip)
           ===================================================== */}
-          <div className="homepage-metrics mt-8 overflow-hidden rounded-2xl border border-[#E5E7E5] bg-white/90 shadow-sm backdrop-blur">
-
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-[#E5E7E5]">
-
-              {/* Verified Shops */}
-              <div className="px-4 py-4 text-center">
-
-                <span className="block font-poppins text-xl md:text-2xl font-black text-[#138A36]">
-                  {Math.max(verifiedShopsCount, shops.length || 6)}+
-                </span>
-
-                <span className="text-[10px] md:text-xs font-bold text-[#777777]">
-                  Verified Nagpur Shops
-                </span>
-
+          <div className="mt-8 rounded-2xl border border-[#DDF3E3] bg-[#F8FAF8] p-4 sm:p-5 shadow-xs">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-[#138A36] animate-pulse shrink-0" />
+                <p className="text-xs sm:text-sm font-extrabold text-[#111111]">
+                  Live in Nagpur: Connecting Sitabuldi, Sadar, Dharampeth, Ramdaspeth and 12+ neighborhoods with verified local shopkeepers.
+                </p>
               </div>
 
-
-              {/* Real Catalog Products */}
-              <div className="px-4 py-4 text-center">
-
-                <span className="block font-poppins text-xl md:text-2xl font-black text-[#138A36]">
-                  {products.length > 0 ? `${products.length}+` : '60+'}
+              <div className="flex flex-wrap items-center gap-2 shrink-0 text-[11px] font-bold text-[#138A36]">
+                <span className="bg-[#EAF7EE] border border-[#DDF3E3] px-3 py-1 rounded-full">
+                  ✓ 100% Pay On Pickup
                 </span>
-
-                <span className="text-[10px] md:text-xs font-bold text-[#777777]">
-                  In-Store Products
+                <span className="bg-[#EAF7EE] border border-[#DDF3E3] px-3 py-1 rounded-full">
+                  ✓ 0% Prepayment Risk
                 </span>
-
+                <span className="bg-[#EAF7EE] border border-[#DDF3E3] px-3 py-1 rounded-full">
+                  ✓ ₹0 Platform Commission
+                </span>
               </div>
-
-
-              {/* Nagpur Commercial Hubs */}
-              <div className="px-4 py-4 text-center">
-
-                <span className="block font-poppins text-xl md:text-2xl font-black text-[#138A36]">
-                  6+
-                </span>
-
-                <span className="text-[10px] md:text-xs font-bold text-[#777777]">
-                  Nagpur Retail Hubs
-                </span>
-
-              </div>
-
-
-              {/* Same-Day In-Store Pickup */}
-              <div className="px-4 py-4 text-center">
-
-                <span className="block font-poppins text-xl md:text-2xl font-black text-[#138A36]">
-                  100%
-                </span>
-
-                <span className="text-[10px] md:text-xs font-bold text-[#777777]">
-                  In-Store Pickup & Pay
-                </span>
-
-              </div>
-
             </div>
-
-          </div>
-
-
-          {/* =====================================================
-              QUICK ACTIONS
-          ===================================================== */}
-          <div className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-
-            <button
-              onClick={onOpenDemandRequest}
-              className="group flex items-center justify-center gap-2 rounded-2xl border border-[#DDF3E3] bg-[#EAF7EE] px-5 py-3 text-xs font-extrabold text-[#138A36] hover:bg-[#DDF3E3] transition-all cursor-pointer"
-            >
-
-              <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-
-              Tell Shops What You Need
-
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-
-            </button>
-
-
-            <button
-              onClick={onOpenPhotoSearch}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-[#E5E7E5] bg-white px-5 py-3 text-xs font-extrabold text-[#333333] hover:border-[#BDE7C9] hover:text-[#138A36] transition-all cursor-pointer"
-            >
-
-              <Camera className="w-4 h-4" />
-
-              Search by Photo
-
-            </button>
-
           </div>
 
         </div>
 
+      </section>
+
+      {/* =========================================================
+          PERSISTENT DUAL-PATH BAND (Shopper vs Merchant Entry Points)
+      ========================================================= */}
+      <section className="homepage-dual-path-band max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-8 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Card 1: Shopper Card */}
+          <div className="bg-white rounded-3xl p-5 sm:p-7 border-2 border-[#DDF3E3] shadow-lg hover:shadow-xl hover:border-[#138A36] transition-all flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-[#EAF7EE] text-[#138A36] flex items-center justify-center shadow-xs">
+                  <ShoppingBag className="w-6 h-6" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-[#EAF7EE] text-[#138A36] px-3 py-1 rounded-full border border-[#CDEED5]">
+                  For Shoppers
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-[#111111] font-poppins">
+                  Shopping in Nagpur?
+                </h3>
+                <p className="text-xs sm:text-sm text-[#555555] font-medium leading-relaxed mt-1.5">
+                  Search real stock across local stores in Sitabuldi, Sadar, Dharampeth & more. Reserve items online with zero prepayment, inspect in person, and pay at the shop counter.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 mt-3 border-t border-gray-100 flex items-center justify-between">
+              <a
+                href="#products-section"
+                className="inline-flex items-center gap-2 bg-[#EAF7EE] hover:bg-[#138A36] text-[#138A36] hover:text-white font-extrabold text-xs sm:text-sm px-5 py-3 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                <span>Browse Nearby Shops</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+
+              <button
+                onClick={onOpenDemandRequest}
+                className="text-xs font-bold text-[#138A36] hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Tell Shops What You Need</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card 2: Merchant Card */}
+          <div className="bg-[#111111] text-white rounded-3xl p-5 sm:p-7 border border-white/10 shadow-xl hover:border-[#138A36] transition-all flex flex-col justify-between relative overflow-hidden group">
+            <div className="space-y-3 relative z-10">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 text-yellow-300 flex items-center justify-center border border-white/10">
+                  <Store className="w-6 h-6" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black px-3 py-1 rounded-full font-bold">
+                  0% Commission • Free Leads
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-white font-poppins">
+                  Own a shop in Nagpur?
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-300 font-medium leading-relaxed mt-1.5">
+                  Zero listing fees. Free leads. When nearby customers search for items or post what they need, reply directly with your live stock and bring paying customers to your counter.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 mt-3 border-t border-white/10 relative z-10 flex items-center justify-between">
+              <button
+                onClick={() => onOpenMerchantMarketing ? onOpenMerchantMarketing() : (onOpenAuthModal && onOpenAuthModal('merchant'))}
+                className="inline-flex items-center gap-2 bg-[#138A36] hover:bg-[#0B6B2B] text-white font-black text-xs sm:text-sm px-6 py-3 rounded-xl transition-all cursor-pointer shadow-lg shadow-[#138A36]/30 active:scale-95"
+              >
+                <Store className="w-4 h-4" />
+                <span>List Your Shop Free</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => onOpenAuthModal ? onOpenAuthModal('merchant') : null}
+                className="text-xs font-bold text-gray-300 hover:text-white underline cursor-pointer"
+              >
+                Merchant Login
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* =========================================================
@@ -672,30 +692,19 @@ export default function CustomerHome({
                         </div>
                       </div>
 
-                      {/* Action Buttons: High-Conversion Clean Bar */}
-                      <div className="p-2.5 sm:p-3.5 pt-0 flex items-center gap-1.5">
+                      {/* Action Button: Single High-Impact Reserve for Pickup */}
+                      <div className="p-2.5 sm:p-3.5 pt-0">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onBuyNow) onBuyNow(prod);
                             else onSelectProduct(prod.id);
                           }}
-                          className="flex-1 bg-gradient-to-r from-[#138A36] to-[#0E6828] hover:from-[#0B6B2B] hover:to-[#095020] active:scale-[0.97] text-white text-[11px] sm:text-xs font-black py-2.5 rounded-xl flex items-center justify-center gap-1 transition-all shadow-sm shadow-[#138A36]/25 cursor-pointer"
-                          title="Instant Buy Now"
+                          className="w-full bg-[#138A36] hover:bg-[#0B6B2B] active:scale-[0.97] text-white text-[11px] sm:text-xs font-black py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs shadow-[#138A36]/20 cursor-pointer"
+                          title="Reserve this item for in-store pickup"
                         >
-                          <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300 shrink-0" />
-                          <span>Buy Now</span>
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectProduct(prod.id);
-                          }}
-                          className="shrink-0 bg-[#EAF7EE] hover:bg-[#DDF3E3] active:scale-[0.97] text-[#138A36] p-2.5 rounded-xl transition-all flex items-center justify-center cursor-pointer"
-                          title="Chat with shop owner"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                          <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+                          <span>Reserve for Pickup</span>
                         </button>
                       </div>
                     </div>
@@ -940,56 +949,97 @@ export default function CustomerHome({
 
 
         {/* =======================================================
-            5. CAN'T FIND WHAT YOU NEED? DEMAND REQUEST
+            5. REVERSE MARKETPLACE SPOTLIGHT — Tell Shops What You Need
         ======================================================= */}
-        <section className="bg-gradient-to-br from-[#111111] to-slate-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-10 shadow-xl space-y-5 sm:space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
-            <div className="space-y-2.5 sm:space-y-3 max-w-xl">
-              <span className="bg-green-500 text-slate-950 font-black text-[9px] sm:text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
-                Core Differentiating Feature
+        <section className="bg-gradient-to-br from-[#111111] via-[#1a2e1d] to-[#111111] text-white rounded-3xl p-6 sm:p-9 md:p-11 shadow-2xl space-y-6 relative overflow-hidden border border-emerald-900/40">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#138A36]/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
+            <div className="space-y-3.5 max-w-xl">
+              <span className="inline-flex items-center gap-1.5 bg-[#138A36] text-white font-black text-[10px] uppercase tracking-widest px-3.5 py-1 rounded-full shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                <span>Reverse Marketplace • GrowLocal Exclusive</span>
               </span>
 
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black font-poppins">
-                Can't find the product you need?
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black font-poppins leading-tight">
+                Can't find what you need?<br />
+                <span className="text-emerald-400">Let Nagpur shops find it for you.</span>
               </h2>
 
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
-                Instead of searching endlessly or calling shops, tell nearby verified stores what you're looking for. Local merchants will reply directly with availability & prices.
+              <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-medium">
+                Instead of endlessly browsing or driving across Nagpur in traffic, post what you're looking for. Verified shopkeepers in Sitabuldi, Sadar, and Dharampeth respond live with real counter stock, exact sizes, and direct quotes.
               </p>
 
-              <div className="pt-1.5 sm:pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   onClick={onOpenDemandRequest}
-                  className="w-full sm:w-auto bg-[#138A36] hover:bg-[#0B6B2B] active:scale-95 text-white font-black text-xs md:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="bg-[#138A36] hover:bg-[#0B6B2B] active:scale-95 text-white font-black text-xs sm:text-sm px-6 py-3.5 rounded-2xl shadow-xl shadow-[#138A36]/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4 text-emerald-300" />
-                  <span>Tell Shops What You Need →</span>
+                  <Sparkles className="w-4 h-4 text-yellow-300" />
+                  <span>Post What You Need →</span>
                 </button>
+
+                <span className="text-xs text-emerald-300 font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  Average 3 verified responses in 15 mins
+                </span>
               </div>
             </div>
 
-            <div className="bg-white/10 border border-white/15 rounded-2xl p-4 sm:p-5 w-full md:w-80 space-y-2.5 sm:space-y-3 backdrop-blur-md shrink-0">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-[10px] font-mono text-green-400 uppercase font-bold">
-                  Live Demand Request
-                </span>
-                <span className="text-[10px] bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full font-bold">
-                  Within 3 km
+            {/* LIVE SIMULATED REVERSE MARKETPLACE DEMO CARD */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 sm:p-5 w-full lg:w-96 space-y-3 shrink-0 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="text-[10px] font-mono text-emerald-300 uppercase font-black">
+                    Live Shopper Enquiry
+                  </span>
+                </div>
+                <span className="text-[10px] bg-white/15 text-white px-2 py-0.5 rounded-full font-bold">
+                  Dharampeth • 2 km
                 </span>
               </div>
 
-              <div>
-                <p className="font-extrabold text-xs sm:text-sm text-white">
-                  Black Formal Cotton Shirt
+              {/* Request Details */}
+              <div className="bg-black/30 p-3 rounded-2xl border border-white/10 space-y-1">
+                <p className="font-black text-xs sm:text-sm text-white">
+                  "Pure cotton formal shirt (Sky blue, Size 42)"
                 </p>
-                <p className="text-[11px] sm:text-xs text-slate-300 font-mono">
-                  Size: L • Budget: ₹1,500
-                </p>
+                <div className="flex items-center justify-between text-[11px] text-gray-300 font-mono">
+                  <span>Budget: ₹1,500 – ₹1,800</span>
+                  <span className="text-emerald-400 font-bold">Urgent (Today)</span>
+                </div>
               </div>
 
-              <div className="p-2.5 bg-white/10 rounded-xl text-[11px] text-emerald-300 font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>3 Nearby Stores Responded</span>
+              {/* Verified Shop Replies */}
+              <div className="space-y-2 pt-1">
+                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                  Verified Local Merchant Offers (2)
+                </p>
+
+                <div className="bg-white/10 hover:bg-white/15 p-2.5 rounded-xl border border-white/10 transition-colors">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-extrabold text-white flex items-center gap-1">
+                      <Store className="w-3 h-3 text-emerald-400" /> Rajdhani Garments (Sitabuldi)
+                    </span>
+                    <span className="font-black text-emerald-300">₹1,450</span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 mt-1">
+                    "In stock! 2 cotton fits in Size 42 held for you. Ready for counter pickup."
+                  </p>
+                </div>
+
+                <div className="bg-white/10 hover:bg-white/15 p-2.5 rounded-xl border border-white/10 transition-colors">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-extrabold text-white flex items-center gap-1">
+                      <Store className="w-3 h-3 text-emerald-400" /> Cotton King (Dharampeth)
+                    </span>
+                    <span className="font-black text-emerald-300">₹1,600</span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 mt-1">
+                    "3 pastel shades arrived this morning. Come inspect before buying."
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -997,46 +1047,52 @@ export default function CustomerHome({
 
 
         {/* =======================================================
-            6. HOW GROWLOCAL WORKS (Compact 3-Step)
+            6. HOW GROWLOCAL WORKS (3-Step Reserve & Collect Flow)
         ======================================================= */}
-        <section className="bg-white border border-[#E5E7E5] rounded-2xl sm:rounded-3xl p-5 sm:p-7 md:p-8 space-y-5 sm:space-y-6 shadow-xs">
-          <div className="text-center max-w-xl mx-auto space-y-1">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-black text-[#111111] font-poppins">
+        <section 
+          id="how-it-works-section"
+          className="bg-white border border-[#E5E7E5] rounded-3xl p-6 sm:p-8 md:p-10 space-y-6 shadow-xs scroll-mt-24"
+        >
+          <div className="text-center max-w-xl mx-auto space-y-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#138A36] bg-[#EAF7EE] px-3 py-1 rounded-full">
+              Reserve & Collect Model
+            </span>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[#111111] font-poppins">
               How GrowLocal Works
             </h2>
-            <p className="text-[11px] sm:text-xs text-[#666666]">
-              3 simple steps to discover, verify, and buy local retail
+            <p className="text-xs sm:text-sm text-[#666666]">
+              Zero couriers. Zero delivery wait. 100% physical confidence before paying.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-5">
-            <div className="bg-[#F8FAF8] p-4 sm:p-5 rounded-2xl border border-[#E5E7E5] space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            <div className="bg-[#F8FAF8] p-5 sm:p-6 rounded-2xl border border-[#E5E7E5] space-y-2.5 hover:border-[#138A36] transition-colors">
+              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold shadow-xs">
+                <Search className="w-5 h-5" />
               </div>
-              <h3 className="font-black text-xs sm:text-sm text-[#111111]">1. Search & Discover</h3>
-              <p className="text-[11px] sm:text-xs text-[#666666] leading-relaxed">
-                Find products and browse real store catalogs in your neighborhood without travelling store-to-store.
+              <h3 className="font-black text-sm sm:text-base text-[#111111]">1. Search or Request</h3>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Browse real store stock in Sitabuldi, Sadar, or Dharampeth, or post your exact requirement and let shops reply to you.
               </p>
             </div>
 
-            <div className="bg-[#F8FAF8] p-4 sm:p-5 rounded-2xl border border-[#E5E7E5] space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="bg-[#F8FAF8] p-5 sm:p-6 rounded-2xl border border-[#E5E7E5] space-y-2.5 hover:border-[#138A36] transition-colors">
+              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold shadow-xs">
+                <ShoppingBag className="w-5 h-5" />
               </div>
-              <h3 className="font-black text-xs sm:text-sm text-[#111111]">2. Check Availability</h3>
-              <p className="text-[11px] sm:text-xs text-[#666666] leading-relaxed">
-                Chat directly with shop owners to confirm live stock, size, custom requests and best prices.
+              <h3 className="font-black text-sm sm:text-base text-[#111111]">2. Reserve Online</h3>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Lock the item under your name with one tap. Zero prepayment, zero cards required, and zero financial risk.
               </p>
             </div>
 
-            <div className="bg-[#F8FAF8] p-4 sm:p-5 rounded-2xl border border-[#E5E7E5] space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold">
-                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="bg-[#F8FAF8] p-5 sm:p-6 rounded-2xl border border-[#E5E7E5] space-y-2.5 hover:border-[#138A36] transition-colors">
+              <div className="w-10 h-10 bg-[#EAF7EE] text-[#138A36] rounded-xl flex items-center justify-center font-bold shadow-xs">
+                <ShieldCheck className="w-5 h-5" />
               </div>
-              <h3 className="font-black text-xs sm:text-sm text-[#111111]">3. Reserve & Pick Up</h3>
-              <p className="text-[11px] sm:text-xs text-[#666666] leading-relaxed">
-                Reserve your item online with zero prepayment and pick it up at the shop whenever you're ready.
+              <h3 className="font-black text-sm sm:text-base text-[#111111]">3. Inspect & Pay In-Store</h3>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Walk into the store, touch, try on, inspect the item in person, and pay directly at the shopkeeper's counter.
               </p>
             </div>
           </div>
@@ -1044,60 +1100,68 @@ export default function CustomerHome({
 
 
         {/* =======================================================
-            7. CUSTOMER & MERCHANT SPLIT CARDS
+            7. CIVIC PRIDE & LOCAL ECONOMY BANNER (Nagpur Pride)
         ======================================================= */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="bg-white border-2 border-[#E5E7E5] hover:border-[#138A36] rounded-2xl sm:rounded-3xl p-5 sm:p-7 md:p-8 space-y-4 sm:space-y-5 transition-all shadow-xs flex flex-col justify-between group">
-            <div className="space-y-2.5 sm:space-y-3">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-[#EAF7EE] text-[#138A36] rounded-2xl flex items-center justify-center">
-                <User className="w-5 h-5 sm:w-6 sm:h-6" />
+        <section 
+          id="community-section"
+          className="bg-gradient-to-br from-[#EAF7EE] via-white to-[#DDF3E3] rounded-3xl p-6 sm:p-8 md:p-10 border-2 border-[#DDF3E3] shadow-sm space-y-6 scroll-mt-24"
+        >
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 bg-[#138A36] text-white text-[10px] font-black uppercase tracking-widest px-3.5 py-1 rounded-full shadow-xs">
+                <span>🧡</span>
+                <span>Nagpur Civic & Economic Impact</span>
               </div>
-              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-widest text-[#138A36] font-mono">
-                For Local Shoppers
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-[#111111] font-poppins">
-                Shop Local in Nagpur
-              </h3>
-              <p className="text-xs sm:text-sm text-[#666666] leading-relaxed font-medium">
-                Support local neighborhood stores, get immediate answers from shop owners, and enjoy hassle-free local shopping.
+
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#111111] font-poppins leading-tight">
+                Every Rupee Spent Here<br />
+                <span className="text-[#138A36]">Stays Inside Nagpur.</span>
+              </h2>
+
+              <p className="text-xs sm:text-sm text-[#444444] leading-relaxed font-medium">
+                When you buy from national platforms, up to 35% leaves Nagpur in commissions and corporate margins. When you reserve through GrowLocal, 100% of your money goes straight into the hands of local retailers, sustaining Nagpur families, local jobs, and our vibrant commercial hubs.
               </p>
-            </div>
 
-            <div className="pt-2">
-              <button
-                onClick={() => onOpenAuthModal ? onOpenAuthModal("customer") : null}
-                className="w-full bg-white hover:bg-gray-50 text-[#111111] hover:text-[#138A36] border-2 border-[#E5E7E5] hover:border-[#138A36] font-extrabold text-xs sm:text-sm py-3 sm:py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
-              >
-                <span>Customer Sign In / Join</span>
-                <ArrowRight className="w-4 h-4 text-[#138A36]" />
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-[#111111] text-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 md:p-8 space-y-4 sm:space-y-5 transition-all shadow-md flex flex-col justify-between relative overflow-hidden group">
-            <div className="space-y-2.5 sm:space-y-3 z-10">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-white/10 text-green-400 rounded-2xl flex items-center justify-center border border-white/10">
-                <Store className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <span className="bg-white border border-[#CDEED5] text-[#138A36] text-xs font-black px-3.5 py-2 rounded-xl shadow-2xs">
+                  ✓ 0% Platform Commission
+                </span>
+                <span className="bg-white border border-[#CDEED5] text-[#138A36] text-xs font-black px-3.5 py-2 rounded-xl shadow-2xs">
+                  ✓ 100% Retained in Nagpur
+                </span>
+                <span className="bg-white border border-[#CDEED5] text-[#138A36] text-xs font-black px-3.5 py-2 rounded-xl shadow-2xs">
+                  ✓ Verified Local Shopkeepers
+                </span>
               </div>
-              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-widest text-green-400 font-mono">
-                For Retail Businesses
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white font-poppins">
-                Grow Your Shop Sales
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-medium">
-                List your store, showcase your products, and turn customer search queries into actual store walk-ins.
-              </p>
             </div>
 
-            <div className="pt-2 z-10">
-              <button
-                onClick={() => onOpenAuthModal ? onOpenAuthModal("merchant") : null}
-                className="w-full bg-[#138A36] hover:bg-[#0B6B2B] text-white font-extrabold text-xs sm:text-sm py-3 sm:py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.98]"
-              >
-                <span>Merchant Portal / Join</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            {/* Nagpur Hub Pin Display */}
+            <div className="bg-white p-5 rounded-3xl border border-[#CDEED5] shadow-md space-y-3 w-full lg:w-80 shrink-0">
+              <p className="text-xs font-black text-[#111111] uppercase tracking-wider">
+                Nagpur Retail Hubs Live
+              </p>
+
+              <div className="space-y-2">
+                {[
+                  { name: 'Sitabuldi', tag: 'Central Commercial Hub', count: '18+ Shops' },
+                  { name: 'Sadar', tag: 'Electronics & Lifestyle', count: '14+ Shops' },
+                  { name: 'Dharampeth', tag: 'Fashion & Boutiques', count: '10+ Shops' },
+                  { name: 'Ramdaspeth', tag: 'Specialty Retail & Goods', count: '8+ Shops' }
+                ].map((hub) => (
+                  <div key={hub.name} className="flex items-center justify-between p-2 rounded-xl bg-[#F8FAF8] border border-gray-100 text-xs">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-[#138A36]" />
+                      <div>
+                        <p className="font-extrabold text-[#111111]">{hub.name}</p>
+                        <p className="text-[10px] text-gray-500">{hub.tag}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-[#138A36] bg-[#EAF7EE] px-2 py-0.5 rounded-full">
+                      {hub.count}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>

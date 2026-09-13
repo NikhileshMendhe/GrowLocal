@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { INITIAL_OFFERS, INITIAL_REVIEWS } from '../data/adminMockData';
 import { orderNotificationService } from './orderNotificationService';
+import { enquiryService } from './enquiryService';
 
 const RESERVATIONS_STORAGE_KEY = 'growlocal_user_reservations';
 
@@ -67,8 +68,10 @@ export const reservationService = {
       const formatted = {
         id: resObj.id || code,
         reservationCode: resObj.reservationCode || code,
+        customerId: resObj.customerId || resObj.customer_id || "",
+        customerEmail: resObj.customerEmail || resObj.email || "",
         customerName: resObj.customerName || "Customer",
-        customerPhone: resObj.customerPhone || "+91 98765 43210",
+        customerPhone: resObj.customerPhone || "",
         shopName: resObj.shopName || "Nagpur Store",
         shopArea: resObj.shopArea || "Sitabuldi, Nagpur",
         productName: resObj.productName || "Reserved Item",
@@ -110,6 +113,32 @@ export const reservationService = {
     const newResObj = { id: reservationCode, reservationCode, ...resData };
 
     this.saveReservationLocally(newResObj);
+
+    try {
+      enquiryService.saveEnquiryLocally({
+        id: reservationCode,
+        reservationCode: reservationCode,
+        isOrder: true,
+        orderType: 'Reservation Order',
+        productRequested: resData.productName || 'Reserved Item',
+        productName: resData.productName || 'Reserved Item',
+        productImage: resData.productImage || '',
+        customerName: resData.customerName || 'Nagpur Shopper',
+        customerPhone: resData.customerPhone || '',
+        shopId: resData.shopId || '',
+        shopName: resData.shopName || '',
+        merchantId: resData.merchantId || '',
+        size: resData.size || 'Standard',
+        quantity: resData.quantity || 1,
+        price: resData.price || '₹0',
+        budget: resData.price || '₹0',
+        totalAmount: resData.totalAmount || (Number(String(resData.price || '').replace(/[^0-9]/g, '')) || 0),
+        fulfillmentType: resData.fulfillmentType || 'pickup',
+        status: 'Pending',
+        timestamp: 'Just now',
+        lastMessage: `🛍️ New In-Store Reservation: "${resData.productName}" (${resData.price})`
+      });
+    } catch (e) {}
 
     try {
       orderNotificationService.notifyNewOrder(newResObj);

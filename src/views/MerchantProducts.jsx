@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Plus, Edit2, EyeOff, Trash2, Package, Search, X, ArrowRight, ArrowLeft,
   Sparkles, ShoppingBag, Camera, CheckCircle2, Star, Zap, Upload, RefreshCw
@@ -673,6 +673,18 @@ export default function MerchantProducts({ products = [], onAddProduct, onUpdate
   const [showWizard, setShowWizard] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Track unsaved wizard edits so logout confirmation modal can warn the merchant
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__growlocal_has_unsaved_changes = Boolean(showWizard);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.__growlocal_has_unsaved_changes = false;
+      }
+    };
+  }, [showWizard]);
 
   // Try to find the current merchant's shop
   const currentMerchantShop = shops?.find(s => 

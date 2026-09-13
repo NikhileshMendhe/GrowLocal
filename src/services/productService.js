@@ -113,7 +113,17 @@ export const productService = {
 
   async deleteProduct(productId) {
     if (!isUuid(productId)) return { error: { message: 'Invalid product ID.' } };
-    return supabase.from('products').delete().eq('id', productId);
+    if (!isSupabaseConfigured) return { success: true };
+
+    const { data, error } = await supabase.rpc('admin_delete_product', {
+      target_product_id: productId
+    });
+
+    if (error) {
+      console.warn('RPC admin_delete_product fallback to direct delete:', error);
+      return supabase.from('products').delete().eq('id', productId);
+    }
+    return { data, error: null };
   },
 
   subscribeToProducts(onChange) {

@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Camera, MapPin, Clock, Flame, ChevronRight, Sparkles, TrendingUp } from 'lucide-react';
+import { Search, MapPin, Clock, Flame, ChevronRight, Sparkles, TrendingUp } from 'lucide-react';
 import AdvanceSearchBar from '../components/AdvanceSearchBar';
 
 export default function CustomerSearch({ 
   onSearch, 
-  onOpenPhotoSearch, 
   onOpenLocationModal, 
   currentLocation,
   products = [],
@@ -23,28 +22,28 @@ export default function CustomerSearch({
     "Resort printed shirt",
     "Rayban sunglasses",
     "Running shoes",
-    "Cotton kurtis",
-    "Leather belt",
-    "Smartwatch"
+    "Denim jackets",
+    "Cotton kurtas",
+    "Leather formal shoes",
+    "Smartwatches"
   ];
 
-  const handleExecuteSearch = (searchTerm) => {
-    if (searchTerm && onSearch) {
-      onSearch(searchTerm);
-    }
+  const handleExecuteSearch = (query) => {
+    if (onSearch) onSearch(query);
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-8">
-      {/* Header */}
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      {/* Header & Location Selection */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#111111] font-poppins">Search Local</h1>
-          <p className="text-xs text-[#666666]">Discover products available in nearby Nagpur shops</p>
+          <h1 className="text-2xl font-black text-[#111111] font-poppins">Discover Nagpur Retail</h1>
+          <p className="text-xs text-[#666666]">Search live products and verified local shops near you</p>
         </div>
+
         <button
           onClick={onOpenLocationModal}
-          className="bg-[#EAF7EE] text-[#138A36] text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer"
+          className="flex items-center gap-1.5 bg-[#EAF7EE] text-[#138A36] px-3 py-1.5 rounded-full text-xs font-bold border border-[#DDF3E3] cursor-pointer"
         >
           <MapPin className="w-3.5 h-3.5" />
           <span>{currentLocation.area} ({currentLocation.radius})</span>
@@ -55,7 +54,6 @@ export default function CustomerSearch({
       <div className="space-y-3">
         <AdvanceSearchBar
           onSearch={handleExecuteSearch}
-          onOpenPhotoSearch={onOpenPhotoSearch}
           onSelectProduct={onSelectProduct}
           onBuyNow={onBuyNow}
           products={products}
@@ -64,23 +62,6 @@ export default function CustomerSearch({
           autoFocus={true}
           size="large"
         />
-
-        {/* Photo Search Banner Option */}
-        <button
-          onClick={onOpenPhotoSearch}
-          className="w-full bg-[#EAF7EE] hover:bg-[#DDF3E3] border border-[#DDF3E3] p-3.5 rounded-2xl flex items-center justify-between text-left transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#138A36] text-white rounded-xl flex items-center justify-center">
-              <Camera className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#111111]">Have a photo of the product?</p>
-              <p className="text-[11px] text-[#666666]">Upload image to match with local Nagpur shop inventories</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-[#138A36]" />
-        </button>
       </div>
 
       {/* Recent Searches */}

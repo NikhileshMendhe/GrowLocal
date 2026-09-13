@@ -18,14 +18,34 @@ export default function AdminProducts({
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [editingPriceModal, setEditingPriceModal] = useState(null);
   const [newPrice, setNewPrice] = useState("");
+  const [deleteModal, setDeleteModal] = useState(null); // { product }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.shopName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (p.shopName || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (p.category || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === "All" || p.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal?.product) return;
+    setIsDeleting(true);
+    try {
+      if (onDeleteProduct) {
+        await onDeleteProduct(deleteModal.product.id);
+      }
+      if (selectedProduct?.id === deleteModal.product.id) {
+        setSelectedProduct(null);
+      }
+      setDeleteModal(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSavePrice = () => {
     if (!newPrice || isNaN(newPrice)) {
@@ -129,10 +149,7 @@ export default function AdminProducts({
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => {
-                          onDeleteProduct(p.id);
-                          onShowToast(`Deleted ${p.name}`);
-                        }}
+                        onClick={() => setDeleteModal({ product: p })}
                         className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
                         title="Delete Product"
                       >
@@ -191,21 +208,73 @@ export default function AdminProducts({
             </div>
 
             <div className="h-48 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-              <img src={selectedProduct.images[0]} alt={selectedProduct.name} className="w-full h-full object-cover" />
+              <img src={selectedProduct.images?.[0] || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80"} alt={selectedProduct.name} className="w-full h-full object-cover" />
             </div>
 
             <div className="space-y-2 text-xs">
-              <p className="text-gray-700">{selectedProduct.description}</p>
+              <p className="text-gray-700">{selectedProduct.description || "No description provided."}</p>
               <div className="bg-[#F7F8F7] p-3 rounded-2xl border border-[#E5E7E5] space-y-1">
-                <p><strong>Current Price:</strong> ₹{selectedProduct.price} (MRP: ₹{selectedProduct.originalPrice || selectedProduct.price})</p>
-                <p><strong>Available Sizes:</strong> {selectedProduct.sizes ? selectedProduct.sizes.join(", ") : "Standard"}</p>
-                <p><strong>Enquiries Count:</strong> {selectedProduct.enquiriesCount || 12} enquiries</p>
+                <p><strong>Current Price:</strong> ₹{selectedProduct.price} {selectedProduct.originalPrice ? `(MRP: ₹${selectedProduct.originalPrice})` : ''}</p>
+                <p><strong>Available Sizes:</strong> {selectedProduct.sizes && selectedProduct.sizes.length ? selectedProduct.sizes.join(", ") : "Standard"}</p>
+                <p><strong>Stock Count:</strong> {selectedProduct.stockCount || 0} pcs</p>
               </div>
             </div>
 
-            <button onClick={() => setSelectedProduct(null)} className="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs">
-              Close View
-            </button>
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setDeleteModal({ product: selectedProduct })}
+                className="py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Product
+              </button>
+              <button onClick={() => setSelectedProduct(null)} className="py-2.5 px-4 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-200 transition-colors cursor-pointer">
+                Close View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE PRODUCT CONFIRMATION MODAL */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
+                Delete Product?
+              </h3>
+              <p className="text-xs text-gray-500">
+                Are you sure you want to permanently delete <strong className="text-gray-800">{deleteModal.product.name}</strong> from the database?
+              </p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 space-y-1 leading-relaxed">
+              <p className="font-bold flex items-center gap-1 text-amber-900">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> Immediate Marketplace Effect
+              </p>
+              <p>This product will be removed from Supabase and will immediately vanish from search results and customer feeds.</p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                disabled={isDeleting}
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-red-200"
+              >
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

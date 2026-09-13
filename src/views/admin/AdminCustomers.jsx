@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { 
   Users, Search, Filter, Download, MoreVertical, Edit3, ShieldAlert, 
-  CheckCircle, XCircle, RefreshCw, MessageSquare, ShoppingBag, Eye, X, Save 
+  CheckCircle, XCircle, RefreshCw, MessageSquare, ShoppingBag, Eye, X, Save, Trash2 
 } from 'lucide-react';
 
 export default function AdminCustomers({
   customers,
   onUpdateCustomerStatus,
   onSaveInternalNote,
+  onDeleteCustomer,
   onShowToast
 }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,12 +17,14 @@ export default function AdminCustomers({
   const [editNoteModal, setEditNoteModal] = useState(null);
   const [internalNoteText, setInternalNoteText] = useState("");
   const [confirmModal, setConfirmModal] = useState(null); // { type, customerId, action }
+  const [deleteModal, setDeleteModal] = useState(null); // { cust }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filtering
   const filteredCustomers = customers.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           c.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          c.phone.includes(searchQuery) || 
+                          (c.phone && c.phone.includes(searchQuery)) || 
                           c.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "All" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -37,6 +40,24 @@ export default function AdminCustomers({
     setConfirmModal(null);
     if (selectedCustomer?.id === cust.id) {
       setSelectedCustomer({ ...selectedCustomer, status: newStatus });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal?.cust) return;
+    setIsDeleting(true);
+    try {
+      if (onDeleteCustomer) {
+        await onDeleteCustomer(deleteModal.cust);
+      }
+      if (selectedCustomer?.id === deleteModal.cust.id) {
+        setSelectedCustomer(null);
+      }
+      setDeleteModal(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -142,7 +163,7 @@ export default function AdminCustomers({
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-gray-600 font-medium">{cust.email}</td>
-                    <td className="py-3.5 px-4 text-gray-600 font-mono">{cust.phone}</td>
+                    <td className="py-3.5 px-4 text-gray-600 font-mono">{cust.phone || "—"}</td>
                     <td className="py-3.5 px-4 text-gray-600">{cust.location}</td>
                     <td className="py-3.5 px-4 text-gray-500 font-medium">{cust.lastActive || "Recently"}</td>
                     <td className="py-3.5 px-4">
@@ -190,6 +211,13 @@ export default function AdminCustomers({
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
+                        <button
+                          onClick={() => setDeleteModal({ cust })}
+                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
+                          title="Delete User from Supabase & Platform"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -209,7 +237,7 @@ export default function AdminCustomers({
                 <img src={selectedCustomer.avatar} alt={selectedCustomer.name} className="w-12 h-12 rounded-full object-cover ring-2 ring-[#138A36]" />
                 <div>
                   <h3 className="font-extrabold text-lg text-[#111111] leading-tight">{selectedCustomer.name}</h3>
-                  <p className="text-xs text-gray-500">{selectedCustomer.email} • {selectedCustomer.phone}</p>
+                  <p className="text-xs text-gray-500">{selectedCustomer.email}{selectedCustomer.phone ? ` • ${selectedCustomer.phone}` : ''}</p>
                 </div>
               </div>
               <button onClick={() => setSelectedCustomer(null)} className="p-2 text-gray-400 hover:text-gray-600">
@@ -257,8 +285,8 @@ export default function AdminCustomers({
                 <span className="font-semibold text-[#138A36]">{selectedCustomer.lastActive || "Just now"}</span>
               </div>
               <div>
-                <span className="text-gray-400 font-bold block text-[10px] uppercase">Saved Shops</span>
-                <span className="font-semibold text-[#111111]">{selectedCustomer.savedShopsCount || 2} Stores</span>
+                <span className="text-gray-400 font-bold block text-[10px] uppercase">Phone Number</span>
+                <span className="font-semibold text-[#111111]">{selectedCustomer.phone || "Not provided"}</span>
               </div>
             </div>
 
@@ -342,7 +370,63 @@ export default function AdminCustomers({
                 >
                   Reset Access & Send Password Reset Email
                 </button>
+
+                <button
+                  onClick={() => setDeleteModal({ cust: selectedCustomer })}
+                  className="py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors col-span-2 flex items-center justify-center gap-2 font-bold cursor-pointer shadow-sm shadow-red-200"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete User Permanently from Supabase & Platform
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CUSTOMER PERMANENT CONFIRMATION MODAL */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-extrabold text-base text-[#111111] font-poppins">
+                Permanently Delete User?
+              </h3>
+              <p className="text-xs text-gray-500">
+                You are deleting <strong className="text-gray-800">{deleteModal.cust.name}</strong> ({deleteModal.cust.email})
+              </p>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 text-xs text-red-800 space-y-1.5 leading-relaxed">
+              <p className="font-bold flex items-center gap-1.5 text-red-900">
+                <ShieldAlert className="w-4 h-4 shrink-0" /> Irreversible Supabase Auth Deletion
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-[11px] text-red-700">
+                <li>User account will be deleted from the Supabase <code>auth.users</code> database.</li>
+                <li>This user will <strong>NOT</strong> be able to log in with this account anymore.</li>
+                <li>All active tokens and sessions will be revoked immediately.</li>
+                <li>If the user wishes to use GrowLocal in the future, they will have to <strong>make a brand new account</strong>.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                disabled={isDeleting}
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-red-200"
+              >
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </button>
             </div>
           </div>
         </div>

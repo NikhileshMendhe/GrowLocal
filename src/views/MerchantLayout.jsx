@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard, Package, MessageSquare, Inbox, ShoppingBag,
   TrendingUp, Sparkles, Tag, Store, CreditCard, LogOut, Eye,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { orderNotificationService } from '../services/orderNotificationService';
+import IncomingOrderAlertModal from '../components/IncomingOrderAlertModal';
 
 export default function MerchantLayout({
   activeTab,
@@ -24,46 +25,77 @@ export default function MerchantLayout({
   children
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showMerchantDropdown, setShowMerchantDropdown] = useState(false);
+  const merchantDropdownRef = useRef(null);
   const [incomingOrderAlert, setIncomingOrderAlert] = useState(null);
   const [sirenActive, setSirenActive] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   useEffect(() => {
-    // Listen for customer "Buy Now" orders
+    function handleClickOutside(event) {
+      if (merchantDropdownRef.current && !merchantDropdownRef.current.contains(event.target)) {
+        setShowMerchantDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    // Listen for customer orders & enquiries
     const unsubscribe = orderNotificationService.subscribe((order) => {
       setIncomingOrderAlert(order);
       setSirenActive(true);
-      orderNotificationService.playSiren(10);
+    });
+
+    const unsubDismiss = orderNotificationService.onDismiss(() => {
+      setIncomingOrderAlert(null);
+      setSirenActive(false);
     });
 
     return () => {
       unsubscribe();
-      orderNotificationService.stopSiren();
+      unsubDismiss();
+      orderNotificationService.stopRingtone();
     };
   }, []);
 
   const handleDismissOrderAlert = () => {
-    orderNotificationService.stopSiren();
+    orderNotificationService.stopRingtone();
     setSirenActive(false);
     setIncomingOrderAlert(null);
   };
 
   const handleViewOrder = () => {
+    const isEnquiry = incomingOrderAlert?.isEnquiryOrder;
     handleDismissOrderAlert();
-    setActiveTab('merchantReservations');
+    if (isEnquiry) {
+      setActiveTab('merchantEnquiries');
+    } else {
+      setActiveTab('merchantReservations');
+    }
   };
 
   const handleTestSiren = (e) => {
     e.stopPropagation();
     orderNotificationService.initAudio();
     setAudioUnlocked(true);
-    if (sirenActive) {
-      orderNotificationService.stopSiren();
+    if (sirenActive || orderNotificationService.isRinging()) {
+      orderNotificationService.stopRingtone();
       setSirenActive(false);
+      setIncomingOrderAlert(null);
     } else {
       setSirenActive(true);
-      orderNotificationService.playSiren(3);
-      setTimeout(() => setSirenActive(false), 3000);
+      orderNotificationService.notifyNewOrder({
+        id: 'GL-' + Math.floor(10000 + Math.random() * 90000),
+        productName: 'Sample Store Product (Test Order)',
+        customerName: 'Priya Sharma',
+        customerPhone: '+91 98221 54321',
+        price: '₹1,299',
+        totalAmount: 1299,
+        shopName: shopName,
+        fulfillmentType: 'pickup',
+      });
     }
   };
 
@@ -104,15 +136,15 @@ export default function MerchantLayout({
 
   return (
     <div onClick={handlePortalClick} className="min-h-screen bg-[#F7F9F7] flex flex-col font-sans selection:bg-[#EAF7EE] selection:text-[#138A36]">
-      {/* ── Top Dedicated Merchant Portal Header ── */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E5E7E5] shadow-xs">
+      {/* ── Top Dedicated Merchant Portal Header (Dark bar with distinct Merchant tag) ── */}
+      <header className="sticky top-0 z-40 bg-[#111111] text-white border-b border-white/10 shadow-lg">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           
-          {/* Left: Brand / Store Badge */}
+          {/* Left: Brand / Store Badge with Merchant tag */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <button
               onClick={() => setMobileNavOpen(!mobileNavOpen)}
-              className="lg:hidden p-2 text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors"
+              className="lg:hidden p-2 text-gray-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
               aria-label="Toggle navigation menu"
             >
               {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -123,27 +155,31 @@ export default function MerchantLayout({
                 G
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-sm sm:text-base text-[#111111] leading-none tracking-tight">GrowLocal</span>
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-[#138A36] px-1.5 py-0.5 rounded-md leading-none">
-                    <span className="hidden sm:inline">Merchant Portal</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-sm sm:text-base text-white leading-none tracking-tight truncate max-w-[150px] sm:max-w-[220px]">
+                    {shopName}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full leading-none shrink-0">
+                    Merchant
                   </span>
                 </div>
-                <span className="text-[10px] text-gray-500 font-medium leading-none hidden sm:block">Partner Store Control Center</span>
+                <span className="text-[10px] text-gray-400 font-medium leading-none hidden sm:block mt-0.5">
+                  Store Management Portal · Nagpur
+                </span>
               </div>
             </div>
           </div>
 
           {/* Center: Live Realtime Status Pill & Order Siren Status (Desktop only) */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#EAF7EE] border border-[#CDEED5] rounded-full shrink-0">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full shrink-0">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-xs font-bold text-[#138A36]">Realtime Sync</span>
-              <span className="text-gray-300">|</span>
-              <span className="text-[11px] text-gray-600 font-medium">Nagpur</span>
+              <span className="text-xs font-bold text-emerald-400">Realtime Sync</span>
+              <span className="text-white/20">|</span>
+              <span className="text-[11px] text-gray-300 font-medium">Nagpur Grid</span>
             </div>
 
             {/* Siren Status & Test Button */}
@@ -152,30 +188,18 @@ export default function MerchantLayout({
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 ${
                 sirenActive
                   ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/40 ring-2 ring-red-400'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-[#138A36] border border-emerald-200'
+                  : 'bg-white/10 hover:bg-white/15 text-gray-200 border border-white/10'
               }`}
               title="Order Dispatch Siren: Plays audio alarm whenever a customer clicks Buy Now. Click to test or toggle siren."
             >
-              <Volume2 className={`w-3.5 h-3.5 ${sirenActive ? 'animate-bounce text-white' : 'text-[#138A36]'}`} />
+              <Volume2 className={`w-3.5 h-3.5 ${sirenActive ? 'animate-bounce text-white' : 'text-emerald-400'}`} />
               <span className="hidden sm:inline">{sirenActive ? 'Siren RRRINGING (Mute)' : 'Order Siren Ready'}</span>
               <span className="sm:hidden">{sirenActive ? '🚨 Siren' : '🔊 Siren'}</span>
             </button>
           </div>
 
-          {/* Right: Store Pill & Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* View As Customer button (intercepted with logout confirm) */}
-            <button
-              onClick={() => onRequestExitToCustomer ? onRequestExitToCustomer() : onSwitchPlatform('customer')}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors shrink-0"
-              title="Return to Customer Marketplace"
-            >
-              <Eye className="w-3.5 h-3.5 text-gray-500" />
-              <span className="hidden md:inline">Customer View</span>
-              <ArrowUpRight className="w-3 h-3 text-gray-400" />
-            </button>
-
-
+          {/* Right: Store Avatar Dropdown & Controls */}
+          <div className="flex items-center gap-2 shrink-0">
             {/* Add Shop quick trigger (hidden once shop is listed) */}
             {onAddShop && !hasListedShop && (
               <button
@@ -189,50 +213,152 @@ export default function MerchantLayout({
               </button>
             )}
 
-            {/* Sign Out */}
-            {onLogout && (
+            {/* MERCHANT AVATAR & DROPDOWN */}
+            <div className="relative" ref={merchantDropdownRef}>
               <button
-                onClick={onLogout}
-                className="p-1.5 sm:p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors shrink-0"
-                title="Sign Out of Merchant Portal"
+                onClick={() => setShowMerchantDropdown(prev => !prev)}
+                className="flex items-center gap-2 py-1 px-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white transition-all cursor-pointer shadow-xs"
+                title="Merchant Portal Menu"
+                id="merchant-user-menu-btn"
               >
-                <LogOut className="w-4 h-4" />
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#138A36] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                  {(shopName || currentUser?.name || 'M')[0].toUpperCase()}
+                </div>
+                <div className="text-left max-w-[100px] sm:max-w-[130px] truncate hidden xs:block">
+                  <p className="text-xs font-bold text-white truncate leading-tight">
+                    {shopName}
+                  </p>
+                  <span className="text-[10px] font-medium text-emerald-400 leading-none">
+                    Merchant Mode
+                  </span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-300 transition-transform duration-200 ${showMerchantDropdown ? 'rotate-180' : ''}`} />
               </button>
-            )}
+
+              {/* Merchant Dropdown Menu */}
+              {showMerchantDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-gray-800">
+                  {/* Shop Info Header */}
+                  <div className="p-2.5 pb-2 border-b border-gray-100 mb-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className="text-xs font-black text-[#111111] truncate">
+                        {shopName}
+                      </p>
+                      <span className="text-[9px] bg-emerald-100 text-[#138A36] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                        Merchant
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 truncate">
+                      {userEmail}
+                    </p>
+                  </div>
+
+                  {/* 1. Dashboard */}
+                  <button
+                    onClick={() => {
+                      setShowMerchantDropdown(false);
+                      setActiveTab('merchantDashboard');
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#EAF7EE] transition-all flex items-center gap-2.5 group cursor-pointer text-xs font-bold ${
+                      activeTab === 'merchantDashboard' ? 'bg-[#EAF7EE] text-[#138A36]' : 'text-[#111111]'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-[#138A36]" />
+                    <span>Dashboard</span>
+                  </button>
+
+                  {/* 2. Catalog */}
+                  <button
+                    onClick={() => {
+                      setShowMerchantDropdown(false);
+                      setActiveTab('merchantProducts');
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#EAF7EE] transition-all flex items-center justify-between group cursor-pointer text-xs font-bold ${
+                      activeTab === 'merchantProducts' ? 'bg-[#EAF7EE] text-[#138A36]' : 'text-[#111111]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Package className="w-4 h-4 text-[#138A36]" />
+                      <span>Catalog</span>
+                    </div>
+                    {products?.length !== undefined && (
+                      <span className="text-[10px] font-semibold text-gray-400">
+                        {products.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* 3. Enquiry Inbox */}
+                  <button
+                    onClick={() => {
+                      setShowMerchantDropdown(false);
+                      setActiveTab('merchantEnquiries');
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#EAF7EE] transition-all flex items-center justify-between group cursor-pointer text-xs font-bold ${
+                      activeTab === 'merchantEnquiries' ? 'bg-[#EAF7EE] text-[#138A36]' : 'text-[#111111]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Inbox className="w-4 h-4 text-[#138A36]" />
+                      <span>Enquiry Inbox</span>
+                    </div>
+                    {pendingEnquiriesCount > 0 && (
+                      <span className="text-[10px] font-black bg-amber-500 text-white px-1.5 py-0.2 rounded-full">
+                        {pendingEnquiriesCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* 4. Store Settings */}
+                  <button
+                    onClick={() => {
+                      setShowMerchantDropdown(false);
+                      setActiveTab('merchantShopProfile');
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#EAF7EE] transition-all flex items-center gap-2.5 group cursor-pointer text-xs font-bold ${
+                      activeTab === 'merchantShopProfile' ? 'bg-[#EAF7EE] text-[#138A36]' : 'text-[#111111]'
+                    }`}
+                  >
+                    <Store className="w-4 h-4 text-[#138A36]" />
+                    <span>Store Settings</span>
+                  </button>
+
+                  <div className="my-1 border-t border-gray-100" />
+
+                  {/* 5. Log Out */}
+                  <button
+                    onClick={() => {
+                      setShowMerchantDropdown(false);
+                      if (onLogout) onLogout();
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-100 text-gray-700 hover:text-[#111111] transition-all flex items-center gap-2.5 group cursor-pointer text-xs font-bold"
+                  >
+                    <LogOut className="w-4 h-4 text-gray-500 group-hover:text-red-600" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Mobile Navigation Drawer */}
         {mobileNavOpen && (
-          <div className="lg:hidden border-t border-[#E5E7E5] bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200 shadow-xl">
+          <div className="lg:hidden border-t border-white/10 bg-[#111111] text-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200 shadow-xl">
 
-            {/* Quick Actions in Mobile Drawer */}
-            <div className="flex items-center gap-2">
+            {/* Quick Action in Mobile Drawer (Setup Shop if needed) */}
+            {onAddShop && !hasListedShop && (
               <button
                 onClick={() => {
+                  onAddShop();
                   setMobileNavOpen(false);
-                  if (onRequestExitToCustomer) onRequestExitToCustomer();
-                  else onSwitchPlatform('customer');
                 }}
-                className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-2.5 px-3 bg-[#138A36] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-sm"
               >
-                <Eye className="w-3.5 h-3.5 text-gray-500" />
-                <span>Customer View</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Setup Shop Listing</span>
               </button>
-
-              {onAddShop && !hasListedShop && (
-                <button
-                  onClick={() => {
-                    onAddShop();
-                    setMobileNavOpen(false);
-                  }}
-                  className="py-2 px-3 bg-[#EAF7EE] text-[#138A36] text-xs font-bold rounded-xl flex items-center justify-center gap-1 transition-colors border border-[#CDEED5]"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Setup Shop</span>
-                </button>
-              )}
-            </div>
+            )}
 
             {/* Navigation Grid */}
             <div>
@@ -390,28 +516,17 @@ export default function MerchantLayout({
             </nav>
 
             {/* Bottom Quick Tools */}
-            <div className="pt-3 border-t border-[#E5E7E5] space-y-2">
-              <button
-                onClick={() => onRequestExitToCustomer ? onRequestExitToCustomer() : onSwitchPlatform('customer')}
-                className="w-full py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl flex items-center justify-between transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Eye className="w-3.5 h-3.5 text-gray-500" />
-                  <span>Customer View</span>
-                </div>
-                <ArrowUpRight className="w-3 h-3 text-gray-400" />
-              </button>
-
-              {onLogout && (
+            {onLogout && (
+              <div className="pt-3 border-t border-[#E5E7E5]">
                 <button
                   onClick={onLogout}
-                  className="w-full py-2 px-3 text-gray-500 hover:text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl flex items-center gap-2 transition-colors"
+                  className="w-full py-2.5 px-3 text-gray-600 hover:text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
+                  <span>Log Out of Merchant Portal</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
           </div>
         </aside>
@@ -433,82 +548,14 @@ export default function MerchantLayout({
         </div>
       </footer>
 
-      {/* =========================================================================
-          HIGH-URGENCY SIREN ORDER ALERT MODAL
-      ========================================================================= */}
+      {/* Realtime Incoming Order Alert Modal with Smooth Lovely Ringtone */}
       {incomingOrderAlert && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border-4 border-red-500 animate-in zoom-in-95 duration-200 relative">
-            {/* Emergency Red Flasher Top Header */}
-            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white p-5 text-center relative overflow-hidden">
-              <div className="w-14 h-14 mx-auto bg-white/20 rounded-2xl flex items-center justify-center text-3xl mb-2 animate-bounce shadow-lg">
-                🚨
-              </div>
-              <div className="inline-block bg-white text-red-600 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider shadow-sm mb-1">
-                Incoming Customer Order!
-              </div>
-              <h2 className="text-xl font-black tracking-tight">NEW ORDER RECEIVED!</h2>
-              <p className="text-xs text-red-100 font-semibold mt-0.5">
-                A customer just clicked "Buy Now" on GrowLocal
-              </p>
-            </div>
-
-            {/* Order Info Body */}
-            <div className="p-6 space-y-4">
-              <div className="bg-red-50 rounded-2xl p-4 border border-red-100 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-red-800">Item Ordered:</span>
-                  <span className="text-xs font-mono font-bold text-red-900 bg-red-100 px-2 py-0.5 rounded">
-                    {incomingOrderAlert.id || 'GL-ORDER'}
-                  </span>
-                </div>
-
-                <p className="font-black text-base text-gray-900 leading-snug">
-                  {incomingOrderAlert.productName || 'Store Item'}
-                </p>
-
-                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-red-200/60">
-                  <div>
-                    <span className="text-gray-500 block text-[11px]">Customer:</span>
-                    <span className="font-bold text-gray-800">{incomingOrderAlert.customerName || 'Local Customer'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block text-[11px]">Amount:</span>
-                    <span className="font-black text-[#138A36] text-sm">{incomingOrderAlert.price || `₹${incomingOrderAlert.totalAmount || 0}`}</span>
-                  </div>
-                </div>
-
-                {incomingOrderAlert.fulfillmentType && (
-                  <div className="text-xs font-semibold text-gray-700 pt-1">
-                    <span>Fulfillment: </span>
-                    <span className="font-bold uppercase text-red-700">
-                      {incomingOrderAlert.fulfillmentType === 'delivery' ? '🚚 Home Delivery' : '🏪 In-Store Pickup'}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-2 pt-2">
-                <button
-                  onClick={handleViewOrder}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#138A36] to-[#0E6828] hover:from-[#0B6B2B] hover:to-[#095020] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-[#138A36]/30 flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
-                >
-                  <span>Accept & View in Orders</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={handleDismissOrderAlert}
-                  className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <VolumeX className="w-4 h-4 text-gray-500" />
-                  <span>Mute Siren & Dismiss</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <IncomingOrderAlertModal
+          order={incomingOrderAlert}
+          onDismiss={handleDismissOrderAlert}
+          onAccept={handleViewOrder}
+          targetPortal="merchant"
+        />
       )}
     </div>
   );
