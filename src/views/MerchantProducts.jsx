@@ -59,14 +59,42 @@ function ProductWizard({ onClose, onAddProduct, onUpdateProduct, editingProduct,
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Please select an image smaller than 10MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Please select an image smaller than 15MB.');
       return;
     }
     const reader = new FileReader();
     reader.onload = (event) => {
-      setImage(event.target.result);
-      setImgError(false);
+      const rawDataUrl = event.target.result;
+      try {
+        const img = new Image();
+        img.onload = () => {
+          const maxWidth = 750;
+          const maxHeight = 750;
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/webp', 0.75);
+          setImage(compressedDataUrl);
+          setImgError(false);
+        };
+        img.onerror = () => {
+          setImage(rawDataUrl);
+          setImgError(false);
+        };
+        img.src = rawDataUrl;
+      } catch (err) {
+        setImage(rawDataUrl);
+        setImgError(false);
+      }
     };
     reader.readAsDataURL(file);
   };

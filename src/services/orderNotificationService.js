@@ -19,7 +19,7 @@ class OrderNotificationService {
         this.broadcastChannel = new BroadcastChannel('growlocal_orders_channel');
         this.broadcastChannel.onmessage = (event) => {
           if (event?.data?.type === 'NEW_ORDER' && event.data.order) {
-            this.handleIncomingOrder(event.data.order, false);
+            this.handleIncomingOrder(event.data.order, true);
           } else if (event?.data?.type === 'STOP_RINGTONE') {
             this.stopRingtone(false);
           }
@@ -36,7 +36,7 @@ class OrderNotificationService {
           try {
             const parsed = JSON.parse(e.newValue);
             if (parsed && parsed.order) {
-              this.handleIncomingOrder(parsed.order, false);
+              this.handleIncomingOrder(parsed.order, true);
             }
           } catch (err) {
             console.error('Error parsing cross-tab order notification:', err);

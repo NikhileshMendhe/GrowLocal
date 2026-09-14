@@ -1,11 +1,39 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
 const isUuid = (value) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
+
+const SHOPS_CACHE_KEY = 'growlocal_cached_shops';
+let inMemoryShopsCache = null;
+let lastShopsFetchTime = 0;
+const CACHE_TTL_MS = 60000;
+
 // Never load unbounded base64 images with every marketplace request. Images are
 // fetched from storage URLs when present; this keeps the live feed responsive.
 const SHOP_SELECT = 'id, merchant_id, name, description, category_id, logo_url, cover_image_url, phone, email, address, city, state, pincode, price_min, price_max, rating, review_count, is_verified, is_featured, status, created_at, updated_at, categories(name), shop_photos(image_url), merchants(id, email)';
 
 export const shopService = {
+  // Synchronous instant retrieval: only returns real shops cached from Supabase
+  getCachedShops() {
+    if (Array.isArray(inMemoryShopsCache) && inMemoryShopsCache.length > 0) {
+      return inMemoryShopsCache;
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(SHOPS_CACHE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed.some(s => isUuid(s.id))) {
+            inMemoryShopsCache = parsed;
+            return parsed;
+          } else {
+            localStorage.removeItem(SHOPS_CACHE_KEY);
+          }
+        }
+      }
+    } catch (e) {}
+    return [];
+  },
+
   formatShopRow(shop) {
     if (!shop) return null;
     const defaultCover = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=80';
@@ -38,13 +66,45 @@ export const shopService = {
     };
   },
 
-  async getAllShops() {
-    if (!isSupabaseConfigured) return { data: [], error: { message: 'Supabase is not configured.' } };
-    const { data, error } = await supabase
-      .from('shops')
-      .select(SHOP_SELECT)
-      .order('created_at', { ascending: false });
-    return { data: (data || []).map((shop) => this.formatShopRow(shop)).filter(Boolean), error };
+  async getAllShops(forceFresh = false) {
+    const now = Date.now();
+    // Return cached in-memory shops immediately if fresh and not forced
+    if (!forceFresh && Array.isArray(inMemoryShopsCache) && inMemoryShopsCache.length > 0 && (now - lastShopsFetchTime < CACHE_TTL_MS)) {
+      return { data: inMemoryShopsCache, error: null };
+    }
+
+    if (!isSupabaseConfigured) {
+      return { data: this.getCachedShops(), error: { message: 'Supabase is not configured.' } };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select(SHOP_SELECT)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Backend shop fetch error:', error);
+        return { data: this.getCachedShops(), error };
+      }
+
+      if (Array.isArray(data)) {
+        const formatted = data.map((shop) => this.formatShopRow(shop)).filter(Boolean);
+        inMemoryShopsCache = formatted;
+        lastShopsFetchTime = now;
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SHOPS_CACHE_KEY, JSON.stringify(formatted));
+          }
+        } catch (e) {}
+        return { data: formatted, error: null };
+      }
+
+      return { data: this.getCachedShops(), error: null };
+    } catch (err) {
+      console.warn('Network latency on shops fetch, falling back to cached shops:', err);
+      return { data: this.getCachedShops(), error: err };
+    }
   },
 
   async getCurrentMerchant() {

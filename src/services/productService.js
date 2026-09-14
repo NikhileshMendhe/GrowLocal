@@ -2,7 +2,35 @@ import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
 const isUuid = (value) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
 
+const PRODUCTS_CACHE_KEY = 'growlocal_cached_real_products';
+let inMemoryProductsCache = null;
+let lastProductFetchTime = 0;
+const CACHE_TTL_MS = 60000;
+
 export const productService = {
+  // Synchronous instant retrieval: only returns real products cached from Supabase
+  getCachedProducts() {
+    if (Array.isArray(inMemoryProductsCache) && inMemoryProductsCache.length > 0) {
+      return inMemoryProductsCache;
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(PRODUCTS_CACHE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Strictly ensure cached products are real backend products with valid UUIDs, never dummy items
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed.some(p => isUuid(p.id))) {
+            inMemoryProductsCache = parsed;
+            return parsed;
+          } else {
+            localStorage.removeItem(PRODUCTS_CACHE_KEY);
+          }
+        }
+      }
+    } catch (e) {}
+    return [];
+  },
+
   formatProductRow(product) {
     if (!product) return null;
     return {
@@ -26,13 +54,46 @@ export const productService = {
     };
   },
 
-  async getAllProducts() {
-    if (!isSupabaseConfigured) return { data: [], error: { message: 'Supabase is not configured.' } };
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, shops(id, name, is_verified, address), categories(name), product_variants(size, price, stock_quantity, is_available), product_images(image_url, display_order)')
-      .order('created_at', { ascending: false });
-    return { data: (data || []).map((product) => this.formatProductRow(product)), error };
+  async getAllProducts(forceFresh = false) {
+    const now = Date.now();
+    // Return cached in-memory real products if fresh and not forced
+    if (!forceFresh && Array.isArray(inMemoryProductsCache) && inMemoryProductsCache.length > 0 && (now - lastProductFetchTime < CACHE_TTL_MS)) {
+      return { data: inMemoryProductsCache, error: null };
+    }
+
+    if (!isSupabaseConfigured) {
+      return { data: this.getCachedProducts(), error: { message: 'Supabase is not configured.' } };
+    }
+
+    try {
+      // Directly fetch real products from Supabase
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, shops(id, name, is_verified, address), categories(name), product_variants(size, price, stock_quantity, is_available), product_images(image_url, display_order)')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Backend product fetch error:', error);
+        return { data: this.getCachedProducts(), error };
+      }
+
+      if (Array.isArray(data)) {
+        const formatted = data.map((product) => this.formatProductRow(product)).filter(Boolean);
+        inMemoryProductsCache = formatted;
+        lastProductFetchTime = now;
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(formatted));
+          }
+        } catch (e) {}
+        return { data: formatted, error: null };
+      }
+
+      return { data: this.getCachedProducts(), error: null };
+    } catch (err) {
+      console.error('Network exception fetching real products:', err);
+      return { data: this.getCachedProducts(), error: err };
+    }
   },
 
   async createProduct(productData) {
@@ -78,8 +139,16 @@ export const productService = {
       if (error) return { data: null, error };
     }
 
+    const formattedNew = this.formatProductRow({ ...created, product_images: imageRows, product_variants: variantRows });
+    if (formattedNew) {
+      inMemoryProductsCache = [formattedNew, ...(inMemoryProductsCache || []).filter(p => p.id !== formattedNew.id)];
+      try {
+        if (typeof window !== 'undefined') localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(inMemoryProductsCache));
+      } catch (e) {}
+    }
+
     return {
-      data: this.formatProductRow({ ...created, product_images: imageRows, product_variants: variantRows }),
+      data: formattedNew,
       error: null
     };
   },
@@ -108,11 +177,28 @@ export const productService = {
       .eq('id', productId)
       .select('*, shops(id, name, is_verified), categories(name), product_variants(size), product_images(image_url, display_order)')
       .single();
-    return { data: data ? this.formatProductRow(data) : null, error };
+
+    const formattedUpdated = data ? this.formatProductRow(data) : null;
+    if (formattedUpdated && inMemoryProductsCache) {
+      inMemoryProductsCache = inMemoryProductsCache.map(p => p.id === productId ? { ...p, ...formattedUpdated } : p);
+      try {
+        if (typeof window !== 'undefined') localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(inMemoryProductsCache));
+      } catch (e) {}
+    }
+
+    return { data: formattedUpdated, error };
   },
 
   async deleteProduct(productId) {
     if (!isUuid(productId)) return { error: { message: 'Invalid product ID.' } };
+
+    if (inMemoryProductsCache) {
+      inMemoryProductsCache = inMemoryProductsCache.filter(p => p.id !== productId);
+      try {
+        if (typeof window !== 'undefined') localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(inMemoryProductsCache));
+      } catch (e) {}
+    }
+
     if (!isSupabaseConfigured) return { success: true };
 
     const { data, error } = await supabase.rpc('admin_delete_product', {

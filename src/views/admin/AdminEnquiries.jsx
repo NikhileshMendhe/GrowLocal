@@ -11,6 +11,7 @@ export default function AdminEnquiries({
   onUpdateEnquiryStatus,
   onShowToast
 }) {
+  const statusTabs = ["All", "Orders 🛒", "Pending", "Offer Received", "Completed"];
   const [activeStatusTab, setActiveStatusTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
@@ -162,10 +163,22 @@ export default function AdminEnquiries({
         </div>
       </div>
 
-      {/* ── REALTIME ACTIVE RINGING ORDER BANNER WITH DIRECT STOP BUTTON ── */}
+      {/* ── REALTIME ACTIVE RINGING ORDER BANNER WITH DIRECT CROSS & STOP BUTTON ── */}
       {(isRinging || activeOrder) && (
-        <div className="bg-gradient-to-r from-emerald-600 via-[#138A36] to-emerald-700 text-white p-4 sm:p-5 rounded-3xl shadow-xl border-2 border-emerald-300/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top duration-200">
-          <div className="flex items-center gap-3.5">
+        <div className="bg-gradient-to-r from-emerald-600 via-[#138A36] to-emerald-700 text-white p-4 sm:p-5 rounded-3xl shadow-xl border-2 border-emerald-300/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top duration-200 relative overflow-hidden">
+          {/* Prominent Cross Button to remove notification from front */}
+          <button
+            type="button"
+            onClick={handleStopSiren}
+            id="admin-enquiries-dismiss-cross-btn"
+            className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center bg-black/30 hover:bg-red-600 text-white rounded-full transition-all border border-white/30 cursor-pointer shadow-md"
+            title="Click cross button to remove notification"
+            aria-label="Remove notification"
+          >
+            <X className="w-4 h-4 text-white stroke-[2.5]" />
+          </button>
+
+          <div className="flex items-center gap-3.5 pr-8 sm:pr-0">
             <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 text-2xl shrink-0 shadow-sm border border-white/30">
               <BellRing className="w-6 h-6 animate-bounce" />
             </div>
@@ -183,7 +196,7 @@ export default function AdminEnquiries({
               </p>
               <p className="text-xs text-emerald-100 font-medium">
                 Customer: <strong className="text-white">{activeOrder?.customerName || 'Nagpur Shopper'}</strong>
-                {activeOrder?.shopName ? ` · Store: ${activeOrder.shopName}` : ''} · Smooth chime ringtone playing continuously until stopped
+                {activeOrder?.shopName ? ` · Store: ${activeOrder.shopName}` : ''} · Smooth chime ringtone playing continuously until cross (✕) is clicked
               </p>
             </div>
           </div>
@@ -192,15 +205,14 @@ export default function AdminEnquiries({
               type="button"
               onClick={handleStopSiren}
               id="admin-stop-siren-banner-btn"
-              className="flex-1 sm:flex-none px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 ring-2 ring-white active:scale-95"
+              className="flex-1 sm:flex-none px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ring-2 ring-white active:scale-95"
             >
-              <VolumeX className="w-4 h-4 text-white" />
-              <span>🔕 STOP SIREN</span>
+              <X className="w-4 h-4 text-white stroke-[2.5]" />
+              <span>REMOVE (✕)</span>
             </button>
             <button
               type="button"
               onClick={() => {
-                handleStopSiren();
                 setActiveStatusTab("Orders 🛒");
               }}
               className="flex-1 sm:flex-none px-4 py-2.5 bg-white hover:bg-emerald-50 text-[#138A36] font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
@@ -219,13 +231,14 @@ export default function AdminEnquiries({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search enquiry ID, customer name, shop name, product..."
-            className="w-full pl-10 pr-4 py-2 bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl text-xs text-[#111111] focus:outline-none focus:border-[#138A36] font-medium"
+            placeholder="Search by order ID, customer name, phone, product, or store..."
+            className="w-full bg-[#F7F8F7] border border-[#E5E7E5] rounded-2xl pl-10 pr-4 py-2 text-xs text-[#111111] focus:outline-none focus:border-[#138A36]"
           />
         </div>
 
-        <div className="flex items-center gap-1 bg-[#F7F8F7] p-1 rounded-2xl border border-[#E5E7E5] text-xs font-bold overflow-x-auto no-scrollbar w-full sm:w-auto">
-          {["All", "Orders 🛒", "Pending", "Offer Sent", "Interested", "Completed"].map((status) => (
+        {/* Status Filter Badges */}
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 text-xs font-bold">
+          {statusTabs.map((status) => (
             <button
               key={status}
               onClick={() => setActiveStatusTab(status)}
@@ -265,18 +278,20 @@ export default function AdminEnquiries({
               ) : (
                 filteredEnquiries.map((enq) => {
                   const isOrder = Boolean(enq.isOrder || enq.orderType);
+                  const isCurrentActive = activeOrder && (activeOrder.id === enq.id || activeOrder.reservationCode === enq.id);
                   return (
                     <tr 
                       key={enq.id} 
                       className={`hover:bg-[#F7F8F7] transition-colors ${
-                        isOrder ? 'bg-emerald-50/20' : ''
+                        isCurrentActive ? 'bg-emerald-50/60 ring-2 ring-emerald-400 ring-inset' : (isOrder ? 'bg-emerald-50/20' : '')
                       }`}
                     >
                       <td className="py-3.5 px-4 font-mono font-bold">
                         <div className="flex items-center gap-1.5">
                           {isOrder ? (
-                            <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
-                              ORDER
+                            <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                              {isCurrentActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                              ORDER 🛒
                             </span>
                           ) : (
                             <span className="bg-gray-100 text-gray-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">

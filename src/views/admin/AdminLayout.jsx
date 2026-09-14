@@ -46,7 +46,6 @@ export default function AdminLayout({
     return () => {
       unsub();
       unsubDismiss();
-      orderNotificationService.stopRingtone();
     };
   }, []);
 
@@ -536,6 +535,72 @@ export default function AdminLayout({
               </button>
             </div>
           </div>
+
+          {/* Realtime Floating Order Notification directly in front of the Admin Panel */}
+          {incomingOrderAlert && (
+            <div 
+              id="admin-realtime-order-banner"
+              className="mb-6 bg-gradient-to-r from-[#0B6B2B] via-[#138A36] to-emerald-600 text-white p-4 sm:p-5 rounded-3xl shadow-xl border-2 border-emerald-300/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-300 relative overflow-hidden"
+            >
+              {/* Prominent Cross Button to remove notification from front of admin panel */}
+              <button
+                type="button"
+                onClick={handleDismissOrderAlert}
+                id="admin-banner-dismiss-cross-btn"
+                className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-20 w-9 h-9 flex items-center justify-center bg-black/40 hover:bg-red-600 text-white rounded-full transition-all border border-white/40 hover:border-white cursor-pointer shadow-lg hover:scale-110 active:scale-95 group"
+                title="Click cross button to remove notification from front of admin panel"
+                aria-label="Remove notification from front of admin panel"
+              >
+                <X className="w-5 h-5 text-white stroke-[2.5]" />
+              </button>
+
+              <div className="flex items-center gap-3.5 pr-10">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0 border border-white/30 shadow-md">
+                  <BellRing className="w-6 h-6 animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-white text-[#138A36] text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-xs">
+                      NEW REALTIME ORDER 🛒
+                    </span>
+                    <span className="font-mono text-xs font-bold text-emerald-100">
+                      {incomingOrderAlert.id || incomingOrderAlert.qrCode || 'GL-ORDER'}
+                    </span>
+                  </div>
+                  <p className="font-black text-base text-white mt-1">
+                    {incomingOrderAlert.productName || 'Customer Purchase'} · <span className="text-amber-300">{incomingOrderAlert.price || (incomingOrderAlert.totalAmount ? `₹${incomingOrderAlert.totalAmount}` : '')}</span>
+                  </p>
+                  <p className="text-xs text-emerald-100 font-medium">
+                    Customer: <strong className="text-white">{incomingOrderAlert.customerName || 'Nagpur Shopper'}</strong>
+                    {incomingOrderAlert.customerPhone ? ` (${incomingOrderAlert.customerPhone})` : ''}
+                    {incomingOrderAlert.shopName ? ` · Store: ${incomingOrderAlert.shopName}` : ''}
+                    <span className="text-amber-200 font-semibold ml-1.5">🎵 Ringtone playing until cross (✕) button is clicked</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-1 sm:pt-0">
+                <button
+                  type="button"
+                  onClick={handleViewOrder}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-white hover:bg-emerald-50 text-[#138A36] font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <span>View In Enquiries & Orders</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDismissOrderAlert}
+                  className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                  title="Remove Notification from front of admin panel"
+                >
+                  <X className="w-4 h-4 stroke-[2.5]" />
+                  <span>Remove (✕)</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Children View Component */}
           {children}

@@ -18,8 +18,6 @@ import Toast from './components/Toast';
 import { 
   INITIAL_LOCATION, 
   CATEGORIES, 
-  INITIAL_SHOPS, 
-  INITIAL_PRODUCTS, 
   INITIAL_ENQUIRIES, 
   INITIAL_CHAT_MESSAGES, 
   INITIAL_RESERVATIONS, 
@@ -643,10 +641,24 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentUser]);
 
+  // Purge any legacy mock items from browser cache to ensure only real backend items appear
+  if (typeof window !== 'undefined') {
+    try {
+      const rawProd = localStorage.getItem('growlocal_cached_real_products');
+      if (rawProd && (rawProd.includes('prod-1') || rawProd.includes('TechZone Electronics') || rawProd.includes('Trendy Wear'))) {
+        localStorage.removeItem('growlocal_cached_real_products');
+      }
+      const rawShops = localStorage.getItem('growlocal_cached_shops');
+      if (rawShops && (rawShops.includes('shop-1') || rawShops.includes('Trendy Wear') || rawShops.includes('Shoe Point'))) {
+        localStorage.removeItem('growlocal_cached_shops');
+      }
+    } catch (e) {}
+  }
+
   // Shared Master Platform Data State
   const [currentLocation, setCurrentLocation] = useState(INITIAL_LOCATION);
-  const [shops, setShops] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [shops, setShops] = useState(() => shopService.getCachedShops());
+  const [products, setProducts] = useState(() => productService.getCachedProducts());
   const [enquiries, setEnquiries] = useState(() => enquiryService.getStoredEnquiries());
   const [messages, setMessages] = useState(() => chatService.getStoredMessages());
   const [reservations, setReservations] = useState(() => reservationService.getStoredReservations());
@@ -659,12 +671,47 @@ export default function App() {
     }
   });
 
-  // Realtime subscription: When any customer places an order, keep enquiries in sync
+  // Realtime subscription: When any customer places an order, keep enquiries and reservations in instant sync
   useEffect(() => {
-    const unsub = orderNotificationService.subscribe(() => {
+    const unsub = orderNotificationService.subscribe((incomingOrder) => {
+      if (incomingOrder && (incomingOrder.id || incomingOrder.productName)) {
+        try {
+          const formatted = {
+            ...incomingOrder,
+            id: incomingOrder.id || incomingOrder.reservationCode || `GL-ORD-${Date.now().toString().slice(-4)}`,
+            isOrder: true,
+            orderType: incomingOrder.orderType || (incomingOrder.fulfillmentType === 'delivery' ? 'Express Delivery Order' : 'Store Pickup Order'),
+            status: incomingOrder.status || 'Pending',
+            submittedDate: incomingOrder.submittedDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            timestamp: incomingOrder.timestamp || incomingOrder.orderTime || 'Just now'
+          };
+          enquiryService.saveEnquiryLocally(formatted);
+          reservationService.saveReservationLocally(formatted);
+        } catch (e) {
+          console.warn("Realtime order storage sync notice:", e);
+        }
+      }
       setEnquiries(enquiryService.getStoredEnquiries());
+      setReservations(reservationService.getStoredReservations());
     });
-    return () => unsub();
+
+    const handleStorageSync = (e) => {
+      if (e.key === 'growlocal_user_enquiries') {
+        setEnquiries(enquiryService.getStoredEnquiries());
+      } else if (e.key === 'growlocal_user_reservations') {
+        setReservations(reservationService.getStoredReservations());
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageSync);
+    }
+
+    return () => {
+      unsub();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageSync);
+      }
+    };
   }, []);
 
   // Admin Master State
@@ -700,9 +747,31 @@ export default function App() {
 
   // Fetch initial data & initialize Supabase Realtime listeners
   useEffect(() => {
-    async function loadBackendData() {
+    // 1. Kick off public marketplace catalog sync immediately and independently
+    const loadMarketplaceCatalog = () => {
+      productService.getAllProducts().then(({ data }) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+        }
+      }).catch(err => console.warn("Real products sync notice:", err));
+
+      shopService.getAllShops().then(({ data }) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setShops(data);
+        }
+      }).catch(err => console.warn("Real shops sync notice:", err));
+
+      categoryService.getCategories().then(({ data }) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        }
+      }).catch(err => console.warn("Categories sync notice:", err));
+    };
+    loadMarketplaceCatalog();
+
+    // 2. Restore user session in parallel without blocking public feed
+    const restoreSession = async () => {
       try {
-        // Restore saved user session across page reloads
         const restoredUser = await authService.getCurrentUser();
         if (restoredUser) {
           setCurrentUser(restoredUser);
@@ -736,41 +805,40 @@ export default function App() {
             setShowAuthModal(true);
           }
         }
+      } catch (err) {
+        console.warn("Auth restore notice:", err);
+      }
+    };
+    restoreSession();
 
-        // Load the public marketplace independently from the administrative
-        // projections. An admin-only query must never make the customer feed or
-        // search catalogue disappear.
-        const [shopsResult, productsResult, categoriesResult] = await Promise.all([
-          shopService.getAllShops(),
-          productService.getAllProducts(),
-          categoryService.getCategories()
-        ]);
-        if (Array.isArray(shopsResult.data)) setShops(shopsResult.data);
-        if (Array.isArray(productsResult.data)) setProducts(productsResult.data);
-        if (Array.isArray(categoriesResult.data)) setCategories(categoriesResult.data);
-
-        const { data: fetchedCust } = await userService.getAllCustomers();
-        if (fetchedCust && fetchedCust.length > 0) setCustomers(fetchedCust);
-
-        const { data: fetchedMerchants } = await merchantService.getAllMerchants();
-        if (fetchedMerchants && fetchedMerchants.length > 0) setMerchants(fetchedMerchants);
-
-        const { data: fetchedVerifs } = await merchantService.getPendingVerifications();
-        if (fetchedVerifs && fetchedVerifs.length > 0) setPendingVerifications(fetchedVerifs);
-
+    // 3. Deferred non-blocking background load for secondary & admin projections
+    const adminTimer = setTimeout(async () => {
+      try {
         const { data: fetchedEnq } = await enquiryService.getEnquiries();
         if (fetchedEnq && fetchedEnq.length > 0) setEnquiries(fetchedEnq);
 
-        const fetchedKPIs = await adminService.getDashboardKPIs();
-        if (fetchedKPIs) setKpiMetrics(fetchedKPIs);
+        const initial = parseUrlRoute();
+        const isAdminMode = initial.platform === 'admin' || currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
 
-        const { data: fetchedLogs } = await adminService.getAuditLogs();
-        if (fetchedLogs && fetchedLogs.length > 0) setAuditLogs(fetchedLogs);
+        if (isAdminMode) {
+          const [custRes, merchRes, verifsRes, kpisRes, logsRes] = await Promise.allSettled([
+            userService.getAllCustomers(),
+            merchantService.getAllMerchants(),
+            merchantService.getPendingVerifications(),
+            adminService.getDashboardKPIs(),
+            adminService.getAuditLogs()
+          ]);
+
+          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (merchRes.status === 'fulfilled' && merchRes.value?.data) setMerchants(merchRes.value.data);
+          if (verifsRes.status === 'fulfilled' && verifsRes.value?.data) setPendingVerifications(verifsRes.value.data);
+          if (kpisRes.status === 'fulfilled' && kpisRes.value) setKpiMetrics(kpisRes.value);
+          if (logsRes.status === 'fulfilled' && logsRes.value?.data) setAuditLogs(logsRes.value.data);
+        }
       } catch (err) {
-        console.error("Backend loading notice:", err);
+        console.warn("Deferred admin sync notice:", err);
       }
-    }
-    loadBackendData();
+    }, 250);
 
     // Enable Supabase Realtime channels for live cross-platform updates
     const unSubCustomers = userService?.subscribeToCustomers ? userService.subscribeToCustomers(() => {
@@ -806,6 +874,7 @@ export default function App() {
     }) : null;
 
     return () => {
+      clearTimeout(adminTimer);
       if (typeof unSubCustomers === 'function') unSubCustomers();
       if (typeof unSubShops === 'function') unSubShops();
       if (typeof unSubProducts === 'function') unSubProducts();

@@ -15,20 +15,21 @@ export default function IncomingOrderAlertModal({
   return (
     <div 
       className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 font-sans"
-      onClick={onDismiss}
     >
       <div 
         className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border-4 border-emerald-500 animate-in zoom-in-95 duration-200 relative text-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button Top Right */}
+        {/* Prominent Cross Button Top Right to Remove Notification */}
         <button
           type="button"
           onClick={onDismiss}
-          className="absolute top-4 right-4 z-10 p-2 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-colors cursor-pointer"
-          title="Turn Off Ringtone & Close"
+          id="close-order-alert-cross-btn"
+          className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-30 w-11 h-11 flex items-center justify-center text-white bg-black/40 hover:bg-red-600 rounded-full transition-all border-2 border-white/60 hover:border-white shadow-xl cursor-pointer hover:scale-110 active:scale-95 group"
+          title="Click cross button to remove notification from front of admin panel"
+          aria-label="Remove notification from front of admin panel"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5 text-white stroke-[2.5]" />
         </button>
 
         {/* Top Header with Glowing Bell & Sound Wave Animation */}
@@ -167,10 +168,11 @@ export default function IncomingOrderAlertModal({
             <button
               type="button"
               onClick={onDismiss}
-              className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 font-extrabold text-xs rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-2"
+              id="admin-dismiss-order-btn"
+              className="w-full py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-900 border border-red-200 font-extrabold text-xs rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-xs"
             >
-              <VolumeX className="w-4 h-4 text-gray-500" />
-              <span>🔕 Turn Off Ringtone & Dismiss</span>
+              <X className="w-4 h-4 text-red-600 stroke-[2.5]" />
+              <span>✕ Remove Notification from Front & Stop Siren</span>
             </button>
           </div>
         </div>

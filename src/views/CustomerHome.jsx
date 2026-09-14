@@ -616,6 +616,8 @@ export default function CustomerHome({
                           <img
                             src={prod.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'}
                             alt={prod.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover group-hover:scale-106 transition-transform duration-500 ease-out"
                             onError={(e) => {
                               e.target.src = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80';
@@ -888,6 +890,8 @@ export default function CustomerHome({
                                       <img 
                                         src={p.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=100&auto=format&fit=crop&q=80'} 
                                         alt={p.name} 
+                                        loading="lazy"
+                                        decoding="async"
                                         onError={(e) => {
                                           e.currentTarget.src = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=100&auto=format&fit=crop&q=80';
                                         }}
