@@ -19,7 +19,9 @@ class OrderNotificationService {
         this.broadcastChannel = new BroadcastChannel('growlocal_orders_channel');
         this.broadcastChannel.onmessage = (event) => {
           if (event?.data?.type === 'NEW_ORDER' && event.data.order) {
-            this.handleIncomingOrder(event.data.order, true);
+            // Only play sound if this window is in Merchant or Admin mode!
+            const shouldRing = this.canPlayForCurrentContext();
+            this.handleIncomingOrder(event.data.order, shouldRing);
           } else if (event?.data?.type === 'STOP_RINGTONE') {
             this.stopRingtone(false);
           }
@@ -36,7 +38,9 @@ class OrderNotificationService {
           try {
             const parsed = JSON.parse(e.newValue);
             if (parsed && parsed.order) {
-              this.handleIncomingOrder(parsed.order, true);
+              // Only play sound if this window is in Merchant or Admin mode!
+              const shouldRing = this.canPlayForCurrentContext();
+              this.handleIncomingOrder(parsed.order, shouldRing);
             }
           } catch (err) {
             console.error('Error parsing cross-tab order notification:', err);
@@ -230,14 +234,48 @@ class OrderNotificationService {
     this.stopRingtone(broadcast);
   }
 
+  // Context Guard: Check if the current browser window is in Merchant or Admin mode.
+  // Customers/shoppers who are buying items should NEVER hear the incoming order siren!
+  isCustomerContext() {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+
+    // Dedicated Merchant or Admin URLs
+    if (path.startsWith('/merchant') || path.startsWith('/admin')) {
+      return false;
+    }
+
+    // Check stored user role if available
+    try {
+      const session = localStorage.getItem('growlocal_auth_session');
+      if (session) {
+        const parsed = JSON.parse(session);
+        const role = parsed.user?.role || parsed.role;
+        if (role === 'merchant' || role === 'admin' || role === 'super_admin') {
+          return false;
+        }
+      }
+    } catch (e) {}
+
+    // Default to true for customer/public shopping platform
+    return true;
+  }
+
+  canPlayForCurrentContext() {
+    return !this.isCustomerContext();
+  }
+
   // Triggered when a customer buys/orders something
   notifyNewOrder(order) {
     if (!order) return;
 
     this.currentActiveOrder = order;
 
-    // Start lovely ringtone locally
-    this.startRingtone();
+    // Only start ringtone locally if the active window is Merchant or Admin!
+    // When a customer/user buys something, their own account should NEVER buzz.
+    if (this.canPlayForCurrentContext()) {
+      this.startRingtone();
+    }
 
     // 1. Cross-tab BroadcastChannel
     if (this.broadcastChannel) {
@@ -270,13 +308,14 @@ class OrderNotificationService {
       } catch (e) {}
     }
 
-    // 4. Handle in current window
-    this.handleIncomingOrder(order, false);
+    // 4. Handle in current window (data listeners, but audio only if merchant or admin)
+    this.handleIncomingOrder(order, this.canPlayForCurrentContext());
   }
 
   handleIncomingOrder(order, startSound = true) {
     this.currentActiveOrder = order;
-    if (startSound) {
+    // Strictly guard audio: never play in customer context even if startSound is requested
+    if (startSound && this.canPlayForCurrentContext()) {
       this.startRingtone();
     }
     this.listeners.forEach((listener) => {
