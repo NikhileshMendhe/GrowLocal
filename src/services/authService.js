@@ -115,11 +115,6 @@ export const authService = {
   async loadUser(sessionUser) {
     if (!sessionUser) return null;
 
-    // Reject unverified sessions (except super admin)
-    if (!sessionUser.email_confirmed_at && sessionUser.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()) {
-      return null;
-    }
-
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -194,24 +189,6 @@ export const authService = {
         });
 
         if (!error && data?.user) {
-          const isConfirmed = Boolean(data.user.email_confirmed_at);
-
-          // If email confirmation is required/pending, DO NOT log in or activate session
-          if (!isConfirmed) {
-            await supabase.auth.signOut().catch(() => {});
-            this.clearStoredSession();
-            this.saveAccountToVault({
-              id: data.user.id,
-              email: normalizedEmail,
-              password,
-              fullName: fullName?.trim() || normalizedEmail.split('@')[0],
-              phone: cleanPhone,
-              role: role === 'merchant' ? 'merchant' : 'customer',
-              isVerified: false
-            });
-            return { data: { user: data.user, requiresEmailConfirmation: true }, error: null };
-          }
-
           // Save to local vault for seamless offline resilience
           this.saveAccountToVault({
             id: data.user.id,
@@ -223,30 +200,70 @@ export const authService = {
             isVerified: true
           });
 
-          if (!data.session) {
-            return { data: { user: data.user, requiresEmailConfirmation: true }, error: null };
+          // 1. If session was returned immediately (Email confirmations disabled in Supabase)
+          if (data.session) {
+            try {
+              const user = await this.loadUser(data.session.user);
+              return { data: { user: data.user, profile: user, onboardingRequired: user?.onboardingRequired }, error: null };
+            } catch (_) {
+              const localUser = {
+                id: data.user.id,
+                name: fullName?.trim() || normalizedEmail.split('@')[0],
+                email: normalizedEmail,
+                phone: cleanPhone,
+                role: role === 'merchant' ? 'merchant' : 'customer',
+                onboardingRequired: role === 'merchant'
+              };
+              this.saveLocalSession(localUser);
+              return { data: { user: data.user, profile: localUser, onboardingRequired: localUser.onboardingRequired }, error: null };
+            }
           }
 
+          // 2. Direct automatic login with credentials so user never has to wait or verify email
           try {
-            const user = await this.loadUser(data.session.user);
-            return { data: { user: data.user, profile: user, onboardingRequired: user?.onboardingRequired }, error: null };
-          } catch (_) {
-            const localUser = {
-              id: data.user.id,
-              name: fullName?.trim() || normalizedEmail.split('@')[0],
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
               email: normalizedEmail,
-              phone: cleanPhone,
-              role: role === 'merchant' ? 'merchant' : 'customer',
-              onboardingRequired: role === 'merchant'
-            };
-            this.saveLocalSession(localUser);
-            return { data: { user: data.user, profile: localUser, onboardingRequired: localUser.onboardingRequired }, error: null };
-          }
+              password
+            });
+
+            if (!signInError && signInData?.session) {
+              const user = await this.loadUser(signInData.session.user);
+              return { data: { user: signInData.user, profile: user, onboardingRequired: user?.onboardingRequired }, error: null };
+            }
+          } catch (_) {}
+
+          // 3. Fallback active session
+          const localUser = {
+            id: data.user.id,
+            name: fullName?.trim() || normalizedEmail.split('@')[0],
+            email: normalizedEmail,
+            phone: cleanPhone,
+            role: role === 'merchant' ? 'merchant' : 'customer',
+            onboardingRequired: role === 'merchant'
+          };
+          this.saveLocalSession(localUser);
+          return { data: { user: data.user, profile: localUser, onboardingRequired: localUser.onboardingRequired }, error: null };
         }
 
-        // If error is not a network error, return the actual Supabase error (e.g. user already registered)
-        if (error && !isNetworkError(error)) {
-          return { data: null, error };
+        // Handle error: if error is SMTP rate limit from free tier
+        if (error) {
+          const msg = (error.message || '').toLowerCase();
+          if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit')) {
+            try {
+              const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+                email: normalizedEmail,
+                password
+              });
+              if (!signInErr && signInData?.session) {
+                const user = await this.loadUser(signInData.session.user);
+                return { data: { user: signInData.user, profile: user, onboardingRequired: user?.onboardingRequired }, error: null };
+              }
+            } catch (_) {}
+          }
+
+          if (!isNetworkError(error)) {
+            return { data: null, error };
+          }
         }
       } catch (networkErr) {
         console.warn('Supabase sign up network glitch:', networkErr);
@@ -313,20 +330,7 @@ export const authService = {
         });
 
         if (!authError && authData?.user) {
-          // Check email verification: unverified users cannot login
-          const isConfirmed = Boolean(authData.user.email_confirmed_at);
-          if (!isConfirmed && normalizedEmail !== SUPER_ADMIN_EMAIL.toLowerCase()) {
-            await supabase.auth.signOut().catch(() => {});
-            this.clearStoredSession();
-            return {
-              data: null,
-              error: {
-                message: 'Your email has not been verified yet. Please check your inbox and click the confirmation link before logging in.'
-              }
-            };
-          }
-
-          // Update local accounts vault with verified credentials
+          // Update local accounts vault with credentials
           this.saveAccountToVault({
             id: authData.user.id,
             email: normalizedEmail,
@@ -361,14 +365,6 @@ export const authService = {
           const accounts = this.getRegisteredAccounts();
           const localMatch = accounts.find(a => cleanEmail(a.email) === normalizedEmail && a.password === password);
           if (localMatch) {
-            if (localMatch.isVerified === false) {
-              return {
-                data: null,
-                error: {
-                  message: 'Your email has not been verified yet. Please check your inbox and click the confirmation link before logging in.'
-                }
-              };
-            }
             const localUser = {
               id: localMatch.id || `user-${Date.now()}`,
               name: localMatch.fullName || localMatch.name || normalizedEmail.split('@')[0],
@@ -390,14 +386,6 @@ export const authService = {
     const accounts = this.getRegisteredAccounts();
     const localMatch = accounts.find(a => cleanEmail(a.email) === normalizedEmail && a.password === password);
     if (localMatch) {
-      if (localMatch.isVerified === false) {
-        return {
-          data: null,
-          error: {
-            message: 'Your email has not been verified yet. Please check your inbox and click the confirmation link before logging in.'
-          }
-        };
-      }
       const localUser = {
         id: localMatch.id || `user-${Date.now()}`,
         name: localMatch.fullName || localMatch.name || normalizedEmail.split('@')[0],

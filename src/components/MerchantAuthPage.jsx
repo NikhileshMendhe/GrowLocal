@@ -50,16 +50,10 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
       if (msg.toLowerCase().includes('failed to fetch')) {
         setErrorMsg("Unable to connect to the server. Please check your network connection and try again.");
       } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('over_email_send_rate_limit')) {
-        setErrorMsg("Supabase email rate limit exceeded (max 3-4 emails/hr on default SMTP). Please wait a while before requesting another email, or confirm your user in the Supabase dashboard.");
+        setErrorMsg("Account creation limit reached. If you already registered, please switch to Log In.");
       } else {
         setErrorMsg(msg || "Failed to create merchant account.");
       }
-      return;
-    }
-
-    if (data?.requiresEmailConfirmation) {
-      setSuccessMsg(`Account created! A confirmation email has been sent to ${email}. Please click the link in the email to activate your account, then log in.`);
-      setIsSignUp(false);
       return;
     }
 
@@ -127,7 +121,6 @@ export default function MerchantAuthPage({ onLoginSuccess, onSwitchToCustomer })
               <Mail className="w-4 h-4 text-[#138A36] shrink-0 mt-0.5" />
               <p className="font-semibold">{successMsg}</p>
             </div>
-            <p className="text-[11px] text-emerald-700">Once confirmed, enter your email and password below to access your Merchant Dashboard.</p>
           </div>
         )}
 

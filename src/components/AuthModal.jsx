@@ -44,16 +44,10 @@ export default function AuthModal({
         if (msg.toLowerCase().includes('failed to fetch')) {
           setErrorMsg("Unable to connect to the server. Please check your network connection and try again.");
         } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('over_email_send_rate_limit')) {
-          setErrorMsg("Supabase email rate limit exceeded (max 3 emails/hr on default SMTP). Please wait a while before requesting another email, or confirm your user in the Supabase dashboard.");
+          setErrorMsg("Account creation limit reached. If you already created an account, please sign in with your email and password.");
         } else {
           setErrorMsg(msg || "Failed to create account.");
         }
-        return;
-      }
-
-      if (data?.requiresEmailConfirmation) {
-        setSuccessMsg(`Account created! A confirmation email has been sent to ${email}. Please check your inbox and click the verification link before logging in.`);
-        setIsSignUp(false);
         return;
       }
 
@@ -109,7 +103,6 @@ export default function AuthModal({
               <Mail className="w-4 h-4 text-[#138A36] shrink-0 mt-0.5" />
               <p className="font-semibold">{successMsg}</p>
             </div>
-            <p className="text-[11px] text-emerald-700">Once confirmed, enter your password below to log in.</p>
           </div>
         )}
 
