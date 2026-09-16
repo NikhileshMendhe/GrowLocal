@@ -433,12 +433,8 @@ export default function MerchantShopProfile({
                       <h2 className="text-lg sm:text-2xl font-black text-white leading-tight drop-shadow-md truncate">
                         {name}
                       </h2>
-                      {Boolean(currentShop.verified) ? (
+                      {Boolean(currentShop.verified) && (
                         <VerifiedBadge text="Verified" />
-                      ) : (
-                        <span className="bg-white/20 text-white backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold border border-white/20">
-                          Verification In Review
-                        </span>
                       )}
                     </div>
                     <p className="text-xs text-white/80 font-medium truncate flex items-center gap-2 mt-0.5">
@@ -468,7 +464,7 @@ export default function MerchantShopProfile({
             </div>
 
             {/* Quick Metrics Bar Under Cover */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 bg-white p-3 sm:p-4 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 bg-white p-3 sm:p-4 text-center">
               <div className="p-2">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Store Catalog</p>
                 <p className="text-lg sm:text-xl font-black text-[#111111]">{storeProducts.length} Item{storeProducts.length !== 1 ? 's' : ''} Listed</p>
@@ -535,13 +531,6 @@ export default function MerchantShopProfile({
                         : '—')}
                 </p>
                 <span className="text-[10px] text-gray-400 font-medium group-hover:text-[#138A36]">Click to set</span>
-              </div>
-
-              <div className="p-2">
-                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Customer Trust</p>
-                <p className={`text-lg sm:text-xl font-black ${currentShop.verified ? 'text-[#138A36]' : 'text-amber-600'}`}>
-                  {currentShop.verified ? '100% Verified Local' : 'Verification In Review'}
-                </p>
               </div>
             </div>
           </div>
