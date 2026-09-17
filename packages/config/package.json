@@ -1,0 +1,10 @@
+{
+  "name": "@growlocal/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tailwind.css": "./tailwind.css",
+    "./eslint.config.js": "./eslint.config.js"
+  }
+}

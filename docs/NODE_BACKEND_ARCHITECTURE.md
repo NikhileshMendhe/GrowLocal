@@ -2,7 +2,7 @@
 
 **Audience:** an AI coding agent (or engineer) implementing this from scratch. Read this whole document before writing code. It assumes zero prior context beyond what's written here and what's in this repo today.
 
-**Status:** design spec, not yet implemented. Nothing described here exists in code yet except where explicitly marked "(existing)".
+**Status:** implemented. Phases 0–3 of §11 are complete — the monorepo (`services/api`, `apps/*`, `packages/*`) exists in code with the full §6 API surface, §7.5 realtime, and a green integration suite (`npm run test:api`, 225 tests). Phase 4 (cutover) is pending — the legacy `src/` app is untouched and runs via `npm run dev:legacy`. "(existing)" markers below refer to pre-migration legacy code.
 
 ---
 

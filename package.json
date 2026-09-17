@@ -3,10 +3,26 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev:legacy": "vite",
+    "build:legacy": "vite build",
+    "preview:legacy": "vite preview",
+    "dev:api": "npm run dev --workspace=services/api",
+    "dev:customer": "npm run dev --workspace=apps/customer-web",
+    "dev:merchant": "npm run dev --workspace=apps/merchant-web",
+    "dev:admin": "npm run dev --workspace=apps/admin-web",
+    "dev": "concurrently \"npm:dev:api\" \"npm:dev:customer\" \"npm:dev:merchant\"",
+    "build:customer": "npm run build --workspace=apps/customer-web",
+    "build:merchant": "npm run build --workspace=apps/merchant-web",
+    "build:admin": "npm run build --workspace=apps/admin-web",
+    "db:migrate": "npm run migrate --workspace=services/api",
+    "db:seed": "npm run seed --workspace=services/api",
+    "test:api": "npm run test --workspace=services/api"
   },
   "dependencies": {
     "@supabase/server": "^1.4.1",
@@ -24,6 +40,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
     "sharp": "^0.35.4",
     "tailwindcss": "^4.0.7",
     "vite": "^6.1.0"
