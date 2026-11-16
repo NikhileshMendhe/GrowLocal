@@ -9,6 +9,8 @@
     "services/*"
   ],
   "scripts": {
+    "build": "node scripts/build_unified.cjs",
+    "build:unified": "node scripts/build_unified.cjs",
     "dev:legacy": "vite",
     "build:legacy": "vite build",
     "preview:legacy": "vite preview",
