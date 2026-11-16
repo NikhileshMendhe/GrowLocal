@@ -23,7 +23,7 @@ router.get('/:id', authenticateOptional, validate(idParamSchema, 'params'), cont
 router.post(
   '/',
   authenticate,
-  requireRole('merchant'),
+  requireRole('admin', 'merchant'),
   validate(createProductSchema),
   controller.create
 );
@@ -31,7 +31,7 @@ router.post(
 router.patch(
   '/:id/stock',
   authenticate,
-  requireRole('merchant'),
+  requireRole('admin', 'merchant'),
   validate(idParamSchema, 'params'),
   validate(stockUpdateSchema),
   controller.updateStock
@@ -39,7 +39,7 @@ router.patch(
 
 const update = [
   authenticate,
-  requireRole('merchant'),
+  requireRole('admin', 'merchant'),
   validate(idParamSchema, 'params'),
   validate(updateProductSchema),
   controller.update,
@@ -50,7 +50,7 @@ router.patch('/:id', ...update);
 router.delete(
   '/:id',
   authenticate,
-  requireRole('merchant'),
+  requireRole('admin', 'merchant'),
   validate(idParamSchema, 'params'),
   controller.remove
 );

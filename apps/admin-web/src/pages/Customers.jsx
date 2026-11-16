@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ENDPOINTS } from '@growlocal/api-client';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { useApiData } from '../hooks/useApiData';
 import { normalizeList } from '../lib/normalize';
 import { formatDate } from '../lib/format';
@@ -15,10 +17,31 @@ import { useToast } from '../context/ToastContext';
 
 export default function Customers() {
   const toast = useToast();
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState('all');
-  const [q, setQ] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const status = searchParams.get('status') || 'all';
+  const q = searchParams.get('q') || '';
+  const page = parseInt(searchParams.get('page') || '1', 10) || 1;
+
   const [target, setTarget] = useState(null);
+  const [searchVal, setSearchVal] = useState(q);
+
+  useEffect(() => {
+    setSearchVal(q);
+  }, [q]);
+
+  function updateSearchParam(key, value) {
+    const next = new URLSearchParams(searchParams);
+    if (value && value !== 'all') {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+    if (key !== 'page') {
+      next.delete('page');
+    }
+    setSearchParams(next, { replace: true });
+  }
 
   const { loading, data, error, refetch } = useApiData(
     () =>
@@ -32,6 +55,20 @@ export default function Customers() {
       }),
     [page, status, q]
   );
+
+  // Real-time Supabase sync for customers table
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-customers-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
+        refetch();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   const { items, total } = normalizeList(data);
   const pageCount = total > 0 ? Math.ceil(total / PAGE_SIZE) : null;
@@ -94,18 +131,28 @@ export default function Customers() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Customers" description="All customer accounts and their platform status" />
+      <PageHeader
+        title="Customers"
+        description="All customer accounts and their platform status"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Real-Time Sync
+            </div>
+          </div>
+        }
+      />
       <TableFilters
-        searchValue={q}
+        searchValue={searchVal}
         onSearchChange={(value) => {
-          setQ(value);
-          setPage(1);
+          setSearchVal(value);
+          updateSearchParam('q', value.trim());
         }}
         searchPlaceholder="Search customers…"
         statusValue={status}
         onStatusChange={(value) => {
-          setStatus(value);
-          setPage(1);
+          updateSearchParam('status', value);
         }}
         statusOptions={CUSTOMER_STATUSES}
       />
@@ -118,7 +165,13 @@ export default function Customers() {
         emptyMessage={q || status !== 'all' ? 'No customers match these filters' : 'No customers yet'}
       />
       {items.length > 0 ? (
-        <Pagination page={page} pageCount={pageCount} total={total} hasNextPage={items.length === PAGE_SIZE} onChange={setPage} />
+        <Pagination
+          page={page}
+          pageCount={pageCount}
+          total={total}
+          hasNextPage={items.length === PAGE_SIZE}
+          onChange={(p) => updateSearchParam('page', p)}
+        />
       ) : null}
       <StatusChangeModal
         open={Boolean(target)}

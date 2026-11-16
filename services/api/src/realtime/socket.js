@@ -62,6 +62,7 @@ export function initSocket(httpServer) {
       }
     } else if (auth?.type === 'admin') {
       await socket.join(adminRoom(auth.id));
+      await socket.join('admin:global');
     }
 
     // Participants join a conversation room when they open that thread (§7.5).

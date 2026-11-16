@@ -42,11 +42,18 @@ async function writeAuditLog(client, entry) {
 
 export async function dashboardCounts() {
   const { rows } = await query(`SELECT
+      (SELECT COUNT(*)::int FROM products WHERE approval_status IS NULL OR approval_status <> 'archived') AS products,
+      (SELECT COUNT(*)::int FROM products WHERE (approval_status IS NULL OR approval_status <> 'archived') AND availability_status = 'In Stock') AS active_in_stock,
+      (SELECT COUNT(*)::int FROM orders) AS orders,
+      (SELECT COUNT(*)::int FROM orders WHERE status IN ('pending', 'pending_confirmation')) AS pending_orders,
+      (SELECT COUNT(*)::int FROM orders WHERE status IN ('completed', 'delivered')) AS completed_orders,
+      (SELECT COUNT(*)::int FROM enquiries) AS enquiries,
+      ((SELECT COUNT(*)::int FROM orders) + (SELECT COUNT(*)::int FROM enquiries)) AS total_inquiries_and_orders,
+      (SELECT COUNT(*)::int FROM deliveries WHERE delivery_status IN ('pending', 'assigned', 'out_for_delivery')) AS pending_deliveries,
       (SELECT COUNT(*)::int FROM customers) AS customers,
+      (SELECT COUNT(*)::int FROM customer_activities) AS total_activities,
       (SELECT COUNT(*)::int FROM merchants) AS merchants,
       (SELECT COUNT(*)::int FROM shops) AS shops,
-      (SELECT COUNT(*)::int FROM products) AS products,
-      (SELECT COUNT(*)::int FROM orders) AS orders,
       (SELECT COUNT(*)::int FROM campaigns) AS campaigns,
       (SELECT COUNT(*)::int FROM products WHERE approval_status = 'pending') AS pending_products,
       (SELECT COUNT(*)::int FROM shop_verifications WHERE status = 'pending') AS pending_shop_verifications,
@@ -57,12 +64,42 @@ export async function dashboardCounts() {
 
 export async function recentActivity(limit = 10) {
   const { rows } = await query(
-    `SELECT ${AUDIT_COLUMNS} FROM audit_logs a
-      LEFT JOIN admins ad ON ad.id = a.admin_id
-      ORDER BY a.created_at DESC LIMIT $1`,
+    `SELECT 
+      id, customer_id, customer_name, customer_email, customer_phone,
+      activity_type, product_id, product_name, product_price, quantity,
+      metadata, status, created_at
+     FROM customer_activities
+     ORDER BY created_at DESC LIMIT $1`,
     [limit]
   );
   return rows;
+}
+
+export async function listActivities({ limit = 20, offset = 0, q, activityType }) {
+  const filters = [];
+  const params = [];
+  if (activityType) {
+    params.push(activityType);
+    filters.push(`activity_type = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    filters.push(`(customer_name ILIKE $${params.length} OR customer_email ILIKE $${params.length} OR product_name ILIKE $${params.length} OR activity_type ILIKE $${params.length})`);
+  }
+  const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+  const countRes = await query(`SELECT COUNT(*)::int AS total FROM customer_activities ${where}`, params);
+  const total = countRes.rows[0]?.total || 0;
+
+  params.push(limit);
+  const pLimit = `$${params.length}`;
+  params.push(offset);
+  const pOffset = `$${params.length}`;
+
+  const { rows } = await query(
+    `SELECT * FROM customer_activities ${where} ORDER BY created_at DESC LIMIT ${pLimit} OFFSET ${pOffset}`,
+    params
+  );
+  return { rows, total };
 }
 
 export async function listAuditLogs({ limit, offset }) {
@@ -156,24 +193,44 @@ export async function listCustomers({ status, q, limit, offset }) {
   return { rows, total: countRows[0].total };
 }
 
-export async function listProducts({ approvalStatus, limit, offset }) {
+export async function listProducts({ approvalStatus, availabilityStatus, categoryId, q, limit, offset }) {
   const filters = [];
   const params = [];
   if (approvalStatus) {
     params.push(approvalStatus);
     filters.push(`p.approval_status = $${params.length}`);
+  } else {
+    filters.push(`(p.approval_status IS NULL OR p.approval_status <> 'archived')`);
+  }
+  if (availabilityStatus) {
+    params.push(availabilityStatus);
+    filters.push(`p.availability_status = $${params.length}`);
+  }
+  if (categoryId) {
+    params.push(categoryId);
+    filters.push(`p.category_id = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    filters.push(`(p.name ILIKE $${params.length} OR p.description ILIKE $${params.length})`);
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const { rows } = await query(
-    `SELECT p.id, p.shop_id, p.name, p.price, p.availability_status, p.approval_status,
-            p.stock_quantity, p.created_at, p.updated_at, s.name AS shop_name
-       FROM products p JOIN shops s ON s.id = p.shop_id
+    `SELECT p.id, p.shop_id, p.category_id, p.name, p.slug, p.description, p.price, p.original_price,
+            p.discount_percentage, p.availability_status, p.stock_quantity, p.is_featured,
+            p.approval_status, p.created_at, p.updated_at,
+            c.name AS category_name,
+            COALESCE(s.name, 'GrowLocal Direct') AS shop_name,
+            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY display_order ASC LIMIT 1) AS image_url
+       FROM products p
+       LEFT JOIN shops s ON s.id = p.shop_id
+       LEFT JOIN categories c ON c.id = p.category_id
        ${where}
       ORDER BY p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
   const { rows: countRows } = await query(
-    `SELECT COUNT(*)::int AS total FROM products p JOIN shops s ON s.id = p.shop_id ${where}`,
+    `SELECT COUNT(*)::int AS total FROM products p LEFT JOIN shops s ON s.id = p.shop_id LEFT JOIN categories c ON c.id = p.category_id ${where}`,
     params
   );
   return { rows, total: countRows[0].total };
@@ -322,4 +379,175 @@ export async function reviewVerification({ verificationId, status, verificationN
     });
     return rows[0];
   });
+}
+
+export async function listOrders({ status, limit, offset }) {
+  const filters = [];
+  const params = [];
+  if (status) {
+    params.push(status);
+    filters.push(`o.status = $${params.length}`);
+  }
+  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  const { rows } = await query(
+    `SELECT o.*, 
+            COALESCE(p.name, (SELECT product_name FROM order_items WHERE order_id = o.id LIMIT 1), 'GrowLocal Order') AS product_name,
+            COALESCE((SELECT image_url FROM product_images WHERE product_id = o.product_id ORDER BY display_order ASC LIMIT 1), (SELECT product_image FROM order_items WHERE order_id = o.id AND product_image IS NOT NULL LIMIT 1)) AS product_image,
+            (SELECT COUNT(*)::int FROM order_items WHERE order_id = o.id) AS item_count,
+            COALESCE(s.name, 'GrowLocal') AS shop_name,
+            COALESCE(c.full_name, 'Registered Customer') AS customer_name,
+            c.email AS customer_email,
+            c.phone AS customer_phone,
+            d.delivery_status,
+            d.delivery_address AS delivery_full_address,
+            d.recipient_name,
+            d.recipient_phone
+       FROM orders o
+       LEFT JOIN products p ON p.id = o.product_id
+       LEFT JOIN shops s ON s.id = o.shop_id
+       LEFT JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN deliveries d ON d.order_id = o.id
+       ${where}
+      ORDER BY o.created_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  );
+  const { rows: countRows } = await query(
+    `SELECT COUNT(*)::int AS total FROM orders o ${where}`,
+    params
+  );
+  return { rows, total: countRows[0].total };
+}
+
+export async function listEnquiries({ status, limit, offset }) {
+  const filters = [];
+  const params = [];
+  if (status) {
+    params.push(status);
+    filters.push(`e.status = $${params.length}`);
+  }
+  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  const { rows } = await query(
+    `SELECT e.*, 
+            p.name AS product_name,
+            p.price AS product_price,
+            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY display_order ASC LIMIT 1) AS product_image,
+            COALESCE(c.full_name, 'WhatsApp Customer') AS customer_name,
+            c.email AS customer_email,
+            c.phone AS customer_phone
+       FROM enquiries e
+       LEFT JOIN products p ON p.id = e.product_id
+       LEFT JOIN customers c ON c.id = e.customer_id
+       ${where}
+      ORDER BY e.created_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  );
+  const { rows: countRows } = await query(
+    `SELECT COUNT(*)::int AS total FROM enquiries e ${where}`,
+    params
+  );
+  return { rows, total: countRows[0].total };
+}
+
+export async function setEnquiryStatus({ enquiryId, status }) {
+  const { rows } = await query(
+    'UPDATE enquiries SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    [status, enquiryId]
+  );
+  return rows[0] || null;
+}
+
+export async function setOrderStatus({ orderId, status, adminId = null, notes = null }) {
+  const { rows: prevRows } = await query('SELECT status FROM orders WHERE id = $1', [orderId]);
+  const oldStatus = prevRows[0]?.status || null;
+
+  const { rows } = await query(
+    'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    [status, orderId]
+  );
+
+  if (rows[0]) {
+    await query(
+      `INSERT INTO order_status_history (order_id, old_status, new_status, changed_by_type, changed_by_id, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [orderId, oldStatus, status, 'admin', adminId, notes || `Status updated to ${status} by Admin`]
+    ).catch(() => null);
+
+    // If order was delivered or cancelled, sync delivery record if present
+    if (['delivered', 'completed'].includes(status)) {
+      await query(
+        `UPDATE deliveries SET delivery_status = 'delivered', delivered_at = NOW(), updated_at = NOW() WHERE order_id = $1`,
+        [orderId]
+      ).catch(() => null);
+    } else if (['shipped', 'out_for_delivery'].includes(status)) {
+      await query(
+        `UPDATE deliveries SET delivery_status = $1, dispatched_at = COALESCE(dispatched_at, NOW()), updated_at = NOW() WHERE order_id = $2`,
+        [status, orderId]
+      ).catch(() => null);
+    }
+  }
+
+  return rows[0] || null;
+}
+
+export async function updateDelivery({
+  orderId,
+  deliveryStatus,
+  deliveryNotes,
+  recipientName,
+  recipientPhone,
+  deliveryAddress,
+  deliveryPincode,
+  adminId = null,
+}) {
+  const { rows } = await query(
+    `INSERT INTO deliveries (order_id, delivery_status, delivery_address, delivery_pincode, recipient_name, recipient_phone, delivery_notes, updated_at)
+     VALUES ($1, COALESCE($2, 'pending'), $3, $4, $5, $6, $7, NOW())
+     ON CONFLICT (order_id) DO UPDATE
+        SET delivery_status = COALESCE($2, deliveries.delivery_status),
+            delivery_address = COALESCE($3, deliveries.delivery_address),
+            delivery_pincode = COALESCE($4, deliveries.delivery_pincode),
+            recipient_name = COALESCE($5, deliveries.recipient_name),
+            recipient_phone = COALESCE($6, deliveries.recipient_phone),
+            delivery_notes = COALESCE($7, deliveries.delivery_notes),
+            dispatched_at = CASE WHEN $2 IN ('dispatched', 'shipped', 'out_for_delivery') THEN COALESCE(deliveries.dispatched_at, NOW()) ELSE deliveries.dispatched_at END,
+            delivered_at = CASE WHEN $2 IN ('delivered', 'completed') THEN COALESCE(deliveries.delivered_at, NOW()) ELSE deliveries.delivered_at END,
+            updated_at = NOW()
+     RETURNING *`,
+    [
+      orderId,
+      deliveryStatus ?? null,
+      deliveryAddress ?? null,
+      deliveryPincode ?? null,
+      recipientName ?? null,
+      recipientPhone ?? null,
+      deliveryNotes ?? null,
+    ]
+  );
+
+  if (deliveryStatus) {
+    let orderStatus = null;
+    if (['delivered', 'completed'].includes(deliveryStatus)) orderStatus = 'completed';
+    else if (deliveryStatus === 'out_for_delivery') orderStatus = 'out_for_delivery';
+    else if (['dispatched', 'shipped'].includes(deliveryStatus)) orderStatus = 'shipped';
+
+    if (orderStatus) {
+      const { rows: orderRows } = await query('SELECT status FROM orders WHERE id = $1', [orderId]);
+      const oldStatus = orderRows[0]?.status || null;
+      if (oldStatus !== orderStatus) {
+        await query(
+          'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2',
+          [orderStatus, orderId]
+        );
+        await query(
+          `INSERT INTO order_status_history (order_id, old_status, new_status, changed_by_type, changed_by_id, notes)
+           VALUES ($1, $2, $3, 'admin', $4, $5)`,
+          [orderId, oldStatus, orderStatus, adminId, deliveryNotes || `Delivery status changed to ${deliveryStatus}`]
+        ).catch(() => null);
+      }
+    }
+  }
+
+  return rows[0] || null;
 }

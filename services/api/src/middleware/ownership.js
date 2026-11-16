@@ -21,6 +21,7 @@ export function assertOwnsShop(shop, merchantId) {
 
 export function assertOwnsOrder(order, auth) {
   if (!order) throw new ForbiddenError('Order not found');
+  if (auth.type === 'admin') return;
   if (auth.type === 'customer' && order.customer_id !== auth.id) {
     throw new ForbiddenError('You do not own this order');
   }

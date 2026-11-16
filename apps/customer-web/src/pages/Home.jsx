@@ -1,48 +1,72 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Megaphone, Search, Sparkles, Star, Store, Truck } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronRight,
+  Flame,
+  MessageCircle,
+  Package,
+  Percent,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  TrendingUp,
+  Truck,
+  Zap,
+} from 'lucide-react';
 
 import { ENDPOINTS, api } from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useSocket } from '../context/SocketContext.jsx';
 import useLiveCatalog from '../hooks/useLiveCatalog.js';
 import ProductCard from '../components/ProductCard.jsx';
-import ShopCard from '../components/ShopCard.jsx';
 import SocketStatusBadge from '../components/SocketStatusBadge.jsx';
+import {
+  OFFICIAL_WHATSAPP_SHORT_LINK,
+  triggerWhatsAppInquiry,
+} from '../lib/whatsapp.js';
+
+const CATEGORY_ICONS = {
+  'Fresh Fruits & Vegetables': '🍎',
+  'Dairy, Bread & Eggs': '🥛',
+  'Snacks & Munchies': '🍿',
+  'Bakery & Cakes': '🥐',
+  Beverages: '🧃',
+  'Atta, Rice, Oil & Dals': '🌾',
+  'Masalas & Dry Fruits': '🌰',
+  'Personal Care': '🧴',
+  'Cleaning & Household': '🧹',
+  'Stationery & Pooja Needs': '🪔',
+};
 
 export default function Home() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { connected } = useSocket();
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
-  const [shops, setShops] = useState([]);
   const [searches, setSearches] = useState([]);
-  const [gaps, setGaps] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   useLiveCatalog(products, setProducts);
 
   useEffect(() => {
     api
       .get(ENDPOINTS.CATEGORIES.LIST)
-      .then((data) => setCategories((data.categories || []).slice(0, 10)))
+      .then((data) => setCategories(data.categories || []))
       .catch(() => {});
+
     api
-      .get(ENDPOINTS.PRODUCTS.LIST, { query: { limit: 8 } })
+      .get(ENDPOINTS.PRODUCTS.LIST, { query: { limit: 20 } })
       .then((data) => setProducts(data.products || []))
       .catch(() => {});
-    api
-      .get(ENDPOINTS.SHOPS.LIST, { query: { limit: 4 } })
-      .then((data) => setShops(data.shops || []))
-      .catch(() => {});
+
     api
       .get(ENDPOINTS.SEARCH.POPULAR, { query: { limit: 8 } })
       .then((data) => setSearches(data.searches || []))
-      .catch(() => {});
-    api
-      .get(ENDPOINTS.SEARCH.DEMAND_GAPS, { query: { limit: 6 } })
-      .then((data) => setGaps(data.gaps || []))
       .catch(() => {});
   }, []);
 
@@ -52,254 +76,273 @@ export default function Home() {
     if (term) navigate(`/search?q=${encodeURIComponent(term)}`);
   }
 
+  // Filtered views
+  const featuredProducts = products.filter((p) => p.is_featured);
+  const discountedProducts = products.filter(
+    (p) => Number(p.original_price) > Number(p.price)
+  );
+
+  const displayedProducts = selectedCategory
+    ? products.filter((p) => p.category_id === selectedCategory)
+    : products;
+
   return (
-    <div className="homepage-shell -mx-4 px-4 md:px-6">
-      <section className="homepage-hero relative overflow-hidden -mx-4 md:-mx-6">
-        <div className="relative max-w-6xl mx-auto px-4 md:px-8 pt-10 pb-12 md:pt-14 md:pb-16">
-          <div className="hero-ornament hidden sm:block" aria-hidden="true">
-            <span className="hero-ornament-line" />
-            <span className="hero-ornament-dot hero-ornament-dot-one" />
-            <span className="hero-ornament-dot hero-ornament-dot-two" />
+    <div className="space-y-10 pb-12">
+      {/* 1. Value Proposition Banner */}
+      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-700 text-white rounded-3xl p-6 sm:p-8 shadow-md relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 rounded-l-full pointer-events-none hidden md:block" />
+        <div className="max-w-2xl relative z-10 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold backdrop-blur-xs">
+            <Zap className="w-3.5 h-3.5 text-amber-300" />
+            GrowLocal Marketplace &bull; Find Local. Buy Local.
+          </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+            Discover Quality Products Near You
+          </h1>
+          <p className="text-sm sm:text-base text-emerald-100 max-w-lg leading-relaxed">
+            Explore authentic local products, get best prices, and order with instant WhatsApp support.
+          </p>
+
+          {/* Prominent Search Bar */}
+          <form onSubmit={submitSearch} className="flex max-w-md bg-white rounded-2xl p-1.5 shadow-lg">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#888888]" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products, groceries, daily essentials…"
+                className="w-full h-11 pl-10 pr-3 text-sm text-[#111111] placeholder:text-[#999999] rounded-xl focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-5 h-11 bg-brand hover:bg-[#0F752C] text-white text-sm font-bold rounded-xl transition-colors shrink-0"
+            >
+              Search
+            </button>
+          </form>
+
+          {/* Key Value Props */}
+          <div className="pt-2 flex flex-wrap gap-4 text-xs font-medium text-emerald-100">
+            <span className="flex items-center gap-1.5">
+              <Truck className="w-4 h-4 text-emerald-300" /> Instant Local Pickup
+            </span>
+            <span className="flex items-center gap-1.5">
+              <MessageCircle className="w-4 h-4 text-emerald-300" /> Direct WhatsApp Ordering
+            </span>
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-300" /> 100% Quality Checked
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Category Explorer */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-[#111111] flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-brand" /> Shop by Category
+            </h2>
+            <p className="text-xs text-[#666666]">Explore standard product aisles</p>
+          </div>
+          <Link
+            to="/search"
+            className="text-xs font-bold text-brand hover:underline inline-flex items-center gap-1"
+          >
+            All Products <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {categories.slice(0, 10).map((cat) => {
+            const icon = CATEGORY_ICONS[cat.name] || '🛍️';
+            const isSelected = selectedCategory === cat.id;
+
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setSelectedCategory(isSelected ? null : cat.id);
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer group ${
+                  isSelected
+                    ? 'border-brand bg-brand-light shadow-sm ring-2 ring-brand/30'
+                    : 'border-[#E5E7E5] bg-white hover:border-brand/40 hover:bg-[#FBFDFB]'
+                }`}
+              >
+                <span className="text-2xl shrink-0 group-hover:scale-110 transition-transform">
+                  {icon}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-xs text-[#111111] truncate">{cat.name}</p>
+                  <p className="text-[10px] text-[#666666]">Explore &rarr;</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedCategory ? (
+          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-xs text-emerald-800">
+            <span>
+              Filtering by: <strong>{categories.find((c) => c.id === selectedCategory)?.name}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              className="font-bold underline text-emerald-700 hover:text-emerald-900"
+            >
+              Clear Filter
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      {/* 3. Discount Deals Section (if items with discounts exist) */}
+      {!selectedCategory && discountedProducts.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold">
+                <Percent className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-[#111111]">Great Deals & Offers</h2>
+                <p className="text-xs text-[#666666]">Save big on discounted daily essentials</p>
+              </div>
+            </div>
+            <Link to="/search" className="text-xs font-bold text-brand hover:underline">
+              View all offers &rarr;
+            </Link>
           </div>
 
-          <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+            {discountedProducts.slice(0, 4).map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 4. Featured or Main Products Catalog */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <Flame className="w-4 h-4" />
+            </div>
             <div>
-              <div className="homepage-social-proof flex items-center gap-2 text-sm">
-                <span className="flex -space-x-1.5">
-                  {[0, 1, 2].map((index) => (
-                    <span
-                      key={index}
-                      className="w-6 h-6 rounded-full border-2 border-white bg-gradient-to-br from-[#159947] to-[#0B6B2B]"
-                    />
-                  ))}
-                </span>
-                <span className="text-[#666666]">
-                  <strong className="text-[#111111]">12,000+</strong> shoppers in Nagpur
-                </span>
-              </div>
-
-              <h1 className="homepage-title mt-5 text-4xl md:text-5xl font-extrabold leading-[1.05] text-[#111111]">
-                <span>Your neighbourhood,</span> now in stock.
-              </h1>
-              <p className="mt-4 text-[#666666] max-w-md text-sm md:text-base leading-relaxed">
-                Discover verified local shops, negotiate directly with owners, and pick up your
-                order on your way home — no waiting for courier packages from far away.
+              <h2 className="text-xl font-bold text-[#111111]">
+                {selectedCategory ? 'Category Products' : 'Trending & Popular Products'}
+              </h2>
+              <p className="text-xs text-[#666666]">
+                Available for instant local inquiry and quick checkout
               </p>
-
-              <form onSubmit={submitSearch} className="mt-6 flex max-w-md">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#666666]" />
-                  <input
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Try 'wireless earbuds' or 'kirana'…"
-                    className="w-full h-12 bg-white border border-[#E5E7E5] rounded-l-xl pl-11 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="h-12 px-5 rounded-r-xl bg-brand text-white text-sm font-semibold hover:bg-[#0F752C]"
-                >
-                  Search
-                </button>
-              </form>
-
-              <div className="homepage-metrics mt-8 grid grid-cols-3 border bg-white rounded-2xl overflow-hidden divide-x divide-[#E5E7E5]">
-                <div className="py-3 text-center">
-                  <p className="text-lg font-extrabold text-brand-dark">350+</p>
-                  <p className="text-[10px] md:text-xs text-[#666666]">verified shops</p>
-                </div>
-                <div className="py-3 text-center">
-                  <p className="text-lg font-extrabold text-brand-dark">3 km</p>
-                  <p className="text-[10px] md:text-xs text-[#666666]">average pickup</p>
-                </div>
-                <div className="py-3 text-center">
-                  <p className="text-lg font-extrabold text-brand-dark">4.6★</p>
-                  <p className="text-[10px] md:text-xs text-[#666666]">shop rating</p>
-                </div>
-              </div>
             </div>
+          </div>
 
-            <div className="homepage-visual relative hidden lg:block">
-              <img
-                src="/growlocal-scooter.png"
-                alt="Local delivery scooter"
-                className="homepage-scooter w-full max-w-md mx-auto"
-              />
-              <div className="homepage-visual-label absolute top-8 right-6 rounded-xl px-3 py-2 text-xs font-semibold text-[#111111] flex items-center gap-2">
-                <Store className="w-3.5 h-3.5 text-brand" /> Ready in 2 hours
-              </div>
-              <div className="homepage-delivery-card absolute bottom-6 left-4 rounded-xl px-4 py-3 text-xs flex items-center gap-2.5">
-                <Truck className="w-4 h-4 text-brand" />
-                <span>
-                  <span className="block font-bold text-[#111111]">Order picked</span>
-                  <span className="text-[#666666]">Sharma Kirana · 1.2 km away</span>
-                </span>
-              </div>
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 ${
+              connected ? 'text-brand bg-brand-light' : 'text-amber-700 bg-amber-50'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                connected ? 'bg-brand animate-pulse' : 'bg-amber-500'
+              }`}
+            />
+            {connected ? 'Live Catalog' : 'Catalog'}
+          </span>
+        </div>
+
+        {displayedProducts.length === 0 ? (
+          <div className="p-12 text-center bg-white border border-[#E5E7E5] rounded-3xl">
+            <div className="w-14 h-14 rounded-2xl bg-brand/10 text-brand flex items-center justify-center mx-auto mb-3">
+              <Package className="w-7 h-7" />
             </div>
+            <h3 className="font-bold text-lg text-[#111111]">No products found in this category</h3>
+            <p className="text-xs text-[#666666] mt-1 max-w-sm mx-auto">
+              Please check other categories or browse the full store catalog.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              className="mt-4 px-4 py-2 text-xs font-semibold rounded-xl bg-brand text-white hover:bg-[#0F752C]"
+            >
+              Show All Products
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+            {displayedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 5. Trending Searches */}
+      {searches.length > 0 && (
+        <section className="bg-white border border-[#E5E7E5] rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-4 h-4 text-brand" />
+            <h3 className="font-bold text-sm text-[#111111]">Popular Searches</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {searches.map((item) => (
+              <button
+                key={item.query}
+                type="button"
+                onClick={() => navigate(`/search?q=${encodeURIComponent(item.query)}`)}
+                className="text-xs font-medium text-[#111111] bg-[#F7F8F7] border border-[#E5E7E5] rounded-full px-3 py-1.5 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+              >
+                {item.query}
+                <span className="text-[#999999] ml-1.5">×{item.count}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 6. WhatsApp Inquiry CTA Banner */}
+      <section className="bg-gradient-to-br from-[#138A36] to-[#0A5722] rounded-3xl p-8 sm:p-10 text-white text-center shadow-lg relative overflow-hidden">
+        <div className="max-w-xl mx-auto space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mx-auto text-[#25D366]">
+            <MessageCircle className="w-7 h-7 fill-white text-[#138A36]" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold">
+            Have Questions About Any Product?
+          </h2>
+          <p className="text-xs sm:text-sm text-emerald-100 max-w-md mx-auto leading-relaxed">
+            Get instant assistance, live product photos, bulk discounts, and fast local delivery by chatting with GrowLocal on WhatsApp.
+          </p>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => triggerWhatsAppInquiry({ customer: user })}
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-[#25D366] hover:bg-[#1fbe59] text-white font-bold text-sm shadow-md shadow-[#25D366]/30 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <MessageCircle className="w-5 h-5 fill-white text-[#25D366]" />
+              CHAT ON WHATSAPP
+            </button>
           </div>
         </div>
       </section>
 
-      <div className="homepage-content flex flex-col gap-12 py-12">
-        <section>
-          <div className="homepage-categories bg-white">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#111111] flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-brand" /> Browse categories
-              </h2>
-              <Link
-                to="/shops"
-                className="text-sm font-semibold text-brand inline-flex items-center gap-1 hover:underline"
-              >
-                All shops <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  to={`/shops?category=${encodeURIComponent(category.slug)}`}
-                  className="shrink-0 px-4 py-2 rounded-full border border-[#E5E7E5] bg-white text-sm font-medium text-[#111111] hover:border-brand hover:text-brand"
-                >
-                  {category.name}
-                </Link>
-              ))}
-              {categories.length === 0 ? (
-                <span className="text-sm text-[#666666]">Categories coming soon.</span>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="homepage-products flex flex-col gap-4">
-          <div className="bg-white border border-[#E5E7E5] rounded-2xl p-4 md:p-5 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-[#111111]">Fresh from local shops</h2>
-              <p className="text-xs text-[#666666] mt-0.5">
-                Live from the catalog — updates the moment a shop adds or edits a product.
-              </p>
-            </div>
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 ${
-                connected ? 'text-brand bg-brand-light' : 'text-amber-700 bg-amber-50'
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full animate-pulse-subtle ${
-                  connected ? 'bg-brand' : 'bg-amber-500'
-                }`}
-              />
-              {connected ? 'Live' : 'Offline'}
-            </span>
-          </div>
-          {products.length > 0 ? (
-            <div className="homepage-product-grid grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          ) : (
-            <div className="homepage-empty-state homepage-shops-empty bg-white border border-[#E5E7E5] rounded-2xl px-6 py-10 text-center">
-              <h3 className="text-xl font-bold text-[#111111]">Shops are stocking up</h3>
-              <p className="text-sm text-[#666666] mt-2 max-w-sm mx-auto">
-                No products are live yet. Come back shortly — this grid updates in real time.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {shops.length > 0 ? (
-          <section className="homepage-shops flex flex-col gap-4">
-            <div className="bg-white border border-[#E5E7E5] rounded-2xl p-4 md:p-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#111111]">Featured local shops</h2>
-              <Link
-                to="/shops"
-                className="text-sm font-semibold text-brand inline-flex items-center gap-1 hover:underline"
-              >
-                Browse all <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {(searches.length > 0 || gaps.length > 0) && (
-          <section className="grid md:grid-cols-2 gap-4">
-            {searches.length > 0 ? (
-              <div className="bg-white border border-[#E5E7E5] rounded-2xl p-5">
-                <h2 className="text-base font-bold text-[#111111]">Trending searches</h2>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {searches.map((item) => (
-                    <Link
-                      key={item.query}
-                      to={`/search?q=${encodeURIComponent(item.query)}`}
-                      className="text-xs font-medium text-[#111111] bg-[#F7F8F7] border border-[#E5E7E5] rounded-full px-3 py-1.5 hover:border-brand hover:text-brand"
-                    >
-                      {item.query}
-                      <span className="text-[#999999] ml-1.5">×{item.count}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {gaps.length > 0 ? (
-              <div className="bg-white border border-[#E5E7E5] rounded-2xl p-5">
-                <h2 className="text-base font-bold text-[#111111]">
-                  Searched a lot, not in stock yet
-                </h2>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {gaps.map((gap) => (
-                    <Link
-                      key={gap.query}
-                      to={`/search?q=${encodeURIComponent(gap.query)}`}
-                      className="text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 hover:border-amber-400"
-                    >
-                      {gap.query}
-                      <span className="text-amber-600 ml-1.5">×{gap.count}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </section>
-        )}
-
-        <section className="homepage-final-cta relative overflow-hidden bg-gradient-to-br from-[#138A36] to-[#0B6B2B] rounded-3xl px-6 py-10 md:px-12 md:py-12 text-center">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white">
-            Can't find what you need?
-          </h2>
-          <p className="mt-3 text-sm md:text-base text-white/80 max-w-lg mx-auto">
-            Broadcast a demand request — shops near you will respond with what they have, at the
-            price you want.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {isAuthenticated ? (
-              <Link
-                to="/demand"
-                className="inline-flex items-center gap-2 bg-white text-brand-dark font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#EAF7EE]"
-              >
-                <Megaphone className="w-4 h-4" /> Post a demand request
-              </Link>
-            ) : (
-              <Link
-                to="/register"
-                className="inline-flex items-center gap-2 bg-white text-brand-dark font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#EAF7EE]"
-              >
-                <Star className="w-4 h-4" /> Join free to broadcast demand
-              </Link>
-            )}
-          </div>
-        </section>
-
-        <div className="flex justify-center">
-          <SocketStatusBadge />
-        </div>
-      </div>
+      {/* Floating WhatsApp Action Button for Easy Access */}
+      <aside aria-label="WhatsApp Support" className="fixed bottom-20 md:bottom-6 right-5 z-40">
+        <button
+          type="button"
+          onClick={() => triggerWhatsAppInquiry({ customer: user })}
+          title="Inquire on WhatsApp"
+          className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white px-4 py-3 rounded-full shadow-2xl transition-transform hover:scale-105 active:scale-95 font-bold text-xs cursor-pointer"
+        >
+          <MessageCircle className="w-5 h-5 fill-white text-[#25D366]" />
+          <span className="hidden sm:inline">Inquire on WhatsApp</span>
+        </button>
+      </aside>
     </div>
   );
 }

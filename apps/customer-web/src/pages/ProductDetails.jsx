@@ -1,102 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Rating, VerifiedBadge } from '@growlocal/ui';
 import {
   ArrowLeft,
-  Heart,
+  CheckCircle2,
   Loader2,
-  MapPin,
   MessageCircle,
+  Minus,
   PackageCheck,
-  Send,
+  Plus,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   Truck,
 } from 'lucide-react';
 
 import { ENDPOINTS, api } from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useCart } from '../context/CartContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { formatMoney, initials } from '../lib/format';
-import BuyNowModal from '../components/BuyNowModal.jsx';
-import EnquiryModal from '../components/EnquiryModal.jsx';
+import {
+  OFFICIAL_WHATSAPP_SHORT_LINK,
+  triggerWhatsAppInquiry,
+} from '../lib/whatsapp.js';
+import { trackActivity } from '../lib/activityTracker.js';
 import EmptyState from '../components/EmptyState.jsx';
+import CheckoutModal from '../components/CheckoutModal.jsx';
 
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated, openAuthModal } = useAuth();
+  const { addToCart, openCart } = useCart();
   const toast = useToast();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [buyOpen, setBuyOpen] = useState(false);
-  const [enquiryOpen, setEnquiryOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     api
       .get(ENDPOINTS.PRODUCTS.DETAIL(id))
-      .then((data) => setProduct(data.product))
+      .then((data) => {
+        setProduct(data.product);
+        if (data.product) {
+          trackActivity({
+            activityType: 'view_product',
+            product: data.product,
+            customer: user,
+          });
+        }
+      })
       .catch((err) => setError(err.message || 'Could not load this product'))
       .finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !product) return;
-    api
-      .get(ENDPOINTS.SAVED_SHOPS.MINE, { query: { limit: 100 } })
-      .then((data) => setSaved((data.savedShops || []).some((item) => item.shop_id === product.shop_id)))
-      .catch(() => {});
-  }, [isAuthenticated, product?.shop_id]);
-
-  function requireLogin(action) {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/products/${id}` } });
-      return;
-    }
-    action();
-  }
-
-  async function toggleSave() {
-    if (!product) return;
-    requireLogin(async () => {
-      setBusy(true);
-      try {
-        if (saved) {
-          await api.delete(ENDPOINTS.SAVED_SHOPS.SAVE(product.shop_id));
-          setSaved(false);
-          toast('Removed from saved shops');
-        } else {
-          await api.put(ENDPOINTS.SAVED_SHOPS.SAVE(product.shop_id));
-          setSaved(true);
-          toast('Shop saved!');
-        }
-      } catch (err) {
-        toast(err.message || 'Could not update saved shops', 'error');
-      } finally {
-        setBusy(false);
-      }
-    });
-  }
-
-  async function startChat() {
-    if (!product) return;
-    requireLogin(async () => {
-      setBusy(true);
-      try {
-        const data = await api.post(ENDPOINTS.CONVERSATIONS.CREATE, { shopId: product.shop_id });
-        navigate(`/chat/${data.conversation.id}`);
-      } catch (err) {
-        toast(err.message || 'Could not start the chat', 'error');
-      } finally {
-        setBusy(false);
-      }
-    });
-  }
+  }, [id, user]);
 
   if (loading) {
     return (
@@ -112,169 +73,233 @@ export default function ProductDetails() {
 
   const outOfStock = product.availability_status === 'Out of Stock';
 
+  // WhatsApp Inquiry URL with prefilled text
+  const inquiryMessage = buildProductInquiryMessage(product, quantity);
+  const whatsappUrl = buildWhatsAppUrl(inquiryMessage);
+
+  const images =
+    product.images && product.images.length > 0
+      ? product.images.map((img) => img.image_url)
+      : product.image_url
+      ? [product.image_url]
+      : [];
+
+  function handleAddToCart() {
+    addToCart(product, quantity);
+    openCart();
+  }
+
+  function handleOrderNow() {
+    if (!isAuthenticated) {
+      openAuthModal('login', () => {
+        setCheckoutOpen(true);
+      });
+      return;
+    }
+    setCheckoutOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <Link
-        to={`/shops/${product.shop_id}`}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-[#666666] hover:text-brand"
+        to="/search"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#666666] hover:text-brand transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Back to {product.shop_name}
+        <ArrowLeft className="w-4 h-4" /> Back to Products
       </Link>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-[#DDF3E3] via-[#EAF7EE] to-[#F7F8F7] rounded-3xl border border-[#E5E7E5] h-72 md:h-96 flex items-center justify-center relative overflow-hidden">
-          <span className="text-6xl font-extrabold text-brand/30 select-none">
-            {initials(product.name)}
-          </span>
-          {product.discount_percentage > 0 ? (
-            <span className="absolute top-4 left-4 text-sm font-bold text-white bg-brand px-3 py-1 rounded-lg">
-              {product.discount_percentage}% OFF
-            </span>
-          ) : null}
+      <div className="grid md:grid-cols-2 gap-8 items-start">
+        {/* Left: Product Media Gallery */}
+        <div className="space-y-3">
+          <div className="aspect-square w-full bg-[#F4F6F4] rounded-3xl border border-[#E5E7E5] flex items-center justify-center relative overflow-hidden shadow-sm">
+            {images.length > 0 ? (
+              <img
+                src={images[selectedImage] || images[0]}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-[#DDF3E3] via-[#EAF7EE] to-[#F7F8F7] flex items-center justify-center">
+                <span className="text-6xl font-extrabold text-brand/30 select-none">
+                  {initials(product.name)}
+                </span>
+              </div>
+            )}
+            {product.discount_percentage > 0 ? (
+              <span className="absolute top-4 left-4 text-xs font-bold text-white bg-brand px-3 py-1 rounded-lg shadow-sm">
+                {product.discount_percentage}% OFF
+              </span>
+            ) : null}
+            {outOfStock ? (
+              <span className="absolute bottom-4 right-4 text-xs font-semibold text-[#666666] bg-white/95 border border-[#E5E7E5] px-3 py-1 rounded-lg shadow-sm">
+                Out of Stock
+              </span>
+            ) : null}
+          </div>
+
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSelectedImage(idx)}
+                  className={`w-16 h-16 rounded-xl border-2 overflow-hidden transition-all shrink-0 ${
+                    selectedImage === idx
+                      ? 'border-brand shadow-sm'
+                      : 'border-[#E5E7E5] opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-5">
+        {/* Right: Product Details & Actions */}
+        <div className="space-y-6">
           <div>
             {product.category_name ? (
-              <span className="text-xs font-semibold text-brand bg-brand-light px-2.5 py-1 rounded-md">
+              <span className="text-xs font-bold uppercase tracking-wider text-brand bg-brand-light px-2.5 py-1 rounded-md">
                 {product.category_name}
               </span>
             ) : null}
-            <h1 className="text-2xl md:text-3xl font-bold text-[#111111] mt-2">{product.name}</h1>
-            <div className="flex items-center gap-2 mt-2">
-              <Rating rating={5} showCount={false} />
-              <span className="text-xs text-[#666666]">
-                sold by{' '}
-                <Link
-                  to={`/shops/${product.shop_id}`}
-                  className="font-semibold text-brand hover:underline"
-                >
-                  {product.shop_name}
-                </Link>
-              </span>
-              {product.shop_is_verified ? <VerifiedBadge size="small" /> : null}
-            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-[#111111] mt-2 leading-tight">
+              {product.name}
+            </h1>
+            <p className="text-xs text-[#888888] mt-1">Verified GrowLocal Listing</p>
           </div>
 
-          <div className="flex items-baseline gap-3">
+          {/* Pricing */}
+          <div className="p-4 bg-white border border-[#E5E7E5] rounded-2xl flex items-baseline gap-3">
             <span className="text-3xl font-extrabold text-[#111111]">
               {formatMoney(product.price)}
             </span>
-            {product.original_price &&
-            Number(product.original_price) > Number(product.price) ? (
+            {product.original_price && Number(product.original_price) > Number(product.price) ? (
               <>
-                <span className="text-base text-[#666666] line-through">
+                <span className="text-base text-[#999999] line-through">
                   {formatMoney(product.original_price)}
                 </span>
-                <span className="text-sm font-bold text-brand">
+                <span className="text-sm font-bold text-brand bg-brand-light px-2 py-0.5 rounded-md">
                   Save {formatMoney(Number(product.original_price) - Number(product.price))}
                 </span>
               </>
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-3 text-sm">
+          {/* Quantity Selector */}
+          {!outOfStock ? (
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-semibold text-[#111111] uppercase tracking-wide">
+                Quantity:
+              </span>
+              <div className="flex items-center border border-[#E5E7E5] rounded-xl overflow-hidden bg-white">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="px-3 py-1.5 hover:bg-[#F0F2F0] text-[#444444]"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="px-4 text-sm font-bold text-[#111111]">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => q + 1)}
+                  className="px-3 py-1.5 hover:bg-[#F0F2F0] text-[#444444]"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Availability Pills */}
+          <div className="flex flex-wrap gap-2.5 text-xs font-semibold">
             <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${
                 outOfStock
                   ? 'text-amber-700 bg-amber-50 border-amber-200'
                   : 'text-brand bg-brand-light border-brand/20'
               }`}
             >
               <PackageCheck className="w-4 h-4" />
-              {product.availability_status} · {product.stock_quantity ?? '—'} left
+              {product.availability_status}{' '}
+              {product.stock_quantity ? `· ${product.stock_quantity} in stock` : ''}
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7E5] bg-white text-[#666666]">
-              <Truck className="w-4 h-4 text-brand" /> Pickup or delivery
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E7E5] bg-white text-[#555555]">
+              <Truck className="w-4 h-4 text-brand" /> Instant Local Pickup & Delivery
             </span>
-            {product.shop_is_verified ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7E5] bg-white text-[#666666]">
-                <ShieldCheck className="w-4 h-4 text-brand" /> Verified shop
-              </span>
-            ) : null}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E7E5] bg-white text-[#555555]">
+              <ShieldCheck className="w-4 h-4 text-brand" /> 100% Quality Checked
+            </span>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          {/* Primary Action Buttons */}
+          <div className="space-y-3 pt-2">
+            {/* Primary Action: Inquire on WhatsApp */}
             <button
               type="button"
-              disabled={outOfStock}
-              onClick={() => requireLogin(() => setBuyOpen(true))}
-              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold text-white bg-brand hover:bg-[#0F752C] rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => triggerWhatsAppInquiry({ product, quantity, customer: user })}
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold text-white bg-[#25D366] hover:bg-[#1EBE5D] rounded-2xl shadow-md shadow-[#25D366]/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
-              <ShoppingCart className="w-4 h-4" />
-              {outOfStock ? 'Out of stock' : 'Buy now'}
+              <MessageCircle className="w-5 h-5 fill-white text-[#25D366]" />
+              INQUIRE ON WHATSAPP
             </button>
-            <button
-              type="button"
-              onClick={() => requireLogin(() => setEnquiryOpen(true))}
-              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold text-brand-dark bg-brand-light border border-brand/20 hover:border-brand rounded-xl"
-            >
-              <Send className="w-4 h-4" /> Negotiate
-            </button>
-            <button
-              type="button"
-              onClick={startChat}
-              disabled={busy}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-[#666666] bg-white border border-[#E5E7E5] hover:border-brand hover:text-brand rounded-xl disabled:opacity-50"
-            >
-              <MessageCircle className="w-4 h-4" /> Chat
-            </button>
-            <button
-              type="button"
-              onClick={toggleSave}
-              disabled={busy}
-              className={`inline-flex items-center justify-center px-4 py-3 rounded-xl border ${
-                saved
-                  ? 'text-red-600 border-red-200 bg-red-50'
-                  : 'text-[#666666] border-[#E5E7E5] bg-white hover:border-brand hover:text-brand'
-              }`}
-              aria-label={saved ? 'Unsave shop' : 'Save shop'}
-            >
-              <Heart className={`w-4 h-4 ${saved ? 'fill-red-600' : ''}`} />
-            </button>
+
+            {/* Dual Actions: Add to Cart & Order Now */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                disabled={outOfStock}
+                onClick={handleAddToCart}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold text-brand bg-brand-light border border-brand/30 hover:bg-brand/10 rounded-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                ADD TO CART
+              </button>
+
+              <button
+                type="button"
+                disabled={outOfStock}
+                onClick={handleOrderNow}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold text-[#111111] bg-white border-2 border-[#111111] hover:bg-[#111111] hover:text-white rounded-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {outOfStock ? 'OUT OF STOCK' : 'ORDER NOW'}
+              </button>
+            </div>
           </div>
 
+          {/* Description */}
           {product.description ? (
-            <div>
-              <h2 className="text-sm font-bold text-[#111111] mb-1.5">About this product</h2>
-              <p className="text-sm text-[#666666] leading-relaxed whitespace-pre-line">
+            <div className="pt-4 border-t border-[#E5E7E5]">
+              <h2 className="text-sm font-bold text-[#111111] mb-2">About this product</h2>
+              <p className="text-sm text-[#666666] leading-relaxed whitespace-pre-line bg-white border border-[#E5E7E5] rounded-2xl p-4">
                 {product.description}
               </p>
             </div>
           ) : null}
 
-          <Link
-            to={`/shops/${product.shop_id}`}
-            className="flex items-center gap-3 bg-white border border-[#E5E7E5] rounded-xl p-3 hover:border-brand"
-          >
-            <span className="w-10 h-10 rounded-lg bg-brand-light flex items-center justify-center text-sm font-bold text-brand">
-              {initials(product.shop_name)}
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="block text-sm font-semibold text-[#111111]">
-                {product.shop_name}
-              </span>
-              <span className="block text-xs text-[#666666] inline-flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> {product.shop_city}
-              </span>
-            </span>
-            <ArrowLeft className="w-4 h-4 rotate-180 text-brand" />
-          </Link>
+          {/* Guarantee Box */}
+          <div className="p-4 bg-[#F8FAF8] border border-[#E5E7E5] rounded-2xl space-y-2 text-xs text-[#666666]">
+            <p className="font-bold text-[#111111] flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-brand" /> GrowLocal Promise
+            </p>
+            <p>
+              Direct contact on WhatsApp guarantees lightning-fast response times, live product photos on request, and smooth local fulfillment.
+            </p>
+          </div>
         </div>
       </div>
 
-      <BuyNowModal
-        open={buyOpen}
-        onClose={() => setBuyOpen(false)}
-        product={product}
-      />
-      <EnquiryModal
-        open={enquiryOpen}
-        onClose={() => setEnquiryOpen(false)}
-        shopId={product.shop_id}
-        productId={product.id}
-        productName={product.name}
-      />
+      {product && (
+        <CheckoutModal
+          open={checkoutOpen}
+          onClose={() => setCheckoutOpen(false)}
+          singleItem={{ ...product, quantity }}
+        />
+      )}
     </div>
   );
 }

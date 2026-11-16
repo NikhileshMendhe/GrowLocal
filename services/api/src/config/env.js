@@ -1,5 +1,9 @@
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(__dirname, '../../.env'), override: true });
 dotenv.config();
 
 /**
@@ -42,6 +46,7 @@ export const env = {
   customerWebUrl: optional('CUSTOMER_WEB_URL', 'http://localhost:5173'),
   merchantWebUrl: optional('MERCHANT_WEB_URL', 'http://localhost:5174'),
   adminWebUrl: optional('ADMIN_WEB_URL', 'http://localhost:5175'),
+  adminEmail: optional('GROWLOCAL_ADMIN_EMAIL', optional('ADMIN_EMAIL', 'growlocal.ngp@gmail.com')),
 
   s3: {
     endpoint: process.env.S3_ENDPOINT || null,

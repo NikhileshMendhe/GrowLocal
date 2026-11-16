@@ -32,4 +32,5 @@ dist-ssr/
 # Temporary metadata
 .omo/
 .open-knowledge/
+.backup_local_services/
 

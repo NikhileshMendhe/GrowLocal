@@ -20,7 +20,7 @@ const router = Router();
 router.post('/', authenticate, requireRole('customer'), validate(createOrderSchema), controller.create);
 router.get('/mine', authenticate, requireRole('customer'), validate(listOrdersSchema, 'query'), controller.listMine);
 router.get('/shop', authenticate, requireRole('merchant'), validate(listOrdersSchema, 'query'), controller.listForShop);
-router.get('/:id', authenticate, requireRole('customer', 'merchant'), validate(idParamSchema, 'params'), controller.getOrder);
+router.get('/:id', authenticate, requireRole('customer', 'merchant', 'admin'), validate(idParamSchema, 'params'), controller.getOrder);
 router.patch('/:id/status', authenticate, requireRole('merchant'), validate(idParamSchema, 'params'), validate(updateOrderStatusSchema), controller.updateStatus);
 // §6.5 documents PATCH cancel; POST is also accepted so both client shapes work
 router.post('/:id/cancel', authenticate, requireRole('customer'), validate(idParamSchema, 'params'), controller.cancel);

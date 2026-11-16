@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi, clearAccessToken, refreshSession, setSessionExpiredHandler } from '../lib/apiClient';
 
@@ -45,6 +45,13 @@ export function AuthProvider({ children }) {
     return session.user;
   }, []);
 
+  const signup = useCallback(async (data) => {
+    const session = await authApi.signup(data);
+    setUser(session.user);
+    setStatus('authenticated');
+    return session.user;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -56,7 +63,10 @@ export function AuthProvider({ children }) {
     navigateRef.current('/login', { replace: true });
   }, []);
 
-  const value = useMemo(() => ({ user, status, login, logout }), [user, status, login, logout]);
+  const value = useMemo(
+    () => ({ user, status, login, signup, logout }),
+    [user, status, login, signup, logout]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

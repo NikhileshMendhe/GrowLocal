@@ -28,6 +28,7 @@ import paymentsRoutes from './payments/payments.routes.js';
 import creatorsRoutes from './creators/creators.routes.js';
 import campaignsRoutes from './campaigns/campaigns.routes.js';
 import adminRoutes from './admin/admin.routes.js';
+import activitiesRoutes from './customer-activities/activities.routes.js';
 
 export default [
   { path: '/auth', router: authRoutes },
@@ -52,4 +53,5 @@ export default [
   { path: '/creators', router: creatorsRoutes },
   { path: '/campaigns', router: campaignsRoutes },
   { path: '/admin', router: adminRoutes },
+  { path: '/activities', router: activitiesRoutes },
 ];

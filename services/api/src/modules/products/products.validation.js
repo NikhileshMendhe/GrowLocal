@@ -6,7 +6,7 @@ const AVAILABILITY_STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
 export const idParamSchema = z.object({ id: z.string().uuid('Invalid product id') });
 
 export const createProductSchema = z.object({
-  shopId: z.string().uuid(),
+  shopId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(255),
   description: z.string().trim().max(5000).optional(),
@@ -15,6 +15,7 @@ export const createProductSchema = z.object({
   stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
   availabilityStatus: z.enum(AVAILABILITY_STATUSES).optional(),
   isFeatured: z.boolean().optional(),
+  images: z.array(z.string()).optional(),
 });
 
 export const updateProductSchema = z
@@ -27,6 +28,7 @@ export const updateProductSchema = z
     stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
     availabilityStatus: z.enum(AVAILABILITY_STATUSES).optional(),
     isFeatured: z.boolean().optional(),
+    images: z.array(z.string()).optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: 'At least one field is required',

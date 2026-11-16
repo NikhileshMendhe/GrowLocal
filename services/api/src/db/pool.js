@@ -10,12 +10,20 @@ pg.types.setTypeParser(pg.types.builtins.NUMERIC, (value) => (value === null ? n
  * The single pg.Pool for the whole API (§4 db/pool.js). Nothing outside
  * services/api ever opens a DB connection; repositories import this pool.
  */
+const sslConfig = env.databaseSsl ? { rejectUnauthorized: false } : undefined;
+
 export const pool = new pg.Pool({
   connectionString: env.databaseUrl,
   max: 10,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-  ssl: env.databaseSsl ? { rejectUnauthorized: false } : undefined,
+  connectionTimeoutMillis: 15_000,
+  ssl: sslConfig,
+});
+
+// Guard against idle connection drops from Supabase pooler crashing the process
+pool.on('error', (err) => {
+  // Supabase PgBouncer/server closing idle connection emits 'error' on the client.
+  // Catching this prevents an unhandled exception from crashing the Node server.
 });
 
 /**
@@ -27,21 +35,59 @@ export const pool = new pg.Pool({
  * @returns {Promise<T>}
  */
 export async function withTransaction(fn) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await fn(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw error;
-  } finally {
-    client.release();
+  let attempts = 0;
+  while (attempts < 3) {
+    attempts++;
+    let client;
+    let hasError = false;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      hasError = true;
+      if (client) {
+        await client.query('ROLLBACK').catch(() => {});
+      }
+      const isTransient =
+        error.code === 'ECONNRESET' ||
+        error.code === '57P01' ||
+        String(error.message || '').includes('Connection terminated') ||
+        String(error.message || '').includes('read ECONNRESET');
+      if (isTransient && attempts < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempts));
+        continue;
+      }
+      throw error;
+    } finally {
+      if (client) {
+        client.release(hasError);
+      }
+    }
   }
 }
 
-/** Convenience passthrough for single-statement queries. */
+/** Convenience passthrough for single-statement queries with transient retry for Supabase pooler. */
 export async function query(text, params) {
-  return pool.query(text, params);
+  let attempts = 0;
+  while (attempts < 3) {
+    attempts++;
+    try {
+      return await pool.query(text, params);
+    } catch (err) {
+      const isTransient =
+        err.code === 'ECONNRESET' ||
+        err.code === '57P01' ||
+        String(err.message || '').includes('Connection terminated') ||
+        String(err.message || '').includes('timeout exceeded') ||
+        String(err.message || '').includes('read ECONNRESET');
+      if (isTransient && attempts < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * attempts));
+        continue;
+      }
+      throw err;
+    }
+  }
 }

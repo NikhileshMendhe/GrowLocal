@@ -8,12 +8,32 @@ import { pool } from './db/pool.js';
 import { logger } from './utils/logger.js';
 
 async function main() {
-  await pool.query('SELECT 1');
+  try {
+    await pool.query('SELECT 1');
+    logger.info('Connected to PostgreSQL database');
+  } catch (error) {
+    logger.warn({ err: error.message }, 'Database connection not ready (Supabase project may be paused or unreachable). API server starting in degraded mode.');
+  }
 
   const app = createApp();
   const server = http.createServer(app);
   initSocket(server);
   startJobs();
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      logger.warn(`Port ${env.port} currently in use, retrying in 1s...`);
+      setTimeout(() => {
+        try { server.close(); } catch {}
+        server.listen(env.port, () => {
+          logger.info(`GrowLocal API listening on :${env.port} (${env.nodeEnv})`);
+        });
+      }, 1000);
+    } else {
+      logger.error({ err }, 'Server error');
+      process.exit(1);
+    }
+  });
 
   server.listen(env.port, () => {
     logger.info(`GrowLocal API listening on :${env.port} (${env.nodeEnv})`);

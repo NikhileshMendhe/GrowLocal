@@ -5,14 +5,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Shops from './pages/Shops';
-import ShopVerifications from './pages/ShopVerifications';
-import ProductApprovals from './pages/ProductApprovals';
-import Merchants from './pages/Merchants';
+import Products from './pages/Products';
+import Orders from './pages/Orders';
 import Customers from './pages/Customers';
-import Campaigns from './pages/Campaigns';
-import Creators from './pages/Creators';
-import AuditLogs from './pages/AuditLogs';
+import Activities from './pages/Activities';
 
 export default function App() {
   return (
@@ -24,14 +20,18 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AdminLayout />}>
                 <Route index element={<Dashboard />} />
-                <Route path="shops" element={<Shops />} />
-                <Route path="shop-verifications" element={<ShopVerifications />} />
-                <Route path="product-approvals" element={<ProductApprovals />} />
-                <Route path="merchants" element={<Merchants />} />
+                <Route path="products" element={<Products />} />
+                <Route path="orders" element={<Orders />} />
                 <Route path="customers" element={<Customers />} />
-                <Route path="campaigns" element={<Campaigns />} />
-                <Route path="creators" element={<Creators />} />
-                <Route path="audit-logs" element={<AuditLogs />} />
+                <Route path="activities" element={<Activities />} />
+                {/* Safe redirects for decommissioned merchant routes */}
+                <Route path="shops" element={<Navigate to="/products" replace />} />
+                <Route path="shop-verifications" element={<Navigate to="/products" replace />} />
+                <Route path="product-approvals" element={<Navigate to="/products" replace />} />
+                <Route path="merchants" element={<Navigate to="/products" replace />} />
+                <Route path="campaigns" element={<Navigate to="/" replace />} />
+                <Route path="creators" element={<Navigate to="/" replace />} />
+                <Route path="audit-logs" element={<Navigate to="/" replace />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

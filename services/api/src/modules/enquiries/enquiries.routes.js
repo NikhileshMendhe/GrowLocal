@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate.js';
 import { requireRole } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
+import { authenticateOptional } from '../products/products.middleware.js';
 import * as controller from './enquiries.controller.js';
 import {
   idParamSchema,
@@ -17,9 +18,10 @@ import {
  */
 const router = Router();
 
+router.post('/whatsapp', authenticateOptional, controller.logWhatsAppInquiry);
 router.post('/', authenticate, requireRole('customer'), validate(createEnquirySchema), controller.create);
 router.get('/mine', authenticate, requireRole('customer'), validate(listEnquiriesSchema, 'query'), controller.listMine);
 router.get('/shop', authenticate, requireRole('merchant'), validate(listEnquiriesSchema, 'query'), controller.listForShop);
-router.patch('/:id/status', authenticate, requireRole('customer', 'merchant'), validate(idParamSchema, 'params'), validate(updateEnquiryStatusSchema), controller.updateStatus);
+router.patch('/:id/status', authenticate, requireRole('admin', 'customer', 'merchant'), validate(idParamSchema, 'params'), validate(updateEnquiryStatusSchema), controller.updateStatus);
 
 export default router;

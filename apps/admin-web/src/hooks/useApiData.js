@@ -7,21 +7,26 @@ export function useApiData(fetcher, deps = []) {
   const [nonce, setNonce] = useState(0);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
+  const isFirstLoadRef = useRef(true);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    if (isFirstLoadRef.current) {
+      setLoading(true);
+    }
     setError(null);
     fetcherRef
       .current()
       .then((result) => {
         if (!active) return;
         setData(result);
+        isFirstLoadRef.current = false;
         setLoading(false);
       })
       .catch((err) => {
         if (!active) return;
         setError(err);
+        isFirstLoadRef.current = false;
         setLoading(false);
       });
     return () => {

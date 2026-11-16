@@ -119,7 +119,7 @@ export default function Orders() {
                     <StatusBadge status={order.status} />
                   </div>
                   <p className="text-xs text-[#666666] mt-0.5 truncate">
-                    {order.order_code} · {order.shop_name} · {formatDate(order.created_at)}
+                    {order.order_code} · {order.shop_name || 'GrowLocal Order'} · {formatDate(order.created_at)}
                   </p>
                 </div>
                 <div className="text-right shrink-0">

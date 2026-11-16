@@ -20,3 +20,20 @@ export function authenticate(req, _res, next) {
     return next(new UnauthorizedError('Invalid or expired token'));
   }
 }
+
+export function optionalAuthenticate(req, _res, next) {
+  const header = req.headers.authorization || '';
+  const [scheme, token] = header.split(' ');
+  if (scheme === 'Bearer' && token) {
+    try {
+      const payload = verifyAccessToken(token);
+      req.auth = { type: payload.type, id: payload.sub };
+    } catch {
+      req.auth = null;
+    }
+  } else {
+    req.auth = null;
+  }
+  return next();
+}
+

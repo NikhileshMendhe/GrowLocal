@@ -29,6 +29,9 @@ export const listCustomersSchema = z.object({
 
 export const listProductsSchema = z.object({
   approvalStatus: z.enum(['draft', 'pending', 'approved', 'rejected', 'hidden']).optional(),
+  availabilityStatus: z.enum(['In Stock', 'Low Stock', 'Out of Stock']).optional(),
+  categoryId: z.string().uuid().optional(),
+  q: z.string().trim().max(255).optional(),
   ...pagination,
 });
 

@@ -36,3 +36,11 @@ export const updateStatus = asyncHandler(async (req, res) => {
   const enquiry = await enquiriesService.updateStatus(req.params.id, req.auth, req.body.status);
   res.json({ enquiry });
 });
+
+export const logWhatsAppInquiry = asyncHandler(async (req, res) => {
+  const enquiry = await enquiriesService.logWhatsAppInquiry(req.auth?.id || null, req.body);
+  res.status(201).json({
+    enquiry,
+    whatsappUrl: enquiry.redirectUrl || 'https://wa.me/message/YYPIT2XYSY5WD1',
+  });
+});

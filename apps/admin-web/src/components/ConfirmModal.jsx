@@ -4,15 +4,22 @@ import { Spinner } from './StateViews';
 
 export default function ConfirmModal({
   open,
+  isOpen,
   onClose,
   title,
   message,
+  description,
   confirmLabel = 'Confirm',
   tone = 'brand',
+  danger,
   onConfirm,
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const effectiveOpen = Boolean(open ?? isOpen);
+  const effectiveMessage = message ?? description;
+  const effectiveTone = danger ? 'danger' : tone;
 
   async function handleConfirm() {
     setSubmitting(true);
@@ -28,13 +35,13 @@ export default function ConfirmModal({
   }
 
   const confirmClass =
-    tone === 'danger'
+    effectiveTone === 'danger'
       ? 'bg-red-600 text-white hover:bg-red-700'
       : 'bg-brand text-white hover:bg-[#0F752C]';
 
   return (
     <Modal
-      open={open}
+      open={effectiveOpen}
       onClose={onClose}
       title={title}
       footer={
@@ -59,7 +66,7 @@ export default function ConfirmModal({
       }
     >
       <div className="space-y-3">
-        <p className="text-sm text-[#666666]">{message}</p>
+        <p className="text-sm text-[#666666]">{effectiveMessage}</p>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </div>
     </Modal>

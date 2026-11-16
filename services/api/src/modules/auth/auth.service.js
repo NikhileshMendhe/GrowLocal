@@ -100,7 +100,15 @@ export async function loginAdmin(input, meta) {
     throw new UnauthorizedError('Invalid email or password');
   }
   const session = await issueSession('admin', row.id, meta);
-  return { ...session, user: sanitize(row) };
+  return {
+    ...session,
+    user: {
+      ...sanitize(row),
+      type: 'admin',
+      role_name: row.role_name || 'admin',
+      role: 'admin',
+    },
+  };
 }
 
 /**
@@ -109,7 +117,7 @@ export async function loginAdmin(input, meta) {
  * replacement. Reuse of an already-rotated token is rejected — a stolen
  * refresh token stops working the moment the legitimate client refreshes.
  */
-export async function rotate(rawRefreshToken, meta) {
+export async function rotate(rawRefreshToken, meta, expectedType = null) {
   if (!rawRefreshToken) {
     throw new UnauthorizedError('Missing refresh token');
   }
@@ -118,6 +126,10 @@ export async function rotate(rawRefreshToken, meta) {
     payload = verifyRefreshToken(rawRefreshToken);
   } catch {
     throw new UnauthorizedError('Invalid refresh token');
+  }
+
+  if (expectedType && payload.type !== expectedType) {
+    throw new UnauthorizedError('Invalid session audience');
   }
 
   const tokenHash = hashToken(payload.jti);
@@ -142,8 +154,18 @@ export async function rotate(rawRefreshToken, meta) {
 
   const refreshToken = signRefreshToken({ id: payload.sub, type: payload.type, jti });
   const accessToken = signAccessToken({ id: payload.sub, type: payload.type });
-  const user = sanitize(await getUser(payload.type, payload.sub));
-  return { accessToken, refreshToken, user };
+  const rawUser = await getUser(payload.type, payload.sub);
+  const user = sanitize(rawUser);
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      ...user,
+      type: payload.type,
+      role_name: user?.role_name || (payload.type === 'admin' ? 'admin' : undefined),
+      role: user?.role_name || payload.type,
+    },
+  };
 }
 
 export async function logout(rawRefreshToken) {
@@ -167,5 +189,10 @@ async function getUser(type, id) {
 export async function getMe(auth) {
   const user = await getUser(auth.type, auth.id);
   if (!user) throw new NotFoundError('Account not found');
-  return user;
+  return {
+    ...user,
+    type: auth.type,
+    role_name: user?.role_name || (auth.type === 'admin' ? 'admin' : undefined),
+    role: user?.role_name || auth.type,
+  };
 }

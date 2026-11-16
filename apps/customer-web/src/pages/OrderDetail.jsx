@@ -155,12 +155,9 @@ export default function OrderDetail() {
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-[#666666]">
             <Store className="w-4 h-4 text-brand" />
-            <Link
-              to={`/shops/${order.shop_id}`}
-              className="font-medium text-brand hover:underline truncate"
-            >
-              {order.shop_name}
-            </Link>
+            <span className="font-medium text-[#111111] truncate">
+              {order.shop_name || 'GrowLocal Marketplace'}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-[#666666]">
             {order.fulfillment_type === 'delivery' ? (
@@ -185,6 +182,76 @@ export default function OrderDetail() {
             </span>
           </div>
         </div>
+
+        {/* Itemized Order Breakdown */}
+        {order.items && order.items.length > 0 ? (
+          <div className="border-t border-[#E5E7E5] pt-4 space-y-3">
+            <h3 className="text-xs font-bold text-[#666666] uppercase tracking-wider">
+              Ordered Items ({order.items.length})
+            </h3>
+            <div className="divide-y divide-[#E5E7E5] border border-[#E5E7E5] rounded-xl overflow-hidden bg-[#F7F8F7]">
+              {order.items.map((it) => (
+                <div key={it.id} className="p-3 flex items-center justify-between text-xs gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-[#E5E7E5] overflow-hidden flex items-center justify-center shrink-0">
+                      {it.product_image ? (
+                        <img src={it.product_image} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-4 h-4 text-[#888888]" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#111111] truncate">{it.product_name}</p>
+                      <p className="text-[#666666]">{formatMoney(it.unit_price)} × {it.quantity}</p>
+                    </div>
+                  </div>
+                  <span className="font-bold text-[#111111] shrink-0">
+                    {formatMoney(it.total_price)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Delivery / Recipient Details */}
+        {order.delivery ? (
+          <div className="border-t border-[#E5E7E5] pt-4 space-y-2 text-xs">
+            <h3 className="font-bold text-[#666666] uppercase tracking-wider">Delivery Details</h3>
+            <div className="bg-[#F7F8F7] border border-[#E5E7E5] rounded-xl p-3 space-y-1">
+              {order.delivery.recipient_name ? (
+                <div className="flex justify-between">
+                  <span className="text-[#666666]">Recipient:</span>
+                  <span className="font-semibold text-[#111111]">{order.delivery.recipient_name}</span>
+                </div>
+              ) : null}
+              {order.delivery.recipient_phone ? (
+                <div className="flex justify-between">
+                  <span className="text-[#666666]">Contact Phone:</span>
+                  <span className="font-semibold text-[#111111]">{order.delivery.recipient_phone}</span>
+                </div>
+              ) : null}
+              {order.delivery.delivery_address ? (
+                <div className="flex justify-between gap-4">
+                  <span className="text-[#666666]">Address:</span>
+                  <span className="font-medium text-[#111111] text-right truncate max-w-xs">{order.delivery.delivery_address}</span>
+                </div>
+              ) : null}
+              {order.delivery.delivery_pincode ? (
+                <div className="flex justify-between">
+                  <span className="text-[#666666]">Pincode:</span>
+                  <span className="font-medium text-[#111111]">{order.delivery.delivery_pincode}</span>
+                </div>
+              ) : null}
+              {order.delivery.delivery_notes ? (
+                <div className="flex justify-between gap-4">
+                  <span className="text-[#666666]">Notes:</span>
+                  <span className="text-[#666666] italic text-right">{order.delivery.delivery_notes}</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="border-t border-[#E5E7E5] pt-4 space-y-1.5 text-sm">
           <div className="flex justify-between text-[#666666]">

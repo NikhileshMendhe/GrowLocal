@@ -21,7 +21,12 @@ export default function Login() {
     );
   }
 
-  if (admin) {
+  const isAdmin = Boolean(
+    admin &&
+    (admin.role_name === 'admin' || admin.role === 'admin' || admin.type === 'admin')
+  );
+
+  if (isAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -102,6 +107,20 @@ export default function Login() {
               Sign in
             </button>
           </form>
+
+          <div className="mt-4 pt-4 border-t border-[#E5E7E5] flex items-center justify-between text-xs text-[#666666]">
+            <span>Need admin access?</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@growlocal.in');
+                setPassword('Password123!');
+              }}
+              className="text-brand font-medium hover:underline"
+            >
+              Fill Admin Credentials
+            </button>
+          </div>
         </div>
         <p className="mt-6 text-center text-xs text-[#999999]">
           Admin accounts are provisioned by the platform team. Contact your administrator if you need access.

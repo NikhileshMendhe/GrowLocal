@@ -26,22 +26,29 @@ export async function listForRecipient(
   { recipientType, recipientId },
   { unreadOnly = false, limit = 20, offset = 0 }
 ) {
-  const filters = ['recipient_type = $1', 'recipient_id = $2'];
-  const params = [recipientType, recipientId];
-  if (unreadOnly) {
-    filters.push('is_read = FALSE');
+  const params = [recipientType];
+  let whereClause = '';
+
+  if (recipientType === 'admin') {
+    whereClause = 'recipient_type = $1';
+  } else {
+    params.push(recipientId);
+    whereClause = 'recipient_type = $1 AND recipient_id = $2';
   }
-  const where = filters.join(' AND ');
+
+  if (unreadOnly) {
+    whereClause += ' AND is_read = FALSE';
+  }
 
   const { rows } = await query(
     `SELECT ${COLUMNS} FROM notifications
-      WHERE ${where}
+      WHERE ${whereClause}
       ORDER BY created_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
   const { rows: countRows } = await query(
-    `SELECT COUNT(*)::int AS total FROM notifications WHERE ${where}`,
+    `SELECT COUNT(*)::int AS total FROM notifications WHERE ${whereClause}`,
     params
   );
   return { rows, total: countRows[0].total };
@@ -61,6 +68,13 @@ export async function markRead(id) {
 }
 
 export async function markAllRead({ recipientType, recipientId }) {
+  if (recipientType === 'admin') {
+    const result = await query(
+      `UPDATE notifications SET is_read = TRUE WHERE recipient_type = 'admin' AND is_read = FALSE`
+    );
+    return result.rowCount;
+  }
+
   const result = await query(
     `UPDATE notifications SET is_read = TRUE
       WHERE recipient_type = $1 AND recipient_id = $2 AND is_read = FALSE`,

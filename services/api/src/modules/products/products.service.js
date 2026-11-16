@@ -12,7 +12,7 @@ import {
 // catalog + owning shop rooms right after the statement commits.
 
 function roomsFor(shopId) {
-  return [CATALOG_ROOM, shopRoom(shopId)];
+  return shopId ? [CATALOG_ROOM, shopRoom(shopId)] : [CATALOG_ROOM];
 }
 
 function slugify(name) {
@@ -36,10 +36,13 @@ function assertPriceConsistency(price, originalPrice) {
 }
 
 // §7.3 — ownership is always derived from the verified JWT (req.auth.id),
-// never from a client-supplied merchantId.
+// never from a client-supplied merchantId. Admins have global authority.
 async function loadOwnedProduct(caller, id) {
   const product = await repository.findById(id);
   if (!product) throw new NotFoundError('Product not found');
+  if (caller?.type === 'admin') {
+    return product;
+  }
   if (product.shop_merchant_id !== caller.id) {
     throw new ForbiddenError('You do not own this shop');
   }
@@ -58,14 +61,21 @@ async function persistAndEmit(existing, fields) {
   }
 
   await repository.update(existing.id, updates);
+  if (fields.images && Array.isArray(fields.images)) {
+    await repository.setProductImages(existing.id, fields.images);
+  }
   const product = await repository.findById(existing.id);
+  product.images = await repository.getProductImages(existing.id);
   emitToRooms(roomsFor(product.shop_id), EVENTS.PRODUCT_UPDATED, product);
   return product;
 }
 
-// Merchant callers list their own shops' products (all approval statuses);
+// Admins get the full catalog; merchant callers list their own shops' products;
 // everyone else gets the approved-only public catalog (§6.4).
 export async function listProducts(caller, filters, pagination) {
+  if (caller?.type === 'admin') {
+    return repository.list({ ...filters, ...pagination, publicOnly: false });
+  }
   if (caller?.type === 'merchant') {
     if (filters.shopId) {
       const shop = await repository.findShopById(filters.shopId);
@@ -83,29 +93,41 @@ export async function listProducts(caller, filters, pagination) {
 export async function getProduct(caller, id) {
   const product = await repository.findById(id);
   if (!product) throw new NotFoundError('Product not found');
-  if (caller?.type === 'merchant' && product.shop_merchant_id === caller.id) {
+  if (caller?.type === 'admin' || (caller?.type === 'merchant' && product.shop_merchant_id === caller.id)) {
+    product.images = await repository.getProductImages(product.id);
     return product;
   }
-  if (product.approval_status === 'approved' && product.shop_status !== 'suspended') {
+  if (product.approval_status === 'approved' && (product.shop_status === null || product.shop_status !== 'suspended')) {
+    product.images = await repository.getProductImages(product.id);
     return product;
   }
   throw new NotFoundError('Product not found');
 }
 
 export async function createProduct(caller, input) {
-  const shop = await repository.findShopById(input.shopId);
-  if (!shop || shop.merchant_id !== caller.id) {
-    throw new ForbiddenError('You do not own this shop');
+  if (caller?.type !== 'admin') {
+    if (!input.shopId) {
+      throw new ValidationError('shopId is required for merchant product creation');
+    }
+    const shop = await repository.findShopById(input.shopId);
+    if (!shop || shop.merchant_id !== caller.id) {
+      throw new ForbiddenError('You do not own this shop');
+    }
   }
   assertPriceConsistency(input.price, input.originalPrice ?? null);
 
-  // approval_status is not set: new products take the §3.2 DDL default 'approved'.
   const inserted = await repository.create({
     ...input,
+    shopId: input.shopId || null,
     slug: slugify(input.name),
     discountPercentage: discountPercentage(input.price, input.originalPrice ?? null),
+    approvalStatus: 'approved',
   });
+  if (input.images && Array.isArray(input.images)) {
+    await repository.setProductImages(inserted.id, input.images);
+  }
   const product = await repository.findById(inserted.id);
+  product.images = await repository.getProductImages(inserted.id);
   emitToRooms(roomsFor(product.shop_id), EVENTS.PRODUCT_CREATED, product);
   return product;
 }

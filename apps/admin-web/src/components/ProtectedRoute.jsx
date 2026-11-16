@@ -13,7 +13,12 @@ export default function ProtectedRoute() {
     );
   }
 
-  if (!admin) {
+  const isAdmin = Boolean(
+    admin &&
+    (admin.role_name === 'admin' || admin.role === 'admin' || admin.type === 'admin')
+  );
+
+  if (!isAdmin) {
     return <Navigate to="/login" replace />;
   }
 

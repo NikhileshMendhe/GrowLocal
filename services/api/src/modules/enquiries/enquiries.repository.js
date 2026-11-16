@@ -9,10 +9,13 @@ const COLUMNS = `id, enquiry_code, customer_id, shop_id, product_id, requested_s
   requested_color, budget, message, status, created_at, updated_at`;
 
 const DETAIL_SELECT = `SELECT e.*, s.name AS shop_name, s.merchant_id, p.name AS product_name,
-  c.full_name AS customer_name
+  (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY display_order ASC LIMIT 1) AS product_image,
+  c.full_name AS customer_name,
+  c.phone AS customer_phone,
+  c.email AS customer_email
   FROM enquiries e
-  JOIN shops s ON s.id = e.shop_id
-  JOIN customers c ON c.id = e.customer_id
+  LEFT JOIN shops s ON s.id = e.shop_id
+  LEFT JOIN customers c ON c.id = e.customer_id
   LEFT JOIN products p ON p.id = e.product_id`;
 
 export async function findById(id) {

@@ -12,6 +12,12 @@ export const listAuditLogs = asyncHandler(async (req, res) => {
   res.json({ auditLogs: rows, total, limit, offset });
 });
 
+export const listActivities = asyncHandler(async (req, res) => {
+  const { limit, offset } = parsePagination(req.query);
+  const { rows, total } = await adminService.listActivities({ ...req.query, limit, offset });
+  res.json({ activities: rows, total, limit, offset });
+});
+
 export const listShops = asyncHandler(async (req, res) => {
   const { limit, offset } = parsePagination(req.query);
   const { rows, total } = await adminService.listShops({ ...req.query, limit, offset });
@@ -34,6 +40,18 @@ export const listProducts = asyncHandler(async (req, res) => {
   const { limit, offset } = parsePagination(req.query);
   const { rows, total } = await adminService.listProducts({ ...req.query, limit, offset });
   res.json({ products: rows, total, limit, offset });
+});
+
+export const listOrders = asyncHandler(async (req, res) => {
+  const { limit, offset } = parsePagination(req.query);
+  const { rows, total } = await adminService.listOrders({ ...req.query, limit, offset });
+  res.json({ orders: rows, total, limit, offset });
+});
+
+export const listEnquiries = asyncHandler(async (req, res) => {
+  const { limit, offset } = parsePagination(req.query);
+  const { rows, total } = await adminService.listEnquiries({ ...req.query, limit, offset });
+  res.json({ enquiries: rows, total, limit, offset });
 });
 
 export const listVerifications = asyncHandler(async (req, res) => {
@@ -91,4 +109,36 @@ export const reviewVerification = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
   });
   res.json({ verification });
+});
+
+export const setEnquiryStatus = asyncHandler(async (req, res) => {
+  const enquiry = await adminService.setEnquiryStatus({
+    enquiryId: req.params.id,
+    status: req.body.status,
+  });
+  res.json({ enquiry });
+});
+
+export const setOrderStatus = asyncHandler(async (req, res) => {
+  const order = await adminService.setOrderStatus({
+    orderId: req.params.id,
+    status: req.body.status,
+    adminId: req.auth.id,
+    notes: req.body.notes,
+  });
+  res.json({ order });
+});
+
+export const getOrder = asyncHandler(async (req, res) => {
+  const order = await adminService.getOrder(req.params.id);
+  res.json({ order });
+});
+
+export const updateDelivery = asyncHandler(async (req, res) => {
+  const delivery = await adminService.updateDelivery({
+    orderId: req.params.id,
+    ...req.body,
+    adminId: req.auth.id,
+  });
+  res.json({ delivery });
 });

@@ -31,6 +31,12 @@ export async function listForRecipient(auth, options) {
 export async function markRead(id, auth) {
   const notification = await repository.findById(id);
   if (!notification) throw new NotFoundError('Notification not found');
+  if (auth.type === 'admin') {
+    if (notification.recipient_type !== 'admin') {
+      throw new ForbiddenError('This notification is not an admin alert');
+    }
+    return repository.markRead(id);
+  }
   if (notification.recipient_type !== auth.type || notification.recipient_id !== auth.id) {
     throw new ForbiddenError('This notification is not yours');
   }

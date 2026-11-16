@@ -1,6 +1,6 @@
 import { ApiError, createHttpClient, ENDPOINTS } from '@growlocal/api-client';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 export const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:4000';
 
 let accessToken = null;
@@ -76,6 +76,11 @@ export const api = {
 export const authApi = {
   login: async (email, password) => {
     const session = await http.post(ENDPOINTS.AUTH.MERCHANT_LOGIN, { email, password });
+    accessToken = session.accessToken;
+    return session;
+  },
+  signup: async (data) => {
+    const session = await http.post(ENDPOINTS.AUTH.MERCHANT_SIGNUP, data);
     accessToken = session.accessToken;
     return session;
   },

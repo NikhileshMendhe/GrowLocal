@@ -4,6 +4,8 @@ export function formatMoney(value) {
   return `₹${number.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 }
 
+export const formatCurrency = formatMoney;
+
 export function formatDate(value) {
   if (!value) return '';
   return new Date(value).toLocaleDateString('en-IN', {

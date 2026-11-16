@@ -115,24 +115,24 @@ export default function Profile() {
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
-          onClick={() => navigate('/saved')}
-          className="flex items-center gap-3 bg-white border border-[#E5E7E5] rounded-xl p-4 hover:border-brand text-left"
+          onClick={() => navigate('/search')}
+          className="flex items-center gap-3 bg-white border border-[#E5E7E5] rounded-xl p-4 hover:border-brand text-left transition-colors cursor-pointer"
         >
-          <Heart className="w-5 h-5 text-brand" />
+          <User className="w-5 h-5 text-brand" />
           <span>
-            <span className="block text-sm font-semibold text-[#111111]">Saved shops</span>
-            <span className="block text-xs text-[#666666]">Your favourites</span>
+            <span className="block text-sm font-semibold text-[#111111]">Browse Catalog</span>
+            <span className="block text-xs text-[#666666]">Explore all products</span>
           </span>
         </button>
         <button
           type="button"
-          onClick={() => navigate('/demand')}
-          className="flex items-center gap-3 bg-white border border-[#E5E7E5] rounded-xl p-4 hover:border-brand text-left"
+          onClick={() => navigate('/orders')}
+          className="flex items-center gap-3 bg-white border border-[#E5E7E5] rounded-xl p-4 hover:border-brand text-left transition-colors cursor-pointer"
         >
           <MapPin className="w-5 h-5 text-brand" />
           <span>
-            <span className="block text-sm font-semibold text-[#111111]">Demand requests</span>
-            <span className="block text-xs text-[#666666]">Ask the neighbourhood</span>
+            <span className="block text-sm font-semibold text-[#111111]">My Orders</span>
+            <span className="block text-xs text-[#666666]">View active & past orders</span>
           </span>
         </button>
       </div>

@@ -1,7 +1,7 @@
 import { ApiError, createHttpClient, ENDPOINTS } from '@growlocal/api-client';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-const WS_URL = import.meta.env.VITE_WS_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:4000';
 
 export const SESSION_EXPIRED_EVENT = 'gl:session-expired';
 

@@ -1,7 +1,7 @@
 import { ApiError, createHttpClient, ENDPOINTS } from '@growlocal/api-client';
-import { clearToken, getToken, setToken } from './token';
+import { clearToken, getToken, isAdminToken, setToken } from './token';
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const http = createHttpClient({ baseUrl, getAccessToken: getToken });
 
@@ -14,10 +14,18 @@ export function setSessionExpiredHandler(handler) {
 let refreshInFlight = null;
 
 async function performRefresh() {
-  const data = await http.post(ENDPOINTS.AUTH.REFRESH);
+  const data = await http.post(
+    `${ENDPOINTS.AUTH.REFRESH}?audience=admin`,
+    {},
+    { headers: { 'X-Auth-Audience': 'admin' } }
+  );
   const token = data?.accessToken || data?.token;
   if (!token) {
     throw new ApiError('Refresh response did not include an access token', { code: 'NO_TOKEN' });
+  }
+  if (!isAdminToken(token)) {
+    clearToken();
+    throw new ApiError('Current session does not have admin privileges', { code: 'FORBIDDEN', status: 403 });
   }
   setToken(token);
   return token;
@@ -36,15 +44,24 @@ async function withRefreshRetry(request) {
   try {
     return await request();
   } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 401) throw error;
-    try {
-      await refreshSession();
-    } catch {
-      clearToken();
-      sessionExpiredHandler?.();
-      throw error;
+    if (error instanceof ApiError) {
+      if (error.status === 403 && String(error.message || '').includes('role: admin')) {
+        clearToken();
+        sessionExpiredHandler?.();
+        throw error;
+      }
+      if (error.status === 401) {
+        try {
+          await refreshSession();
+          return await request();
+        } catch (refreshErr) {
+          clearToken();
+          sessionExpiredHandler?.();
+          throw refreshErr;
+        }
+      }
     }
-    return request();
+    throw error;
   }
 }
 

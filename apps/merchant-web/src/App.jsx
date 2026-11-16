@@ -30,7 +30,9 @@ function AppRoutes() {
   if (status === 'loading') return <FullScreenLoader />;
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<Login initialMode="login" />} />
+      <Route path="/signup" element={<Login initialMode="signup" />} />
+      <Route path="/register" element={<Login initialMode="signup" />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
@@ -48,7 +50,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ToastProvider>
         <AuthProvider>
           <SocketProvider>

@@ -18,7 +18,7 @@ export default function ReviewModal({ open, onClose, order, onReviewed }) {
     setSubmitting(true);
     try {
       await api.post(ENDPOINTS.REVIEWS.CREATE, {
-        shopId: order.shop_id,
+        ...(order.shop_id ? { shopId: order.shop_id } : {}),
         rating,
         ...(reviewText.trim() ? { reviewText: reviewText.trim() } : {}),
         ...(order.product_id ? { productId: order.product_id } : {}),
@@ -40,7 +40,7 @@ export default function ReviewModal({ open, onClose, order, onReviewed }) {
     <Modal
       open={open}
       onClose={submitting ? () => {} : onClose}
-      title={`Review ${order.shop_name}`}
+      title={order.shop_name ? `Review ${order.shop_name}` : 'Rate your purchase'}
       footer={
         <>
           <button
