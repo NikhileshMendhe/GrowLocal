@@ -35,7 +35,7 @@ async function main() {
     }
   });
 
-  server.listen(env.port, () => {
+  server.listen(env.port, '0.0.0.0', () => {
     logger.info(`GrowLocal API listening on :${env.port} (${env.nodeEnv})`);
   });
 
