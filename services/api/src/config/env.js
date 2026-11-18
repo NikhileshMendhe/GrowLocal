@@ -35,11 +35,16 @@ export const env = {
   port: Number(optional('PORT', '4000')),
   logLevel: optional('LOG_LEVEL', 'info'),
 
-  databaseUrl: required('DATABASE_URL'),
-  databaseSsl: optional('DATABASE_SSL', 'false') === 'true',
+  databaseUrl: optional(
+    'DATABASE_URL',
+    'postgresql://postgres.nydusjwdmmqtapfjhrpl:Nikhilesh%4007@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres'
+  ),
+  databaseSsl:
+    optional('DATABASE_SSL', 'true') === 'true' ||
+    Boolean(process.env.DATABASE_URL?.includes('supabase')),
 
-  jwtAccessSecret: required('JWT_ACCESS_SECRET'),
-  jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
+  jwtAccessSecret: optional('JWT_ACCESS_SECRET', 'growlocal_jwt_access_secret_super_secure_nagpur_2026_!'),
+  jwtRefreshSecret: optional('JWT_REFRESH_SECRET', 'growlocal_jwt_refresh_secret_super_secure_nagpur_2026_!'),
   accessTokenTtl: optional('ACCESS_TOKEN_TTL', '15m'),
   refreshTokenTtl: optional('REFRESH_TOKEN_TTL', '30d'),
 

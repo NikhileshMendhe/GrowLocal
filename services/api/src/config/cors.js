@@ -9,8 +9,12 @@ export const corsOptions = {
     // allow requests with no origin (like mobile apps, curl)
     if (!origin) return callback(null, true);
 
-    // in development, allow any localhost or 127.0.0.1 origin
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    // in development or on Netlify preview/production, allow matching origins
+    if (
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+      /^https?:\/\/([a-zA-Z0-9-]+\.)?netlify\.app$/.test(origin) ||
+      origin === 'https://growwlocal.netlify.app'
+    ) {
       return callback(null, true);
     }
 
